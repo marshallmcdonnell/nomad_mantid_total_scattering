@@ -295,6 +295,7 @@ binning= config['binning']
 high_q_linear_fit_range = config['high_q_linear_fit_range']
 wkspIndices=config['sumbanks'] # workspace indices - zero indexed arrays
 packing_fraction = config.get('packing_fraction',None)
+cache_dir = config.get("CacheDir", os.path.abspath('.') )
 
 sam = ','.join(['NOM_%d' % num for num in sam_scans])
 can = ','.join(['NOM_%d' % num for num in can])
@@ -348,7 +349,6 @@ alignAndFocusArgs['MaxChunkSize'] = 8
 alignAndFocusArgs['Characterizations'] = 'characterizations'
 alignAndFocusArgs['ReductionProperties'] = '__snspowderreduction'
 #alignAndFocusArgs['CacheDir'] = '/tmp' # TODO calculate this and set permissions
-alignAndFocusArgs['CacheDir'] = os.path.abspath('.') + '/cache_files' # TODO calculate this and set permissions
 
 ##########
 # sample
