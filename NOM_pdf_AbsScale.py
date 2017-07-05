@@ -287,6 +287,7 @@ sam_scans = config['sam']
 can = config['can']
 van_scans = config['van']
 van_bg = config['van_bg']
+van_abs = config.get('van_absorption_ws', None)
 if mode != 'check_levels':
     material = str(config['material'])
 calib = str(config['calib'])
@@ -295,7 +296,7 @@ binning= config['binning']
 high_q_linear_fit_range = config['high_q_linear_fit_range']
 wkspIndices=config['sumbanks'] # workspace indices - zero indexed arrays
 packing_fraction = config.get('packing_fraction',None)
-cache_dir = config.get("CacheDir", os.path.abspath('.') )
+cache_dir = str(config.get("CacheDir", os.path.abspath('.') ))
 
 sam = ','.join(['NOM_%d' % num for num in sam_scans])
 can = ','.join(['NOM_%d' % num for num in can])
@@ -348,7 +349,7 @@ alignAndFocusArgs['MaxChunkSize'] = 8
 #alignAndFocusArgs['CropWavelengthMax'] from characterizations file
 alignAndFocusArgs['Characterizations'] = 'characterizations'
 alignAndFocusArgs['ReductionProperties'] = '__snspowderreduction'
-#alignAndFocusArgs['CacheDir'] = '/tmp' # TODO calculate this and set permissions
+alignAndFocusArgs['CacheDir'] = cache_dir
 
 ##########
 # sample
@@ -388,7 +389,7 @@ NormaliseByCurrent(InputWorkspace=can, OutputWorkspace=can,
                    RecalculatePCharge=True)
 SaveNexusProcessed(mtd['container'], os.path.abspath('.') + '/container_nexus.nxs')
 
-AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium', Filename=van, Absorption=None, **alignAndFocusArgs)
+AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium', Filename=van, Absorption=van_abs, **alignAndFocusArgs)
 van = 'vanadium'
 NormaliseByCurrent(InputWorkspace=van, OutputWorkspace=van,
                    RecalculatePCharge=True)
@@ -400,25 +401,36 @@ NormaliseByCurrent(InputWorkspace=van_bg, OutputWorkspace=van_bg,
                    RecalculatePCharge=True)
 SaveNexusProcessed(mtd['vanadium_background'], os.path.abspath('.') + '/vanadium_background_nexus.nxs')
 
-# Multiple-Scattering for Vanadium
-SetSampleMaterial(InputWorkspace='vanadium', ChemicalFormula='V')
-ConvertUnits(InputWorkspace='vanadium', OutputWorkspace='vanadium', Target="Wavelength", EMode="Elastic")
-MultipleScatteringCylinderAbsorption(InputWorkspace='vanadium', OutputWorkspace='vanadium', CylinderSampleRadius=diaV/2.0)
 
-
-
-
-for name in ['sample', can, van, van_bg]:
-    ConvertUnits(InputWorkspace=name, OutputWorkspace=name,
-                 Target='MomentumTransfer', EMode='Elastic')
 
 sam_corrected = 'sam_corrected'
 van_corrected = 'van_corrected'
 Minus(LHSWorkspace='sample', RHSWorkspace=can, OutputWorkspace=sam_corrected)
 Minus(LHSWorkspace=van, RHSWorkspace=van_bg, OutputWorkspace=van_corrected)
+
+# Multiple-Scattering for Vanadium
+SetSampleMaterial(InputWorkspace=van_corrected, ChemicalFormula='V')
+ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Target="Wavelength", EMode="Elastic")
+MultipleScatteringCylinderAbsorption(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, CylinderSampleRadius=diaV/2.0)
+
+for name in ['sample', sam_corrected, can, van, van_corrected, van_bg]:
+    ConvertUnits(InputWorkspace=name, OutputWorkspace=name,
+                 Target='MomentumTransfer', EMode='Elastic')
+
 if alignAndFocusArgs['PreserveEvents']:
     CompressEvents(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected)
     CompressEvents(InputWorkspace=van_corrected, OutputWorkspace=van_corrected)
+
+
+#-----------------------------------------------------------------------------------------#
+# Vanadium Section
+
+def save_banks(ws,title,binning=None ):
+    CloneWorkspace(InputWorkspace=ws, OutputWorkspace="tmp")
+    Rebin(InputWorkspace="tmp", OutputWorkspace="tmp", Params=binning, PreserveEvents=False)
+    SaveAscii(InputWorkspace="tmp",Filename=title,Separator='Space',ColumnHeader=False,AppendToFile=False,SpectrumList=range(mtd["tmp"].getNumberHistograms()) )
+    return
+    
 
 if mode != 'check_levels':
     SetSampleMaterial(InputWorkspace=sam_corrected, ChemicalFormula=material)
@@ -426,8 +438,12 @@ SetSampleMaterial(InputWorkspace=van_corrected, ChemicalFormula='V')
 
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='dSpacing', EMode='Elastic')
+save_banks(van_corrected, title="vanadium_with_peaks.dat", binning=binning)
+
 StripVanadiumPeaks(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
                    BackgroundType='Quadratic')
+save_banks(van_corrected, title="vanadium_stripped.dat", binning=binning)
+
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='TOF', EMode='Elastic')
 FFTSmooth(InputWorkspace=van_corrected,
@@ -436,6 +452,8 @@ FFTSmooth(InputWorkspace=van_corrected,
           Params='20,2',
           IgnoreXBins=True,
           AllSpectra=True)
+save_banks(van_corrected, title="vanadium_stripped_smoothed.dat", binning=binning)
+
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='MomentumTransfer', EMode='Elastic')
 SetUncertainties(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
@@ -446,15 +464,15 @@ bcoh_avg_sqrd = material.cohScatterLength()*material.cohScatterLength()
 btot_sqrd_avg = material.totalScatterLengthSqrd()
 term_to_subtract = btot_sqrd_avg / bcoh_avg_sqrd
 
-for bank in range(mtd['van_corrected'].getNumberHistograms()):
-    x_data = mtd['van_corrected'].readX(bank)[0:-1]
-    y_data = mtd['van_corrected'].readY(bank)
+for bank in range(mtd[van_corrected].getNumberHistograms()):
+    x_data = mtd[van_corrected].readX(bank)[0:-1]
+    y_data = mtd[van_corrected].readY(bank)
     bank_title='vanadium_bank_'+str(bank)+'.dat'
     with open(bank_title,'a') as f:
         for x, y in zip(x_data, y_data):
             f.write("%f %f \n" % (x, y))
 
-SQ_banks =  (1./bcoh_avg_sqrd)*mtd['sam_corrected']/mtd['van_corrected'] - (term_to_subtract-1.) 
+SQ_banks =  (1./bcoh_avg_sqrd)*mtd[sam_corrected]/mtd[van_corrected] - (term_to_subtract-1.) 
 
 ##################################################################################################
 # F(Q) section
@@ -561,11 +579,11 @@ Rebin(InputWorkspace=van_bg,        OutputWorkspace='background',      Params=bi
 #MaskBinsFromTable(InputWorkspace='container',   OutputWorkspace='container_single', MaskingInformation=mask_info)
 #MaskBinsFromTable(InputWorkspace='sample',      OutputWorkspace='sample_raw_single',MaskingInformation=mask_info)
 
-RenameWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='sam_single')
-RenameWorkspace(InputWorkspace=van_corrected, OutputWorkspace='van_single')
-RenameWorkspace(InputWorkspace='container', OutputWorkspace='container_single')
-RenameWorkspace(InputWorkspace='sample', OutputWorkspace='sample_raw_single')
-RenameWorkspace(InputWorkspace='background', OutputWorkspace='background_single')
+CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='sam_single')
+CloneWorkspace(InputWorkspace=van_corrected, OutputWorkspace='van_single')
+CloneWorkspace(InputWorkspace='container', OutputWorkspace='container_single')
+CloneWorkspace(InputWorkspace='sample', OutputWorkspace='sample_raw_single')
+CloneWorkspace(InputWorkspace='background', OutputWorkspace='background_single')
 
 SumSpectra(InputWorkspace='sam_single', OutputWorkspace='sam_single',
            ListOfWorkspaceIndices=wkspIndices)
