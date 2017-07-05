@@ -1,0 +1,17 @@
+{
+    "high_q_linear_fit_range" : 0.60,
+    "title" : "Si_SRM_e_d91772_no_mask", 
+    "material": "Si",
+    "van": [91603],
+    "van_bg": [91607],
+    "sam": [91796],
+    "can": [91766],
+    "calib": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_d91621_2017_04_12_shifter.h5",
+    "charac": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt",
+    "Absorption": "absorption_V_0_58.nxs",
+    "packing_fraction" : 0.5,
+    "binning": [0.0, 0.02, 50.0],
+    "sumbanks": [3],
+    "CacheDir" : "/SNS/NOM/shared/cache_files"
+}
+
