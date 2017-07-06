@@ -116,8 +116,42 @@ def save_file(ws, title, header=list()):
             f.write('# %s \n' % line)
     SaveAscii(InputWorkspace=ws,Filename=title,Separator='Space',ColumnHeader=False,AppendToFile=True)
 
+def save_banks(ws,title,binning=None ):
+    CloneWorkspace(InputWorkspace=ws, OutputWorkspace="tmp")
+    Rebin(InputWorkspace="tmp", OutputWorkspace="tmp", Params=binning, PreserveEvents=False)
+    SaveAscii(InputWorkspace="tmp",Filename=title,Separator='Space',ColumnHeader=False,AppendToFile=False,SpectrumList=range(mtd["tmp"].getNumberHistograms()) )
+    return
 
+def save_banks_with_fit( title, fitrange_individual, InputWorkspace=None, **kwargs ):
+    # Header
+    for i, fitrange in enumerate(fitrange_individual):
+        print 'fitrange:', fitrange[0], fitrange[1]
 
+        Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
+            WorkspaceIndex=i,
+            StartX=fitrange[0], EndX=fitrange[1], # range cannot include area with NAN
+            InputWorkspace=InputWorkspace, Output=InputWorkspace, OutputCompositeMembers=True)
+        fitParams = mtd[InputWorkspace+'_Parameters']
+
+        bank_title=title+'_'+InputWorkspace+'_bank_'+str(i)+'.dat'
+        with open(bank_title,'w') as f:
+            if 'btot_sqrd_avg' in kwargs:
+                f.write('#<b^2> : %f \n' % kwargs['btot_sqrd_avg'])
+            if 'bcoh_avg_sqrd' in kwargs:
+                f.write('#<b>^2 : %f \n' % kwargs['bcoh_avg_sqrd'])
+            if 'self_scat' in kwargs:
+                f.write('#self scattering : %f \n' % kwargs['self_scat'])
+            f.write('#fitrange: %f %f \n' % (fitrange[0], fitrange[1]))
+            f.write('#for bank%d: %f + %f * Q\n' % (i+1, fitParams.cell('Value', 0), fitParams.cell('Value', 1)))
+
+    # Body
+    for bank in range(mtd[InputWorkspace].getNumberHistograms()):
+        x_data = mtd[InputWorkspace].readX(bank)[0:-1]
+        y_data = mtd[InputWorkspace].readY(bank)
+        bank_title=title+'_bank_'+str(bank)+'.dat'
+        with open(bank_title,'a') as f:
+            for x, y in zip(x_data, y_data):
+                f.write("%f %f \n" % (x, y))
 
 def generateCropingTable(qmin, qmax):
     mask_info = CreateEmptyTableWorkspace()
@@ -131,9 +165,42 @@ def generateCropingTable(qmin, qmax):
 
     return mask_info
 
+def getQmaxFromData(Workspace=None, WorkspaceIndex=0):
+    if Workspace is None:
+        return None
+    return max(mtd[Workspace].readX(WorkspaceIndex))
+
+
 def GenerateEventsFilterFromFiles(filenames, OutputWorkspace,
                                   InformationWorkspace, **kwargs):
     pass
+
+def GenerateEventsFilterFromFiles(filenames, OutputWorkspace, InformationWorkspace, **kwargs):
+    
+    logName = kwargs.get('LogName', None)
+    minValue = kwargs.get('MinimumLogValue', None)
+    maxValue = kwargs.get('MaximumLogValue', None)
+    logInterval = kwargs.get('LogValueInterval', None)
+    unitOftime = kwargs.get('UnitOfTime', 'Nanoseconds')
+    
+    # TODO - handle multi-file filtering. Delete this line once implemented.
+    assert len(filenames) == 1, 'ERROR: Multi-file filtering is not yet supported. (Stay tuned...)'
+    
+    for i, filename in enumerate(filenames):
+        Load(Filename=filename, OutputWorkspace=filename)
+        splitws, infows = GenerateEventsFilter(InputWorkspace=filename, 
+                                               UnitOfTime=unitOfTime,
+                                               LogName=logName, 
+                                               MinimumLogValue=minValue, 
+                                               MaximumLogValue=maxValue,
+                                               LogValueInterval=logInterval )
+        if i == 0:
+            GroupWorkspaces( splitws, OutputWorkspace=Outputworkspace )
+            GroupWorkspaces( infows, OutputWorkspace=InformationWorkspace )
+        else:
+            mtd[OutputWorkspace].add(splitws)
+            mtd[InformationWorkspace].add(infows)
+    return 
 
 #-----------------------------------------------------------------------------------------
 # Absolute Scale stuff
@@ -352,20 +419,6 @@ alignAndFocusArgs['Characterizations'] = 'characterizations'
 alignAndFocusArgs['ReductionProperties'] = '__snspowderreduction'
 alignAndFocusArgs['CacheDir'] = cache_dir
 
-##########
-# sample
-# container
-# vanadium
-# vanadium_background
-# sam_corrected
-# van_corrected
-# SQ_banks
-# sam_single
-# van_single
-# SQ
-##########
-
-
 #Load(Filename='/home/pf9/Dropbox/AdvancedDiffractionGroup/NOMADsoftware/scripts/marshall/absorption_V_0_58.nxs',
 #     OutputWorkspace='van_absorption')
 
@@ -426,13 +479,6 @@ if alignAndFocusArgs['PreserveEvents']:
 #-----------------------------------------------------------------------------------------#
 # Vanadium Section
 
-def save_banks(ws,title,binning=None ):
-    CloneWorkspace(InputWorkspace=ws, OutputWorkspace="tmp")
-    Rebin(InputWorkspace="tmp", OutputWorkspace="tmp", Params=binning, PreserveEvents=False)
-    SaveAscii(InputWorkspace="tmp",Filename=title,Separator='Space',ColumnHeader=False,AppendToFile=False,SpectrumList=range(mtd["tmp"].getNumberHistograms()) )
-    return
-    
-
 if mode != 'check_levels':
     SetSampleMaterial(InputWorkspace=sam_corrected, ChemicalFormula=material)
 SetSampleMaterial(InputWorkspace=van_corrected, ChemicalFormula='V')
@@ -460,23 +506,18 @@ ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
 SetUncertainties(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
                  SetError='zero')
 
+#-----------------------------------------------------------------------------------------#
+# S(Q) bank-by-bank Section
+
 material = mtd[sam_corrected].sample().getMaterial()
 bcoh_avg_sqrd = material.cohScatterLength()*material.cohScatterLength()
 btot_sqrd_avg = material.totalScatterLengthSqrd()
 term_to_subtract = btot_sqrd_avg / bcoh_avg_sqrd
 
-for bank in range(mtd[van_corrected].getNumberHistograms()):
-    x_data = mtd[van_corrected].readX(bank)[0:-1]
-    y_data = mtd[van_corrected].readY(bank)
-    bank_title='vanadium_bank_'+str(bank)+'.dat'
-    with open(bank_title,'a') as f:
-        for x, y in zip(x_data, y_data):
-            f.write("%f %f \n" % (x, y))
-
 SQ_banks =  (1./bcoh_avg_sqrd)*mtd[sam_corrected]/mtd[van_corrected] - (term_to_subtract-1.) 
 
-##################################################################################################
-# F(Q) section
+#-----------------------------------------------------------------------------------------#
+# F(Q) bank-by-bank Section
 
 print 'self_scat:', self_scat
 
@@ -486,12 +527,8 @@ print "Prefactor term:", prefactor
 FQ_banks_raw = prefactor * mtd['sam_corrected'] / mtd['van_corrected'] 
 FQ_banks = FQ_banks_raw - self_scat 
 
-##################################################################################################
-
-def getQmaxFromData(Workspace=None, WorkspaceIndex=0):
-    if Workspace is None:
-        return None
-    return max(mtd[Workspace].readX(WorkspaceIndex))
+#-----------------------------------------------------------------------------------------#
+# Ouput bank-by-bank with linear fits for high-Q 
 
 # fit the last 80% of the bank being used
 for i, q in zip(range(mtd['sam_corrected'].getNumberHistograms()), qmax):
@@ -503,82 +540,33 @@ fitrange_individual = [(high_q_linear_fit_range*q, q) for q in qmax]
 for q in qmax:
     print 'Linear Fit Qrange:', high_q_linear_fit_range*q, q
 
-for i, fitrange in enumerate(fitrange_individual):
-    print 'fitrange:', fitrange[0], fitrange[1]
 
-    Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
-        WorkspaceIndex=i,
-        StartX=fitrange[0], EndX=fitrange[1], # range cannot include area with NAN
-        InputWorkspace='SQ_banks', Output='SQ_banks', OutputCompositeMembers=True)
-    fitParams = mtd['SQ_banks_Parameters']
+kwargs = { 'btot_sqrd_avg' : btot_sqrd_avg,
+           'bcoh_avg_sqrd' : bcoh_avg_sqrd,
+           'self_scat' : self_scat }
 
-    bank_title=title+'_bank_'+str(i)+'.dat'
-    with open(bank_title,'w') as f:
-        f.write('#<b^2> : %f \n' % btot_sqrd_avg)
-        f.write('#<b>^2 : %f \n' % bcoh_avg_sqrd)
-        f.write('#fitrange: %f %f \n' % (fitrange[0], fitrange[1]))
-        f.write('#for bank%d: %f + %f * Q\n' % (i+1, fitParams.cell('Value', 0), fitParams.cell('Value', 1)))
+save_banks_with_fit( title, fitrange_individual, InputWorkspace='SQ_banks', **kwargs)
+save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks', **kwargs)
+save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks_raw', **kwargs)
 
-for i, fitrange in enumerate(fitrange_individual):
-    print 'fitrange:', fitrange[0], fitrange[1]
-
-    Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
-        WorkspaceIndex=i,
-        StartX=fitrange[0], EndX=fitrange[1], # range cannot include area with NAN
-        InputWorkspace='FQ_banks', Output='FQ_banks', OutputCompositeMembers=True)
-    fitParams = mtd['FQ_banks_Parameters']
-
-    bank_title=title+'_bank_'+str(i)+'.dat'
-    with open(bank_title,'w') as f:
-        f.write('#fitrange: %f %f \n' % (fitrange[0], fitrange[1]))
-        f.write('#for bank%d: %f + %f * Q\n' % (i+1, fitParams.cell('Value', 0), fitParams.cell('Value', 1)))
-
-for i, fitrange in enumerate(fitrange_individual):
-    print 'fitrange:', fitrange[0], fitrange[1]
-    Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
-        WorkspaceIndex=i,
-        StartX=fitrange[0], EndX=fitrange[1], # range cannot include area with NAN
-        InputWorkspace='FQ_banks_raw', Output='FQ_banks_raw', OutputCompositeMembers=True)
-    fitParams = mtd['FQ_banks_raw_Parameters']
-
-    bank_title=title+'_bank_'+str(i)+'.dat'
-    with open(bank_title,'w') as f:
-        f.write('#fitrange: %f %f \n' % (fitrange[0], fitrange[1]))
-        f.write('#for bank%d: %f + %f * Q\n' % (i+1, fitParams.cell('Value', 0), fitParams.cell('Value', 1)))
-
-for bank in range(SQ_banks.getNumberHistograms()):
-    x_data = SQ_banks.readX(bank)[0:-1]
-    y_data = SQ_banks.readY(bank)
-    bank_title=title+'_bank_'+str(bank)+'.dat'
-    with open(bank_title,'a') as f:
-        for x, y in zip(x_data, y_data):
-            f.write("%f %f \n" % (x, y))
-
-for bank in range(FQ_banks.getNumberHistograms()):
-    x_data = FQ_banks.readX(bank)[0:-1]
-    y_data = FQ_banks.readY(bank)
-    bank_title=title+'_bank_'+str(bank)+'.dat'
-    with open(bank_title,'a') as f:
-        for x, y in zip(x_data, y_data):
-            f.write("%f %f \n" % (x, y))
-for bank in range(FQ_banks_raw.getNumberHistograms()):
-    x_data = FQ_banks_raw.readX(bank)[0:-1]
-    y_data = FQ_banks_raw.readY(bank)
-    bank_title=title+'_bank_'+str(bank)+'.dat'
-    with open(bank_title,'a') as f:
-        for x, y in zip(x_data, y_data):
-            f.write("%f %f \n" % (x, y))
-
+#-----------------------------------------------------------------------------------------#
+# Event workspace -> Histograms
 Rebin(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected, Params=binning, PreserveEvents=False)
 Rebin(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Params=binning, PreserveEvents=False)
 Rebin(InputWorkspace='container',   OutputWorkspace='container',   Params=binning, PreserveEvents=False)
 Rebin(InputWorkspace='sample',      OutputWorkspace='sample',      Params=binning, PreserveEvents=False)
 Rebin(InputWorkspace=van_bg,        OutputWorkspace='background',      Params=binning, PreserveEvents=False)
 
+#-----------------------------------------------------------------------------------------#
+# Apply Qmin Qmax limits
+
 #MaskBinsFromTable(InputWorkspace=sam_corrected, OutputWorkspace='sam_single',       MaskingInformation=mask_info)
 #MaskBinsFromTable(InputWorkspace=van_corrected, OutputWorkspace='van_single',       MaskingInformation=mask_info)
 #MaskBinsFromTable(InputWorkspace='container',   OutputWorkspace='container_single', MaskingInformation=mask_info)
 #MaskBinsFromTable(InputWorkspace='sample',      OutputWorkspace='sample_raw_single',MaskingInformation=mask_info)
+
+#-----------------------------------------------------------------------------------------#
+# Get sinlge, merged spectrum from banks
 
 CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='sam_single')
 CloneWorkspace(InputWorkspace=van_corrected, OutputWorkspace='van_single')
@@ -599,14 +587,13 @@ SumSpectra(InputWorkspace='sample_raw_single', OutputWorkspace='sample_raw_singl
 SumSpectra(InputWorkspace='background_single', OutputWorkspace='background_single',
            ListOfWorkspaceIndices=wkspIndices)
 
+#-----------------------------------------------------------------------------------------#
+# Merged S(Q) and F(Q)
+
 # do the division correctly and subtract off the material specific term
 SQ = (1./bcoh_avg_sqrd)*mtd['sam_single']/mtd['van_single'] - (term_to_subtract-1.)  # +1 to get back to S(Q)
-
-##################################################################################################
-# F(Q) section
 FQ_raw = prefactor * mtd['sam_single']/mtd['van_single']
 FQ = FQ_raw - self_scat
-##################################################################################################
 
 '''
 Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
