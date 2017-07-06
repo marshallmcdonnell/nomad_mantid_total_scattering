@@ -148,7 +148,8 @@ def save_banks_with_fit( title, fitrange_individual, InputWorkspace=None, **kwar
     for bank in range(mtd[InputWorkspace].getNumberHistograms()):
         x_data = mtd[InputWorkspace].readX(bank)[0:-1]
         y_data = mtd[InputWorkspace].readY(bank)
-        bank_title=title+'_bank_'+str(bank)+'.dat'
+        bank_title=title+'_'+InputWorkspace+'_bank_'+str(bank)+'.dat'
+        print "####", bank_title
         with open(bank_title,'a') as f:
             for x, y in zip(x_data, y_data):
                 f.write("%f %f \n" % (x, y))
@@ -484,11 +485,15 @@ if mode != 'check_levels':
 SetSampleMaterial(InputWorkspace=van_corrected, ChemicalFormula='V')
 
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
-             Target='dSpacing', EMode='Elastic')
+             Target='MomentumTransfer', EMode='Elastic')
 save_banks(van_corrected, title="vanadium_with_peaks.dat", binning=binning)
 
+ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+             Target='dSpacing', EMode='Elastic')
 StripVanadiumPeaks(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
                    BackgroundType='Quadratic')
+ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+             Target='MomentumTransfer', EMode='Elastic')
 save_banks(van_corrected, title="vanadium_stripped.dat", binning=binning)
 
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
@@ -499,10 +504,10 @@ FFTSmooth(InputWorkspace=van_corrected,
           Params='20,2',
           IgnoreXBins=True,
           AllSpectra=True)
-save_banks(van_corrected, title="vanadium_stripped_smoothed.dat", binning=binning)
-
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='MomentumTransfer', EMode='Elastic')
+save_banks(van_corrected, title="vanadium_stripped_smoothed.dat", binning=binning)
+
 SetUncertainties(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
                  SetError='zero')
 
@@ -548,7 +553,7 @@ kwargs = { 'btot_sqrd_avg' : btot_sqrd_avg,
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='SQ_banks', **kwargs)
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks', **kwargs)
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks_raw', **kwargs)
-
+exit()
 #-----------------------------------------------------------------------------------------#
 # Event workspace -> Histograms
 Rebin(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected, Params=binning, PreserveEvents=False)

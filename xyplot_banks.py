@@ -58,4 +58,5 @@ for i, filename in enumerate(args.filenames):
     with open(filename, 'r') as f:
         plot_banks(f,title=filename,banks_list=args.banks, line_style=line_styles[i])
 
+plt.legend()
 plt.show()            
