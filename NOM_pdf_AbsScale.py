@@ -288,6 +288,7 @@ can = config['can']
 van_scans = config['van']
 van_bg = config['van_bg']
 van_abs = config.get('van_absorption_ws', None)
+van_mutscat = config.get('mutscat', True)
 if mode != 'check_levels':
     material = str(config['material'])
 calib = str(config['calib'])
@@ -629,6 +630,7 @@ fitParams = mtd['FQ_raw_Parameters']
 # Save dat file
 header_lines = ['<b^2> : %f ' % btot_sqrd_avg, \
                 '<b>^2 : %f ' % bcoh_avg_sqrd, \
+                'self scattering: %f ' % self_scat, \
                 'fitrange: %f %f '  % (high_q_linear_fit_range*qmax,qmax), \
                 'for merged banks %s: %f + %f * Q' % (','.join([ str(i) for i in wkspIndices]), \
                                                    fitParams.cell('Value', 0), fitParams.cell('Value', 1)) ]
