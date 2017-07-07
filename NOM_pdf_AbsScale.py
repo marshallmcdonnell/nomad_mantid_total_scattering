@@ -355,7 +355,7 @@ sam_scans = config['sam']
 can = config['can']
 van_scans = config['van']
 van_bg = config['van_bg']
-van_abs = config.get('van_absorption_ws', None)
+van_abs = str(config.get('van_absorption_ws', None))
 van_mutscat = config.get('mutscat', True)
 if mode != 'check_levels':
     material = str(config['material'])
@@ -420,8 +420,6 @@ alignAndFocusArgs['Characterizations'] = 'characterizations'
 alignAndFocusArgs['ReductionProperties'] = '__snspowderreduction'
 alignAndFocusArgs['CacheDir'] = cache_dir
 
-#Load(Filename='/home/pf9/Dropbox/AdvancedDiffractionGroup/NOMADsoftware/scripts/marshall/absorption_V_0_58.nxs',
-#     OutputWorkspace='van_absorption')
 
 AlignAndFocusPowderFromFiles(OutputWorkspace='sample', Filename=sam, Absorption=None, **alignAndFocusArgs)
 NormaliseByCurrent(InputWorkspace='sample', OutputWorkspace='sample',
@@ -438,19 +436,22 @@ for a,b in zip(qmin, qmax):
     print 'Qrange:', a, b
 mask_info = generateCropingTable(qmin, qmax)
 
+# TODO take out the RecalculatePCharge in the future once tested
+
 AlignAndFocusPowderFromFiles(OutputWorkspace='container', Filename=can, Absorption=None, **alignAndFocusArgs)
 can = 'container'
 NormaliseByCurrent(InputWorkspace=can, OutputWorkspace=can,
                    RecalculatePCharge=True)
 SaveNexusProcessed(mtd['container'], os.path.abspath('.') + '/container_nexus.nxs')
 
-AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium', Filename=van, Absorption=van_abs, **alignAndFocusArgs)
+Load(Filename=van_abs, OutputWorkspace='van_absorption')
+AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium', Filename=van, AbsorptionWorkspace='van_absorption', **alignAndFocusArgs)
 van = 'vanadium'
 NormaliseByCurrent(InputWorkspace=van, OutputWorkspace=van,
                    RecalculatePCharge=True)
 SaveNexusProcessed(mtd['vanadium'], os.path.abspath('.') + '/vanadium_nexus.nxs')
 
-AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium_background', Filename=van_bg, Absorption=None, **alignAndFocusArgs)
+AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium_background', Filename=van_bg, AbsorptionWorkspace='van_absorption', **alignAndFocusArgs)
 van_bg = 'vanadium_background'
 NormaliseByCurrent(InputWorkspace=van_bg, OutputWorkspace=van_bg,
                    RecalculatePCharge=True)
@@ -467,6 +468,13 @@ Minus(LHSWorkspace=van, RHSWorkspace=van_bg, OutputWorkspace=van_corrected)
 SetSampleMaterial(InputWorkspace=van_corrected, ChemicalFormula='V')
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Target="Wavelength", EMode="Elastic")
 MultipleScatteringCylinderAbsorption(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, CylinderSampleRadius=diaV/2.0)
+#MayersSampleCorrection() # Monte-Carlo multiple scattering
+
+# Absorption for Vanadium
+#AlignAndFocusPowderFromFiles(OutputWorkspace='van_abs', Filename=os.path.abspath('.')+'/'+van_abs, Absorption=None, **alignAndFocusArgs)
+#ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Target="Wavelength", EMode="Elastic")
+#Divide(LHSWorkspace=van_corrected, RHSWorkspace='van_abs') 
+
 
 for name in ['sample', sam_corrected, can, van, van_corrected, van_bg]:
     ConvertUnits(InputWorkspace=name, OutputWorkspace=name,
@@ -553,7 +561,7 @@ kwargs = { 'btot_sqrd_avg' : btot_sqrd_avg,
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='SQ_banks', **kwargs)
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks', **kwargs)
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks_raw', **kwargs)
-exit()
+
 #-----------------------------------------------------------------------------------------#
 # Event workspace -> Histograms
 Rebin(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected, Params=binning, PreserveEvents=False)
