@@ -588,14 +588,15 @@ bcoh_avg_sqrd = material.cohScatterLength()*material.cohScatterLength()
 btot_sqrd_avg = material.totalScatterLengthSqrd()
 print bcoh_avg_sqrd, btot_sqrd_avg
 term_to_subtract = btot_sqrd_avg / bcoh_avg_sqrd
-SQ_banks =  (1./bcoh_avg_sqrd)*mtd[sam_corrected] - (term_to_subtract-1.) 
+CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='SQ_banks_ws')
+SQ_banks =  (1./bcoh_avg_sqrd)*mtd['SQ_banks_ws'] - (term_to_subtract-1.) 
+
 
 # F(Q) bank-by-bank Section
 sigma_v = mtd[van_corrected].sample().getMaterial().totalScatterXSection()
 prefactor = ( sigma_v / (4.*np.pi) )
-print type(prefactor), prefactor
-print type(mtd[sam_corrected])
-FQ_banks_raw = (prefactor) * mtd[sam_corrected]
+CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='FQ_banks_ws')
+FQ_banks_raw = (prefactor) * mtd['FQ_banks_ws']
 FQ_banks = FQ_banks_raw - self_scat 
 
 #-----------------------------------------------------------------------------------------#
@@ -663,10 +664,14 @@ SumSpectra(InputWorkspace='background_single', OutputWorkspace='background_singl
 # Merged S(Q) and F(Q)
 
 # do the division correctly and subtract off the material specific term
-SQ = (1./bcoh_avg_sqrd)*mtd['sam_single'] - (term_to_subtract-1.)  # +1 to get back to S(Q)
-FQ_raw = prefactor * mtd['sam_single']
+CloneWorkspace(InputWorkspace='sam_single', OutputWorkspace='SQ_ws')
+SQ = (1./bcoh_avg_sqrd)*mtd['SQ_ws'] - (term_to_subtract-1.)  # +1 to get back to S(Q)
+
+CloneWorkspace(InputWorkspace='sam_single', OutputWorkspace='FQ_ws')
+FQ_raw = prefactor * mtd['FQ_ws']
 FQ = FQ_raw - self_scat
 
+qmax = 48.0
 Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
     StartX=high_q_linear_fit_range*qmax, EndX=qmax, # range cannot include area with NAN
     InputWorkspace='SQ', Output='SQ', OutputCompositeMembers=True)
@@ -692,9 +697,6 @@ header_lines = ['<b^2> : %f ' % btot_sqrd_avg, \
                 'for merged banks %s: %f + %f * Q' % (','.join([ str(i) for i in wkspIndices]), \
                                                    fitParams.cell('Value', 0), fitParams.cell('Value', 1)) ]
 
-sample_by_vanadium = mtd['sample_raw_single'] / mtd['van_single']
-container_by_vanadium = mtd['container_single'] / mtd['van_single']
-background_by_vanadium = mtd['background_single'] / mtd['van_single']
 
 save_file(mtd['sample_raw_single'], title+'_merged_sample_raw.dat',        header=header_lines)
 save_file(mtd['container_single'],  title+'_merged_container.dat',         header=header_lines)
@@ -702,9 +704,6 @@ save_file(mtd['sam_single'],        title+'_merged_sample_minus_background.dat',
 save_file(mtd['van_single'],        title+'_merged_vanadium.dat',          header=header_lines)
 save_file(mtd['background_single'], title+'_merged_background.dat',          header=header_lines)
 save_file(SQ,                       title+'_merged_sample_normalized.dat', header=header_lines)
-save_file(sample_by_vanadium,       title+'_merged_sample_by_vanadium.dat', header=header_lines)
-save_file(container_by_vanadium,    title+'_merged_container_by_vanadium.dat', header=header_lines)
-save_file(background_by_vanadium,   title+'_merged_background_by_vanadium.dat',   header=header_lines)
 
 save_file(FQ,                       title+'_FQ.dat', header=header_lines)
 save_file(FQ_raw,                   title+'_FQ_raw.dat', header=header_lines)
