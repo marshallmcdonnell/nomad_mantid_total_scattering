@@ -356,7 +356,8 @@ can = config['can']
 van_scans = config['van']
 van_bg = config['van_bg']
 van_abs = str(config.get('van_absorption_ws', None))
-van_mutscat = config.get('mutscat', True)
+van_corr_type = config.get('van_corr_type', "Carpenter")
+sam_corr_type = config.get('sam_corr_type', "Carpenter")
 if mode != 'check_levels':
     material = str(config['material'])
 calib = str(config['calib'])
@@ -383,13 +384,25 @@ getAbsScaleInfoFromNexus([78223],ChemicalFormula="Ba1 Ti1 O3", PackingFraction=0
 print "#-----------------------------------#"
 print "# Sample"
 print "#-----------------------------------#"
-natoms, self_scat = getAbsScaleInfoFromNexus(sam_scans,PackingFraction=packing_fraction,Geometry={"Radius" : 0.3, "Height" : 6.0}, ChemicalFormula=material)
+radius_sample_cm = 0.3
+height_sample_cm = 1.8 
+natoms, self_scat = getAbsScaleInfoFromNexus(sam_scans,
+                                             PackingFraction=packing_fraction,
+                                             Geometry={"Radius" : radius_sample_cm, "Height" : height_sample_cm}, 
+                                             ChemicalFormula=material)
 
 print "#-----------------------------------#"
 print "# Vanadium"
 print "#-----------------------------------#"
-diaV = 0.585
-nvan_atoms, tmp = getAbsScaleInfoFromNexus(van_scans,PackingFraction=1.0,SampleMassDensity=6.11,Geometry={"Radius" : diaV/2.0, "Height" : 6.0},ChemicalFormula="V")
+diameter_Vrod_cm = 0.585
+radius_Vrod_cm = diameter_Vrod_cm / 2.0
+mass_density_Vrod = 6.11
+height_Vrod_cm = 1.8 
+nvan_atoms, tmp = getAbsScaleInfoFromNexus(van_scans,
+                                           PackingFraction=1.0,
+                                           SampleMassDensity=mass_density_Vrod,
+                                           Geometry={"Radius" : radius_Vrod_cm, "Height" : height_Vrod_cm},
+                                           ChemicalFormula="V")
 
 print "Sample natoms:", natoms
 print "Vanadium natoms:", nvan_atoms
@@ -407,7 +420,7 @@ alignAndFocusArgs['CalFilename'] = calib
 #alignAndFocusArgs['Params'] use resampleX
 alignAndFocusArgs['ResampleX'] = -6000
 alignAndFocusArgs['Dspacing'] = True
-alignAndFocusArgs['PreserveEvents'] = True
+#alignAndFocusArgs['PreserveEvents'] = True 
 alignAndFocusArgs['RemovePromptPulseWidth'] = 50
 alignAndFocusArgs['MaxChunkSize'] = 8
 #alignAndFocusArgs['CompressTolerance'] use defaults
@@ -422,11 +435,12 @@ alignAndFocusArgs['CacheDir'] = cache_dir
 
 
 AlignAndFocusPowderFromFiles(OutputWorkspace='sample', Filename=sam, Absorption=None, **alignAndFocusArgs)
-NormaliseByCurrent(InputWorkspace='sample', OutputWorkspace='sample',
+sam = 'sample'
+NormaliseByCurrent(InputWorkspace=sam, OutputWorkspace=sam,
                    RecalculatePCharge=True)
-SaveNexusProcessed(mtd['sample'], os.path.abspath('.') + '/sample_nexus.nxs')
+SaveNexusProcessed(mtd[sam], os.path.abspath('.') + '/sample_nexus.nxs')
 
-PDDetermineCharacterizations(InputWorkspace='sample',
+PDDetermineCharacterizations(InputWorkspace=sam,
                              Characterizations='characterizations',
                              ReductionProperties='__snspowderreduction')
 propMan = PropertyManagerDataService.retrieve('__snspowderreduction')
@@ -444,57 +458,60 @@ NormaliseByCurrent(InputWorkspace=can, OutputWorkspace=can,
                    RecalculatePCharge=True)
 SaveNexusProcessed(mtd['container'], os.path.abspath('.') + '/container_nexus.nxs')
 
-Load(Filename=van_abs, OutputWorkspace='van_absorption')
-AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium', Filename=van, AbsorptionWorkspace='van_absorption', **alignAndFocusArgs)
+#Load(Filename=van_abs, OutputWorkspace='van_absorption')
+AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium', Filename=van, AbsorptionWorkspace=None, **alignAndFocusArgs)
 van = 'vanadium'
 NormaliseByCurrent(InputWorkspace=van, OutputWorkspace=van,
                    RecalculatePCharge=True)
+SetSample(InputWorkspace=van, 
+                  Geometry={'Shape' : 'Cylinder', 'Height' : height_Vrod_cm,
+                            'Radius' : radius_Vrod_cm, 'Center' : [0.,0.,0.]},
+                  Material={'ChemicalFormula': 'V', 'SampleMassDensity' : mass_density_Vrod} )
 SaveNexusProcessed(mtd['vanadium'], os.path.abspath('.') + '/vanadium_nexus.nxs')
 
-AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium_background', Filename=van_bg, AbsorptionWorkspace='van_absorption', **alignAndFocusArgs)
+AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium_background', Filename=van_bg, AbsorptionWorkspace=None, **alignAndFocusArgs)
 van_bg = 'vanadium_background'
 NormaliseByCurrent(InputWorkspace=van_bg, OutputWorkspace=van_bg,
                    RecalculatePCharge=True)
 SaveNexusProcessed(mtd['vanadium_background'], os.path.abspath('.') + '/vanadium_background_nexus.nxs')
 
 
+#-----------------------------------------------------------------------------------------#
+# STEP 1: Subtract Backgrounds 
 
-sam_corrected = 'sam_corrected'
-van_corrected = 'van_corrected'
-Minus(LHSWorkspace='sample', RHSWorkspace=can, OutputWorkspace=sam_corrected)
-Minus(LHSWorkspace=van, RHSWorkspace=van_bg, OutputWorkspace=van_corrected)
-
-# Multiple-Scattering for Vanadium
-SetSampleMaterial(InputWorkspace=van_corrected, ChemicalFormula='V')
-ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Target="Wavelength", EMode="Elastic")
-MultipleScatteringCylinderAbsorption(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, CylinderSampleRadius=diaV/2.0)
-#MayersSampleCorrection() # Monte-Carlo multiple scattering
-
-# Absorption for Vanadium
-#AlignAndFocusPowderFromFiles(OutputWorkspace='van_abs', Filename=os.path.abspath('.')+'/'+van_abs, Absorption=None, **alignAndFocusArgs)
-#ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Target="Wavelength", EMode="Elastic")
-#Divide(LHSWorkspace=van_corrected, RHSWorkspace='van_abs') 
-
-
-for name in ['sample', sam_corrected, can, van, van_corrected, van_bg]:
-    ConvertUnits(InputWorkspace=name, OutputWorkspace=name,
-                 Target='MomentumTransfer', EMode='Elastic')
-
-if alignAndFocusArgs['PreserveEvents']:
-    CompressEvents(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected)
-    CompressEvents(InputWorkspace=van_corrected, OutputWorkspace=van_corrected)
-
+Minus(LHSWorkspace=sam, RHSWorkspace=can, OutputWorkspace=sam)
+Minus(LHSWorkspace=van, RHSWorkspace=van_bg, OutputWorkspace=van)
 
 #-----------------------------------------------------------------------------------------#
-# Vanadium Section
+# STEP 2.0: Prepare vanadium as normalization calibrant
 
-if mode != 'check_levels':
-    SetSampleMaterial(InputWorkspace=sam_corrected, ChemicalFormula=material)
-SetSampleMaterial(InputWorkspace=van_corrected, ChemicalFormula='V')
+# Multiple-Scattering and Absorption (Steps 2-4) for Vanadium
 
+ConvertUnits(InputWorkspace=van, OutputWorkspace=van, Target="MomentumTransfer", EMode="Elastic")
+save_banks(van, title="vanadium_no_corrections.dat", binning=binning)
+
+print "Workspace type before corrections: ", type(mtd[van])
+van_corrected = 'van_corrected'
+ConvertUnits(InputWorkspace=van, OutputWorkspace=van, Target="Wavelength", EMode="Elastic")
+if van_corr_type == 'Carpenter':
+    MultipleScatteringCylinderAbsorption(InputWorkspace=van, OutputWorkspace=van_corrected, CylinderSampleRadius=radius_Vrod_cm)
+elif van_corr_type == 'Mayers':
+    MayersSampleCorrection(InputWorkspace=van, OutputWorkspace=van_corrected, MultipleScattering=True) 
+else:
+    print "NO VANADIUM absorption or multiple scattering!"
+
+print "Workspace type after corrections: ", type(mtd[van])
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='MomentumTransfer', EMode='Elastic')
-save_banks(van_corrected, title="vanadium_with_peaks.dat", binning=binning)
+save_banks(van_corrected, title="vanadium_ms_abs_corrected.dat", binning=binning)
+
+# Divide by numer of vanadium atoms (Step 5)
+mtd[van_corrected] = (1./nvan_atoms)*mtd[van_corrected]
+ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+             Target='MomentumTransfer', EMode='Elastic')
+save_banks(van_corrected, title="vanadium_ms_abs_corrected_norm_by_atoms_with_peaks.dat", binning=binning)
+
+# Smooth Vanadium (strip peaks plus smooth)
 
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='dSpacing', EMode='Elastic')
@@ -502,7 +519,7 @@ StripVanadiumPeaks(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
                    BackgroundType='Quadratic')
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='MomentumTransfer', EMode='Elastic')
-save_banks(van_corrected, title="vanadium_stripped.dat", binning=binning)
+save_banks(van_corrected, title="vanadium_ms_abs_corrected_norm_by_atoms_peaks_stripped.dat", binning=binning)
 
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='TOF', EMode='Elastic')
@@ -514,38 +531,79 @@ FFTSmooth(InputWorkspace=van_corrected,
           AllSpectra=True)
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='MomentumTransfer', EMode='Elastic')
-save_banks(van_corrected, title="vanadium_stripped_smoothed.dat", binning=binning)
+save_banks(van_corrected, title="vanadium_ms_abs_corrected_norm_by_atoms_peaks_stripped_smoothed.dat", binning=binning)
 
 SetUncertainties(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
                  SetError='zero')
 
 #-----------------------------------------------------------------------------------------#
-# S(Q) bank-by-bank Section
+# STEP 2.1: Normalize by Vanadium
 
-material = mtd[sam_corrected].sample().getMaterial()
-bcoh_avg_sqrd = material.cohScatterLength()*material.cohScatterLength()
-btot_sqrd_avg = material.totalScatterLengthSqrd()
-term_to_subtract = btot_sqrd_avg / bcoh_avg_sqrd
 
-SQ_banks =  (1./bcoh_avg_sqrd)*mtd[sam_corrected]/mtd[van_corrected] - (term_to_subtract-1.) 
+for name in [sam, can, van, van_corrected, van_bg]:
+    ConvertUnits(InputWorkspace=name, OutputWorkspace=name,
+                 Target='MomentumTransfer', EMode='Elastic')
+
+save_banks(sam, title="sample_minus_back.dat", binning=binning)
+Divide(LHSWorkspace=sam, RHSWorkspace=van_corrected, OutputWorkspace=sam)
+save_banks(sam, title="sample_minus_back_normalized.dat", binning=binning)
 
 #-----------------------------------------------------------------------------------------#
+# STEP 3 & 4: Subtract multiple scattering and apply absorption correction
+
+ConvertUnits(InputWorkspace=sam, OutputWorkspace=sam, Target="Wavelength", EMode="Elastic")
+
+sam_corrected = 'sam_corrected'
+if sam_corr_type == 'Carpenter':
+    MultipleScatteringCylinderAbsorption(InputWorkspace=sam, OutputWorkspace=sam_corrected, CylinderSampleRadius=radius_sample_cm)
+elif sam_corr_type == 'Mayers':
+    MayersSampleCorrection(InputWorkspace=sam, OutputWorkspace=sam_corrected, MultipleScattering=True) 
+else:
+    print "NO SAMPLE absorption or multiple scattering!"
+    CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_corrected)
+
+ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
+             Target='MomentumTransfer', EMode='Elastic')
+save_banks(sam_corrected, title="sample_minus_back_normalized_ms_abs_corrected.dat", binning=binning)
+#-----------------------------------------------------------------------------------------#
+# STEP 5: Divide by number of atoms in sample
+
+mtd[sam_corrected] = (1./natoms) * mtd[sam_corrected]
+ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
+             Target='MomentumTransfer', EMode='Elastic')
+save_banks(sam_corrected, title="sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms.dat", binning=binning)
+
+#-----------------------------------------------------------------------------------------#
+# STEP 6: Output spectrum
+
+# TODO Since we already went from Event -> 2D workspace, can't use this anymore
+#if alignAndFocusArgs['PreserveEvents']:
+#    CompressEvents(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected)
+#    CompressEvents(InputWorkspace=van_corrected, OutputWorkspace=van_corrected)
+
+
+# S(Q) bank-by-bank Section
+material = mtd[sam].sample().getMaterial()
+bcoh_avg_sqrd = material.cohScatterLength()*material.cohScatterLength()
+btot_sqrd_avg = material.totalScatterLengthSqrd()
+print bcoh_avg_sqrd, btot_sqrd_avg
+term_to_subtract = btot_sqrd_avg / bcoh_avg_sqrd
+SQ_banks =  (1./bcoh_avg_sqrd)*mtd[sam_corrected] - (term_to_subtract-1.) 
+
 # F(Q) bank-by-bank Section
-
-print 'self_scat:', self_scat
-
-sigma_v = mtd['van_corrected'].sample().getMaterial().totalScatterXSection()
-prefactor = (nvan_atoms/natoms) * ( sigma_v / (4.*np.pi) )
-print "Prefactor term:", prefactor
-FQ_banks_raw = prefactor * mtd['sam_corrected'] / mtd['van_corrected'] 
+sigma_v = mtd[van_corrected].sample().getMaterial().totalScatterXSection()
+prefactor = ( sigma_v / (4.*np.pi) )
+print type(prefactor), prefactor
+print type(mtd[sam_corrected])
+FQ_banks_raw = (prefactor) * mtd[sam_corrected]
 FQ_banks = FQ_banks_raw - self_scat 
 
 #-----------------------------------------------------------------------------------------#
 # Ouput bank-by-bank with linear fits for high-Q 
 
 # fit the last 80% of the bank being used
-for i, q in zip(range(mtd['sam_corrected'].getNumberHistograms()), qmax):
-    qmax_data = getQmaxFromData('sam_corrected', i)
+for i, q in zip(range(mtd[sam_corrected].getNumberHistograms()), qmax):
+    qmax_data = getQmaxFromData(sam_corrected, i)
     qmax[i] = q if q <= qmax_data else qmax_data
 
 fitrange_individual = [(high_q_linear_fit_range*q, q) for q in qmax]
@@ -561,6 +619,7 @@ kwargs = { 'btot_sqrd_avg' : btot_sqrd_avg,
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='SQ_banks', **kwargs)
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks', **kwargs)
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks_raw', **kwargs)
+
 
 #-----------------------------------------------------------------------------------------#
 # Event workspace -> Histograms
@@ -604,11 +663,10 @@ SumSpectra(InputWorkspace='background_single', OutputWorkspace='background_singl
 # Merged S(Q) and F(Q)
 
 # do the division correctly and subtract off the material specific term
-SQ = (1./bcoh_avg_sqrd)*mtd['sam_single']/mtd['van_single'] - (term_to_subtract-1.)  # +1 to get back to S(Q)
-FQ_raw = prefactor * mtd['sam_single']/mtd['van_single']
+SQ = (1./bcoh_avg_sqrd)*mtd['sam_single'] - (term_to_subtract-1.)  # +1 to get back to S(Q)
+FQ_raw = prefactor * mtd['sam_single']
 FQ = FQ_raw - self_scat
 
-'''
 Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
     StartX=high_q_linear_fit_range*qmax, EndX=qmax, # range cannot include area with NAN
     InputWorkspace='SQ', Output='SQ', OutputCompositeMembers=True)
@@ -619,7 +677,6 @@ Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
     StartX=high_q_linear_fit_range*qmax, EndX=qmax, # range cannot include area with NAN
     InputWorkspace='FQ', Output='FQ', OutputCompositeMembers=True)
 fitParams = mtd['FQ_Parameters']
-'''
 
 qmax = 48.0
 Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
