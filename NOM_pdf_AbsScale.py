@@ -479,6 +479,8 @@ SaveNexusProcessed(mtd['vanadium_background'], os.path.abspath('.') + '/vanadium
 #-----------------------------------------------------------------------------------------#
 # STEP 1: Subtract Backgrounds 
 
+save_banks(sam, title="sample_with_back.dat", binning=binning)
+save_banks(can, title="can.dat", binning=binning)
 Minus(LHSWorkspace=sam, RHSWorkspace=can, OutputWorkspace=sam)
 Minus(LHSWorkspace=van, RHSWorkspace=van_bg, OutputWorkspace=van)
 
