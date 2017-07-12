@@ -17,7 +17,7 @@ placzek = np.vectorize(calc_placzek)
 
 # Input mass and the Q vector
 mass = 50.9415 # amu of Vanadium
-q_vector = np.arange(0.1,10.0,0.1)  
+q_vector = np.arange(0.1,50.0,0.02)  
 
 # Output the Placzek correction 
 placzek_correction = placzek(q_vector, mass)

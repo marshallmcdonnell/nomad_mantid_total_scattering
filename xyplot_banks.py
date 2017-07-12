@@ -36,8 +36,8 @@ def plot_banks(f, title=None,banks_list=None,line_style=None):
     for i in range(nsets):
         if i in banks_list:
             myLabel = 'bank: '+str(i)+' '+title.split('.')[0]
-            #plt.plot(datasets[i,:,0], datasets[i,:,1],colors[i]+line_style,label=myLabel )
-            plt.plot(datasets[i,:,0], datasets[i,:,1],line_style,label=myLabel )
+            plt.plot(datasets[i,:,0], datasets[i,:,1],colors[i]+line_style,label=myLabel )
+            #plt.plot(datasets[i,:,0], datasets[i,:,1],line_style,label=myLabel )
 
     
 
@@ -66,7 +66,7 @@ color_line_styles = { 0 : '-k',
 
 for i, filename in enumerate(args.filenames):
     with open(filename, 'r') as f:
-        plot_banks(f,title=filename,banks_list=args.banks, line_style=color_line_styles[i])
+        plot_banks(f,title=filename,banks_list=args.banks, line_style=banks_line_styles[i])
 
 plt.legend()
 plt.xlabel("Q (angstroms^-1")

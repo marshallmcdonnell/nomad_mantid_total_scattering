@@ -11,6 +11,7 @@ import json
 from mantid import mtd
 from mantid.simpleapi import *
 import numpy as np
+from scipy.constants import hbar, Avogadro, physical_constants
 import sys
 import fileinput
 
@@ -203,6 +204,14 @@ def GenerateEventsFilterFromFiles(filenames, OutputWorkspace, InformationWorkspa
             mtd[InformationWorkspace].add(infows)
     return 
 
+def calc_placzek(q, mass):
+    "Input: Q in Anstrom^-1 and Mass in AMU"
+    amu_per_kg = 1. / physical_constants['atomic mass constant'][0]
+    ang_per_m = 1. / physical_constants['Angstrom star'][0]
+    hbar_amu_ang2_per_s = hbar * amu_per_kg * ang_per_m * ang_per_m  # J*s -> amu*ang^2/s conversion
+    hbar2 = hbar_amu_ang2_per_s * hbar_amu_ang2_per_s
+    return ( hbar2 / 2.0 ) * ( q*q / mass / Avogadro)
+
 #-----------------------------------------------------------------------------------------
 # Absolute Scale stuff
 def combine_dictionaries( dic1, dic2 ):
@@ -357,6 +366,7 @@ van_scans = config['van']
 van_bg = config['van_bg']
 van_abs = str(config.get('van_absorption_ws', None))
 van_corr_type = config.get('van_corr_type', "Carpenter")
+van_inelastic_corr_type = config.get('van_inelastic_corr_type', "Placzek")
 sam_corr_type = config.get('sam_corr_type', "Carpenter")
 if mode != 'check_levels':
     material = str(config['material'])
@@ -505,13 +515,15 @@ else:
 print "Workspace type after corrections: ", type(mtd[van])
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='MomentumTransfer', EMode='Elastic')
-save_banks(van_corrected, title="vanadium_ms_abs_corrected.dat", binning=binning)
+van_title = "vanadium_ms_abs_corrected"
+save_banks(van_corrected, title=van_title+'.dat', binning=binning)
 
 # Divide by numer of vanadium atoms (Step 5)
 mtd[van_corrected] = (1./nvan_atoms)*mtd[van_corrected]
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='MomentumTransfer', EMode='Elastic')
-save_banks(van_corrected, title="vanadium_ms_abs_corrected_norm_by_atoms_with_peaks.dat", binning=binning)
+van_title += '_norm_by_atoms'
+save_banks(van_corrected, title=van_title+"_with_peaks.dat", binning=binning)
 
 # Smooth Vanadium (strip peaks plus smooth)
 
@@ -521,7 +533,8 @@ StripVanadiumPeaks(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
                    BackgroundType='Quadratic')
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='MomentumTransfer', EMode='Elastic')
-save_banks(van_corrected, title="vanadium_ms_abs_corrected_norm_by_atoms_peaks_stripped.dat", binning=binning)
+van_title += '_peaks_stripped'
+save_banks(van_corrected, title=van_title+".dat", binning=binning)
 
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='TOF', EMode='Elastic')
@@ -533,10 +546,55 @@ FFTSmooth(InputWorkspace=van_corrected,
           AllSpectra=True)
 ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
              Target='MomentumTransfer', EMode='Elastic')
-save_banks(van_corrected, title="vanadium_ms_abs_corrected_norm_by_atoms_peaks_stripped_smoothed.dat", binning=binning)
+van_title += '_smoothed'
+save_banks(van_corrected, title=van_title+".dat", binning=binning)
 
+
+# Inelastic correction
+if van_inelastic_corr_type == "Placzek":
+
+    Rebin(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Params=binning, PreserveEvents=False)
+
+    # set vanadium mass, initialize bank-by-bank Q and correction, and get # of histograms
+    vmass = mtd[van_corrected].sample().getMaterial().chemicalFormula()[0][0].mass
+    q_banks = list()
+    placzek_banks = list()
+    nhistograms = mtd[van_corrected].getNumberHistograms()
+
+    # Calculate bank-by-bank Placzek Correction
+    import matplotlib.pyplot as plt
+
+    placzek = np.vectorize(calc_placzek)
+    for i in range(nhistograms):
+        q = mtd[van_corrected].readX(i)
+        placzek_correction = placzek(q , vmass)
+        q_banks = np.append(q_banks,q)
+        placzek_banks = np.append(placzek_banks, placzek_correction)
+
+        plt.plot(q,placzek_correction,label='bank:'+str(i))
+
+        print 'bank:', q
+        print '     ', placzek_correction
+
+    plt.show()
+
+    # Create Workspace for calculated Placzek correction
+    van_placzek = 'van_placzek'
+    CreateWorkspace(DataX=q_banks, DataY=placzek_banks, OutputWorkspace=van_placzek, NSpec=nhistograms)
+    save_banks(van_placzek, title='vanadium_placzek_corrections.dat', binning=[0.0,0.02,50.0])
+
+    # Apply Correction
+    print type(mtd[van_corrected]), type(mtd[van_placzek])
+    Minus(LHSWorkspace=van_corrected, RHSWorkspace=van_placzek, OutputWorkspace=van_corrected)
+    van_title += "_placzek_corrected"
+    save_banks(van_corrected, 
+               title=van_title+".dat", 
+               binning=binning)
+
+    
 SetUncertainties(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
                  SetError='zero')
+
 
 #-----------------------------------------------------------------------------------------#
 # STEP 2.1: Normalize by Vanadium
