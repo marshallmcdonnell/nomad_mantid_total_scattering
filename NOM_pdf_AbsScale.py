@@ -360,7 +360,9 @@ with open(configfile) as handle:
 mode = str(config.get('mode',None))
 
 title = str(config['title'])
-sam_scans = config['sam']
+sam_info = config['sam']
+sam_scans = sam_info['Runs']
+sam_mass_density = sam_info.get('MassDensity', None)
 can = config['can']
 van_scans = config['van']
 van_bg = config['van_bg']
@@ -398,6 +400,7 @@ radius_sample_cm = 0.3
 height_sample_cm = 1.8 
 natoms, self_scat = getAbsScaleInfoFromNexus(sam_scans,
                                              PackingFraction=packing_fraction,
+                                             SampleMassDensity=sam_mass_density,
                                              Geometry={"Radius" : radius_sample_cm, "Height" : height_sample_cm}, 
                                              ChemicalFormula=material)
 
@@ -677,10 +680,14 @@ kwargs = { 'btot_sqrd_avg' : btot_sqrd_avg,
            'bcoh_avg_sqrd' : bcoh_avg_sqrd,
            'self_scat' : self_scat }
 
+'''
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='SQ_banks', **kwargs)
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks', **kwargs)
 save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks_raw', **kwargs)
-
+'''
+save_banks('SQ_banks',         title=title+"_SQ_banks.dat",     binning=binning)
+save_banks('FQ_banks',         title=title+"_FQ_banks.dat",     binning=binning)
+save_banks('FQ_banks_raw', title=title+"_FQ_banks_raw.dat", binning=binning)
 
 #-----------------------------------------------------------------------------------------#
 # Event workspace -> Histograms

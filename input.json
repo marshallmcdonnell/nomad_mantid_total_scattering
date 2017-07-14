@@ -4,7 +4,7 @@
     "material": "Si",
     "van": [91603],
     "van_bg": [91607],
-    "sam": [91796],
+    "sam": { "Runs" : [91796] },
     "can": [91766],
     "calib": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_d91621_2017_04_12_shifter.h5",
     "charac": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt",
