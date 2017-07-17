@@ -1,7 +1,245 @@
 #!/usr/bin/env python
+import sys
+import json
+import glob
+import re
+import ConfigParser
+from h5py import File
+from mantid import mtd
+from mantid.simpleapi import *
 import numpy as np
 from scipy.constants import m_n, hbar, Avogadro
 from scipy.constants import physical_constants
+
+#-----------------------------------------------------------------------------------
+# . NexusHandler
+
+def findacipts(NOMhome):
+    # find all accessible IPTS
+    return alliptsnr
+
+def parseInt(number):
+    try:
+        return int(number)
+    except ValueError, e:
+        raise Exception("Invalid scan numbers: %s" % str(e))
+
+    return 0
+
+def procNumbers(numberList):
+    numberList = [ num for num in str(','.join(numberList)).split(',') ]
+
+    result = []
+    if isinstance(numberList,str):
+        if "-" in numberList:
+            item = [parseInt(i) for i in numberList.split("-")]
+            if item[0] is not None:
+                result.extend(range(item[0], item[1]+1))
+
+    else:
+        for item in numberList:
+            # if there is a dash then it is a range
+            if "-" in item:
+                item = [parseInt(i) for i in item.split("-")]
+                item.sort()
+                if item[0] is not None:
+                    result.extend(range(item[0], item[1]+1))
+            else:
+                item = parseInt(item)
+                if item:
+                    result.append(item)
+
+    result.sort()
+    return result
+
+class NexusHandler(object):
+    def __init__(self, instrument='NOM', cfg_filename='nomad_config.cfg'):
+        self._makeScanDict()
+
+        config_path = '/SNS/' + instrument + '/shared/' + cfg_filename
+        config = ConfigParser.SafeConfigParser()
+        config.read(config_path)
+        self._props = { name : path for name, path in config.items('meta') }
+        self._props.update({ name : path for name, path in config.items('nexus') })
+
+    def listProps(self):
+        return self._props.keys()
+
+    def getNxData(self,scans,props):
+        scans = [ str(scan) for scan in scans ]
+        scans = procNumbers(scans)
+        
+        scansInfo = dict()
+        for scan in scans:
+            scanInfo=self._scanDict[str(scan)]
+            nf=File(scanInfo['path'],'r')
+            prop_dict = { prop : self._props[prop] for prop in props }
+            for key, path in prop_dict.iteritems():
+                try:
+                    scanInfo.update( { key : nf[path][0] } )
+                except KeyError:
+                    pass
+            scansInfo.update(scanInfo)
+        return scansInfo
+
+
+    def _makeScanDict(self, facility='SNS', instrument='NOM'):
+        scanDict = {}
+        instrument_path = '/'+facility+'/'+instrument+'/'
+        for ipts in os.listdir(instrument_path):
+            if ipts.startswith('IPTS'):
+                num = ipts.split('-')[1]
+                ipts_path = instrument_path+ipts+'/'
+                if os.path.isdir(ipts_path+'nexus'):
+                    for scanpath in sorted(glob.glob(ipts_path+'nexus/NOM_*')):
+                        scan = str(re.search(r'NOM_(\d+)\.nxs', scanpath).group(1))
+                        scanDict[scan] = {'ipts' : num, 'path' : scanpath, 'format' : 'nexus' }
+
+                elif os.path.isdir(ipts_path+'0'):
+                    for scanDir in glob.glob(ipts_path+'0/*'):
+                        scan = str(re.search(r'\/0\/(\d+)', scanDir).group(1))
+                        scanpath = scanDir+'/NeXus/NOM_'+scan+'_event.nxs'
+                        scanDict[scan] = {'ipts' : num, 'path' : scanpath, 'format' : 'prenexus' }
+        self._scanDict = scanDict
+
+#-----------------------------------------------------------------------------------------
+# Absolute Scale stuff
+def combine_dictionaries( dic1, dic2 ):
+    result = dict()
+    for key in (dic1.viewkeys() | dic2.keys()):
+        print key, dic1[key]
+        if key in dic1: result.setdefault(key, {}).update(dic1[key])
+        if key in dic2: result.setdefault(key, {}).update(dic2[key])
+    return result
+
+class Shape(object):
+    def __init__(self):
+        self.shape = None
+    def getShape(self):
+        return self.shape
+
+class Cylinder(Shape):
+    def __init__(self):
+        self.shape = 'Cylinder'
+    def volume(self, Radius=None,Height=None):
+        return np.pi * Height * Radius * Radius
+
+class Sphere(Shape):
+    def __init__(self):
+        self.shape = 'Sphere'
+    def volume(self, Radius=None):
+        return (4./3.) * np.pi * Radius * Radius * Radius
+
+class GeometryFactory(object):
+
+    @staticmethod
+    def factory(Geometry):
+        factory = { "Cylinder" : Cylinder(),
+                    "Sphere"   : Sphere() }
+        return factory[Geometry["Shape"]]
+
+
+nf = NexusHandler()
+def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFraction=None,BeamWidth=1.8,SampleMassDensity=None):
+    # get necessary properties from Nexus file
+    props = ["formula", "mass", "mass_density", "sample_diameter", "sample_height", "items_id"]
+    info = nf.getNxData(scans,props)
+    info['sample_diameter'] =  0.1 * info['sample_diameter'] # mm -> cm
+
+    for key in info:
+        print key, info[key]
+
+    if ChemicalFormula:
+        info["formula"] = ChemicalFormula
+    if SampleMassDensity:
+        info["mass_density"] = SampleMassDensity
+
+    # setup the geometry of the sample
+    if Geometry is None:
+        Geometry = dict()
+    if "Shape" not in Geometry:
+        Geometry["Shape"] = 'Cylinder'
+    if "Radius" not in Geometry:
+         Geometry['Radius'] = info['sample_diameter']/2.
+    if "Height" not in Geometry:
+         Geometry['Height'] = info['sample_height']
+
+    if Geometry["Shape"] == 'spherical':
+         Geometry.pop('Height',None)
+
+    # get sample volume in container
+    space = GeometryFactory.factory(Geometry)
+    Geometry.pop("Shape", None)
+    volume_in_container = space.volume(**Geometry)
+
+    print "NeXus Packing Fraction:",  info["mass"] / volume_in_container / info["mass_density"]
+    # get packing fraction
+    if PackingFraction is None:
+        sample_density = info["mass"] / volume_in_container
+        PackingFraction = sample_density / info["mass_density"]
+
+    print "PackingFraction:", PackingFraction
+
+    # get sample volume in the beam and correct mass density of what is in the beam
+    if space.getShape() == 'Cylinder':
+        Geometry["Height"] = BeamWidth
+    volume_in_beam = space.volume(**Geometry)
+    mass_density_in_beam = PackingFraction * info["mass_density"]
+
+
+    # get molecular mass
+    # Mantid SetSample doesn't set the actual height or radius. Have to use the setHeight, setRadius, ....
+    ws = CreateSampleWorkspace()
+    #SetSample(ws, Geometry={"Shape" : "Cylinder", "Height" : geo_dict["height"], "Radius" : geo_dict["radius"], "Center" : [0.,0.,0.]},
+    #              Material={"ChemicalFormula" : info["formula"], "SampleMassDensity" : PackingFraction * info["mass_density"]})
+
+    print info["formula"], mass_density_in_beam, volume_in_beam
+    SetSampleMaterial(ws, ChemicalFormula=info["formula"], SampleMassDensity=mass_density_in_beam)
+    material = ws.sample().getMaterial()
+
+    # set constant
+    avogadro =  6.022*10**23.
+
+    # get total atoms and individual atom info
+    natoms = sum([ x for x in material.chemicalFormula()[1] ])
+    concentrations = { atom.symbol : {'concentration' : conc, 'mass' : atom.mass} for atom, conc in zip( material.chemicalFormula()[0], material.chemicalFormula()[1]) }
+    neutron_info  = { atom.symbol : atom.neutron() for atom in material.chemicalFormula()[0] }
+    atoms = combine_dictionaries(concentrations, neutron_info)
+
+    sigfree = [ atom['tot_scatt_xs']*atom['concentration']*(atom['mass']/(atom['mass']+1.0))**2. for atom in atoms.values() ]
+    print sum(sigfree)
+
+    # get number of atoms using packing fraction, density, and volume
+    print "Total scattering Xsection", material.totalScatterXSection() * natoms
+    print "Coh Xsection:", material.cohScatterXSection() * natoms
+    print "Incoh Xsection:", material.incohScatterXSection() * natoms
+    print "Abs. Xsection:", material.absorbXSection() * natoms
+
+    print ''.join( [x.strip() for x in info["formula"] ]), "#sample title"
+    print info["formula"], "#sample formula"
+    print info["mass_density"], "#density"
+    print Geometry["Radius"], "#radius"
+    print PackingFraction, "#PackingFraction"
+    print space.getShape(), "#sample shape"
+    print "nogo", "#do absorption correction now"
+    print info["mass_density"]/ material.relativeMolecularMass() * avogadro / 10**24., "Sample density in form unit / A^3"
+
+    print "\n\n#########################################################"
+    print "##############Check levels###########################################"
+    print "b bar:", material.cohScatterLengthReal()
+    print "sigma:", material.totalScatterXSection()
+    print "b: ", np.sqrt(material.totalScatterXSection()/(4.*np.pi))
+    print material.cohScatterLengthReal() * material.cohScatterLengthReal() * natoms * natoms, "# (sum b)^2"
+    print material.cohScatterLengthSqrd() * natoms, "# (sum c*bbar^2)"
+    self_scat =  material.totalScatterLengthSqrd() * natoms / 100. # 100 fm^2 == 1 barn
+    print "self scattering:", self_scat
+    print "#########################################################\n"
+
+
+    natoms_in_beam = mass_density_in_beam / material.relativeMolecularMass() * avogadro / 10**24. * volume_in_beam
+    #print "Sample density (corrected) in form unit / A^3: ", mass_density_in_beam/ ws.sample().getMaterial().relativeMolecularMass() * avogadro / 10**24.
+    return natoms_in_beam, self_scat
+
 
 def calc_placzek_first_moment(q, mass):
     "Input: Q in Anstrom^-1 and Mass in AMU"
@@ -30,6 +268,159 @@ def calc_self_placzek( mass_amu, self_scat, theta, incident_path_length, scatter
 
     return self_scat * (1. - moment_1)
 
+
+# Get input parameters
+configfile = sys.argv[1]
+with open(configfile) as handle:
+    config = json.loads(handle.read())
+
+van_scans = config['van']
+van_bg = config['van_bg']
+van_corr_type = config.get('van_corr_type', "Carpenter")
+calib = str(config['calib'])
+charac = str(config['charac'])
+binning= config['binning']
+cache_dir = str(config.get("CacheDir", os.path.abspath('.') ))
+
+van = ','.join(['NOM_%d' % num for num in van_scans])
+van_bg = ','.join(['NOM_%d' % num for num in van_bg])
+
+results = PDLoadCharacterizations(Filename=charac, OutputWorkspace='characterizations')
+alignAndFocusArgs = dict(PrimaryFlightPath = results[2],
+                         SpectrumIDs       = results[3],
+                         L2                = results[4],
+                         Polar             = results[5],
+                         Azimuthal         = results[6])
+
+alignAndFocusArgs['CalFilename'] = calib
+#alignAndFocusArgs['GroupFilename'] don't use
+#alignAndFocusArgs['Params'] use resampleX
+alignAndFocusArgs['ResampleX'] = -6000
+alignAndFocusArgs['Dspacing'] = True
+#alignAndFocusArgs['PreserveEvents'] = True 
+alignAndFocusArgs['RemovePromptPulseWidth'] = 50
+alignAndFocusArgs['MaxChunkSize'] = 8
+#alignAndFocusArgs['CompressTolerance'] use defaults
+#alignAndFocusArgs['UnwrapRef'] POWGEN option
+#alignAndFocusArgs['LowResRef'] POWGEN option
+#alignAndFocusArgs['LowResSpectrumOffset'] POWGEN option
+#alignAndFocusArgs['CropWavelengthMin'] from characterizations file
+#alignAndFocusArgs['CropWavelengthMax'] from characterizations file
+alignAndFocusArgs['Characterizations'] = 'characterizations'
+alignAndFocusArgs['ReductionProperties'] = '__snspowderreduction'
+alignAndFocusArgs['CacheDir'] = cache_dir
+
+
+
+#-----------------------------------------------------------------------------------------#
+#Get incident spectrum from vanadium
+
+def plot_workspace(van, title=None,mode='TOF'):
+    xlims = { 'TOF' : [0.,20000.],
+              'Wavelength' : [0.,4.],
+              'MomentumTransfer' : [0.,40.],
+              'Energy' : [1.,1.e4]
+            }
+
+    mode = 'Wavelength'
+    ws = ConvertUnits(InputWorkspace=van, Target=mode, EMode="Elastic")
+    for bank in range(ws.getNumberHistograms()):
+        xall = ws.readX(bank)[1:]
+        yall = ws.readY(bank)
+        if mode == 'Energy':
+            plt.semilogx(xall, yall)
+        else:
+            plt.plot(xall, yall)
+
+    plt.title(title)
+    
+    xunit = ws.getAxis(0).getUnit()
+    plt.xlabel(str(xunit.caption())+'('+str(xunit.symbol())+')')
+
+    yunit = ws.getAxis(1).getUnit()
+    plt.ylabel(str(yunit.caption())+'('+str(yunit.symbol())+')')
+
+    axes = plt.gca()
+    axes.set_xlim(xlims[mode])
+
+    plt.show()
+    return
+
+def getIncidentSpectrums( van, van_bg, binning, **alignAndFocusArgs):
+    diameter_Vrod_cm = 0.585
+    radius_Vrod_cm = diameter_Vrod_cm / 2.0
+    mass_density_Vrod = 6.11
+    height_Vrod_cm = 1.8
+    print van
+    nvan_atoms, tmp = getAbsScaleInfoFromNexus(van,
+                                               PackingFraction=1.0,
+                                               SampleMassDensity=mass_density_Vrod,
+                                               Geometry={"Radius" : radius_Vrod_cm, "Height" : height_Vrod_cm},
+                                               ChemicalFormula="V")
+
+    van = ','.join(['NOM_%d' % num for num in van_scans])
+    AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium', Filename=van, AbsorptionWorkspace=None, **alignAndFocusArgs)
+    van = 'vanadium'
+    NormaliseByCurrent(InputWorkspace=van, OutputWorkspace=van,
+                       RecalculatePCharge=True)
+    SetSample(InputWorkspace=van,
+                      Geometry={'Shape' : 'Cylinder', 'Height' : height_Vrod_cm,
+                                'Radius' : radius_Vrod_cm, 'Center' : [0.,0.,0.]},
+                      Material={'ChemicalFormula': 'V', 'SampleMassDensity' : mass_density_Vrod} )
+
+    AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium_background', Filename=van_bg, AbsorptionWorkspace=None, **alignAndFocusArgs)
+    van_bg = 'vanadium_background'
+    NormaliseByCurrent(InputWorkspace=van_bg, OutputWorkspace=van_bg,
+                       RecalculatePCharge=True)
+
+    plot_workspace(van, title='V')
+    ConvertUnits(InputWorkspace=van, OutputWorkspace=van, Target="TOF", EMode="Elastic")
+
+    Minus(LHSWorkspace=van, RHSWorkspace=van_bg, OutputWorkspace=van)
+    plot_workspace(van, title='V - B')
+    ConvertUnits(InputWorkspace=van, OutputWorkspace=van, Target="MomentumTransfer", EMode="Elastic")
+
+
+
+    van_corrected = 'van_corrected'
+    ConvertUnits(InputWorkspace=van, OutputWorkspace=van, Target="Wavelength", EMode="Elastic")
+    if van_corr_type == 'Carpenter':
+        MultipleScatteringCylinderAbsorption(InputWorkspace=van, OutputWorkspace=van_corrected, CylinderSampleRadius=radius_Vrod_cm)
+    elif van_corr_type == 'Mayers':
+        MayersSampleCorrection(InputWorkspace=van, OutputWorkspace=van_corrected, MultipleScattering=True) 
+    else:
+        print "NO VANADIUM absorption or multiple scattering!"
+
+    plot_workspace(van_corrected, title='V-B (ms_abs corr.)')
+
+    ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+                 Target='MomentumTransfer', EMode='Elastic')
+
+    mtd[van_corrected] = (1./nvan_atoms)*mtd[van_corrected]
+    ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+                 Target='MomentumTransfer', EMode='Elastic')
+
+    plot_workspace(van_corrected, title='V-B (ms_abs corr.  + 1/N)')
+
+    ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+                 Target='dSpacing', EMode='Elastic')
+    StripVanadiumPeaks(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+                       BackgroundType='Quadratic')
+    plot_workspace(van_corrected, title='V-B (ms_abs corr.  + 1/N + stripped)')
+    ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+                 Target='TOF', EMode='Elastic')
+    FFTSmooth(InputWorkspace=van_corrected,
+              OutputWorkspace=van_corrected,
+              Filter="Butterworth",
+              Params='20,2',
+              IgnoreXBins=True,
+              AllSpectra=True)
+    plot_workspace(van_corrected, title='V-B (ms_abs corr.  + 1/N + stripped + smoothed)')
+    ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+                 Target='MomentumTransfer', EMode='Elastic')
+    Rebin(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Params=binning, PreserveEvents=False)
+
+    return van_corrected
 '''
 # Create placzek correction vectorizing function
 placzek = np.vectorize(calc_placzek_first_moment)
@@ -37,6 +428,56 @@ mass = 50.9415 # amu of Vanadium
 q_vector = np.arange(0.1,50.0,0.02)  
 placzek_correction = placzek(q_vector, mass)
 '''
+
+#-----------------------------------------------------------------------------------------#
+# Start Placzek calculations
+import matplotlib.pyplot as plt
+from scipy import optimize
+
+# get incident spectrums, conver to wavelength for proper fitting  and select bank (banks=0,1,2,3,4,5)
+incident_ws = getIncidentSpectrums(van_scans, van_bg, binning, **alignAndFocusArgs)
+ConvertUnits(InputWorkspace=incident_ws, OutputWorkspace=incident_ws,
+             Target='TOF', EMode='Elastic')
+exit()
+
+# get non-cropped part of spectrum (so we don't fit flat portion of curve)
+xall = mtd[incident_ws].readX(bank)[1:]
+yall = mtd[incident_ws].readY(bank)
+'''
+lam = list()
+spectrum = list()
+for x, y in zip(xall, yall):
+    if y > 0.0 and y < 30.0:
+        lam.append(x)
+        spectrum.append(y)
+x = np.array(lam - lam[0])
+y = np.array(spectrum)
+plt.plot(x,y)
+plt.show()
+exit()
+'''
+x = np.array(xall)
+y = np.array(yall)
+# Define Maxwell Distribution Funcion and the Error Function to Optimize between the actual spectrum
+def myMaxwell(x_0, loc, scale, c):
+    x = (x_0 - loc) / scale
+    y = (1/scale) * np.sqrt(2/np.pi)*x**2 * np.exp(-x**2/2)
+    mask = [ i for i, val in enumerate(x) if val < loc ]
+    y[mask] = 0.0
+    return c*y
+
+# Perform least-squares optimization between the difference in the Maxwell fit and the actual incident spectrum
+params = [0.,1., 1000.] # initial-guess params: location of x == 0, distribution scale, and overall scale
+params, convergence = optimize.curve_fit( myMaxwell, x, y, params)
+
+# Plot both curves
+print 'fit params: loc - ', params[0], 'scale -', params[1], 'overall scale - ', params[2]
+plt.plot(x, y, 'bx', label='data', lw=3)
+plt.plot(x, myMaxwell(x, *params), 'b-', label='fit', lw=2)
+plt.legend()
+plt.show()
+exit()
+
 
 mass = 50.9415
 self_scat = 0.40
@@ -55,3 +496,4 @@ import matplotlib.pyplot as plt
 
 plt.plot(thetas, placzek_out)
 plt.show()
+
