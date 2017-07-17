@@ -451,7 +451,7 @@ AlignAndFocusPowderFromFiles(OutputWorkspace='sample', Filename=sam, Absorption=
 sam = 'sample'
 NormaliseByCurrent(InputWorkspace=sam, OutputWorkspace=sam,
                    RecalculatePCharge=True)
-SaveNexusProcessed(mtd[sam], os.path.abspath('.') + '/sample_nexus.nxs')
+#SaveNexusProcessed(mtd[sam], os.path.abspath('.') + '/sample_nexus.nxs')
 
 PDDetermineCharacterizations(InputWorkspace=sam,
                              Characterizations='characterizations',
@@ -469,7 +469,7 @@ AlignAndFocusPowderFromFiles(OutputWorkspace='container', Filename=can, Absorpti
 can = 'container'
 NormaliseByCurrent(InputWorkspace=can, OutputWorkspace=can,
                    RecalculatePCharge=True)
-SaveNexusProcessed(mtd['container'], os.path.abspath('.') + '/container_nexus.nxs')
+#SaveNexusProcessed(mtd['container'], os.path.abspath('.') + '/container_nexus.nxs')
 
 #Load(Filename=van_abs, OutputWorkspace='van_absorption')
 AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium', Filename=van, AbsorptionWorkspace=None, **alignAndFocusArgs)
@@ -480,30 +480,40 @@ SetSample(InputWorkspace=van,
                   Geometry={'Shape' : 'Cylinder', 'Height' : height_Vrod_cm,
                             'Radius' : radius_Vrod_cm, 'Center' : [0.,0.,0.]},
                   Material={'ChemicalFormula': 'V', 'SampleMassDensity' : mass_density_Vrod} )
-SaveNexusProcessed(mtd['vanadium'], os.path.abspath('.') + '/vanadium_nexus.nxs')
+#SaveNexusProcessed(mtd['vanadium'], os.path.abspath('.') + '/vanadium_nexus.nxs')
+
 
 AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium_background', Filename=van_bg, AbsorptionWorkspace=None, **alignAndFocusArgs)
 van_bg = 'vanadium_background'
 NormaliseByCurrent(InputWorkspace=van_bg, OutputWorkspace=van_bg,
                    RecalculatePCharge=True)
-SaveNexusProcessed(mtd['vanadium_background'], os.path.abspath('.') + '/vanadium_background_nexus.nxs')
+#SaveNexusProcessed(mtd['vanadium_background'], os.path.abspath('.') + '/vanadium_background_nexus.nxs')
 
+ConvertUnits(InputWorkspace=van, OutputWorkspace=van, Target="MomentumTransfer", EMode="Elastic")
+save_banks(van, title="vanadium_and_background.dat", binning=binning)
+
+ConvertUnits(InputWorkspace=van_bg, OutputWorkspace=van_bg, Target="MomentumTransfer", EMode="Elastic")
+save_banks(van_bg, title="vanadium_background.dat", binning=binning)
+
+ConvertUnits(InputWorkspace=sam, OutputWorkspace=sam, Target="MomentumTransfer", EMode="Elastic")
+save_banks(sam, title="sample_and_can.dat", binning=binning)
+
+ConvertUnits(InputWorkspace=can, OutputWorkspace=can, Target="MomentumTransfer", EMode="Elastic")
+save_banks(can, title="can.dat", binning=binning)
 
 #-----------------------------------------------------------------------------------------#
 # STEP 1: Subtract Backgrounds 
 
-save_banks(sam, title="sample_with_back.dat", binning=binning)
-save_banks(can, title="can.dat", binning=binning)
 Minus(LHSWorkspace=sam, RHSWorkspace=can, OutputWorkspace=sam)
 Minus(LHSWorkspace=van, RHSWorkspace=van_bg, OutputWorkspace=van)
+
+ConvertUnits(InputWorkspace=van, OutputWorkspace=van, Target="MomentumTransfer", EMode="Elastic")
+save_banks(van, title="vanadium_minus_background.dat", binning=binning)
 
 #-----------------------------------------------------------------------------------------#
 # STEP 2.0: Prepare vanadium as normalization calibrant
 
 # Multiple-Scattering and Absorption (Steps 2-4) for Vanadium
-
-ConvertUnits(InputWorkspace=van, OutputWorkspace=van, Target="MomentumTransfer", EMode="Elastic")
-save_banks(van, title="vanadium_no_corrections.dat", binning=binning)
 
 print "Workspace type before corrections: ", type(mtd[van])
 van_corrected = 'van_corrected'
