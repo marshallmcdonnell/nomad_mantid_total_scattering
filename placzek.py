@@ -8,8 +8,9 @@ from h5py import File
 from mantid import mtd
 from mantid.simpleapi import *
 import numpy as np
-from scipy.constants import m_n, hbar, Avogadro
+from scipy.constants import m_n, hbar, Avogadro, micro
 from scipy.constants import physical_constants
+from scipy import interpolate
 
 #-----------------------------------------------------------------------------------
 # . NexusHandler
@@ -249,22 +250,73 @@ def calc_placzek_first_moment(q, mass):
     hbar2 = hbar_amu_ang2_per_s * hbar_amu_ang2_per_s
     return ( hbar2 / 2.0 ) * ( q*q / mass / Avogadro)
 
-def calc_self_placzek( mass_amu, self_scat, theta, incident_path_length, scattered_path_length, detector='1/v'):
+def calc_self_placzek( incident_ws, mass_amu, self_scat, theta, 
+                       incident_path_length, scattered_path_length, detector='1/v'):
     # constants and conversions
     neutron_mass = m_n / physical_constants['atomic mass unit-kilogram relationship'][0]
-    angle_conv = np.pi / 180.
 
     # variables
     l_0 = incident_path_length
     l_s = scattered_path_length
     l_total = l_0 + l_s
+
+    angle_conv = np.pi / 180.
     sin_theta = np.sin(theta * angle_conv)
 
-    if detector == '1/v':
-        moment_1 = 2. * ( mass_amu / neutron_mass ) * sin_theta * sin_theta * ( l_0 + 3.0 * l_s ) / l_total
+    # get derivative of incident spectrum using cubic spline
+    incident_monitor = 0
+    x = incident_ws.readX(incident_monitor)
+    y = incident_ws.readY(incident_monitor)
 
-    if detector == 'black':
-        moment_1 = 4. * ( mass_amu / neutron_mass ) * sin_theta * sin_theta * ( l_0 + 1.5 * l_s ) / l_total
+    lam_lo = 0.12
+    lam_hi = 2.9
+    x_fit = x[ (x >= lam_lo) & (x <= lam_hi)]
+    y_fit = y[ (x >= lam_lo) & (x <= lam_hi)]
+
+
+    # Fit with Cubic Spline
+    tck = interpolate.splrep(x_fit,y_fit,s=1e16)
+    fit = interpolate.splev(x,tck,der=0)
+    fit_der = interpolate.splev(x,tck,der=1)
+
+    plt.plot(x,y,'bo',x,fit,'--')
+    plt.legend(['Incident Spectrum','Spline f(x)'],loc='best')
+    plt.show()
+
+    plt.plot(x,x*fit_der/fit,'x--')
+    plt.xlabel('Wavelength')
+    plt.show()
+
+    # Fit with analytical function from HoweEtAl
+    def fitHoweFunction(lambdas, phi_max, phi_epi, lam_t, lam_1, lam_2,a):
+        term1 = phi_max * ((lam_t**4.)/lambdas**5.)*np.exp(-(lam_t/lambdas)**2.) 
+        term2 = (phi_epi/(lambdas**(1.+2.*a)))*(1./(1+np.exp((lambdas-lam_1)/lam_2)))
+        return term1 + term2
+
+    params = [1.,1.,1.,0.,1.,1.]
+    params, convergence = optimize.curve_fit( fitHoweFunction, x_fit, y_fit, params)
+    print 'params:', params
+
+    # Plot both curves
+    plt.plot(x, y, 'bx', label='data', lw=3)
+    plt.plot(x, fitHoweFunction(x, *params), 'b-', label='fit', lw=2)
+    plt.legend()
+    plt.show()
+
+
+    exit()
+
+   
+
+    if detector == '1/v':
+        # See Powles (1973) Eq. (4.23)' for C
+        term_1 = (2.*l_0 + 3.*l_s) / l_total
+        term_2 = (l_s / l_total) * d_ln_f_over_d_ln_lambda
+        term_3 = (l_0 / l_total) * -1.
+        C = term_1 + term_2 + term_3
+        # See Powles (1973) Eq. (4.23)
+        moment_1 = 2. * ( mass_amu / neutron_mass ) * sin_theta * sin_theta * C
+
 
     return self_scat * (1. - moment_1)
 
@@ -327,6 +379,7 @@ def plot_workspace(van, title=None,mode='TOF'):
     for bank in range(ws.getNumberHistograms()):
         xall = ws.readX(bank)[1:]
         yall = ws.readY(bank)
+
         if mode == 'Energy':
             plt.semilogx(xall, yall)
         else:
@@ -338,7 +391,7 @@ def plot_workspace(van, title=None,mode='TOF'):
     plt.xlabel(str(xunit.caption())+'('+str(xunit.symbol())+')')
 
     yunit = ws.getAxis(1).getUnit()
-    plt.ylabel(str(yunit.caption())+'('+str(yunit.symbol())+')')
+    plt.ylabel('Neutrons per second per angstrom')
 
     axes = plt.gca()
     axes.set_xlim(xlims[mode])
@@ -346,7 +399,7 @@ def plot_workspace(van, title=None,mode='TOF'):
     plt.show()
     return
 
-def getIncidentSpectrums( van, van_bg, binning, **alignAndFocusArgs):
+def getIncidentSpectrumsFromVanadium( van, van_bg, binning, **alignAndFocusArgs):
     diameter_Vrod_cm = 0.585
     radius_Vrod_cm = diameter_Vrod_cm / 2.0
     mass_density_Vrod = 6.11
@@ -421,13 +474,49 @@ def getIncidentSpectrums( van, van_bg, binning, **alignAndFocusArgs):
     Rebin(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Params=binning, PreserveEvents=False)
 
     return van_corrected
-'''
-# Create placzek correction vectorizing function
-placzek = np.vectorize(calc_placzek_first_moment)
-mass = 50.9415 # amu of Vanadium
-q_vector = np.arange(0.1,50.0,0.02)  
-placzek_correction = placzek(q_vector, mass)
-'''
+
+def getIncidentSpectrumFromMonitor(van_scans, incident=0, transmission=1, lam_binning="0.0,0.02,4.0"):
+    van = ','.join(['NOM_%d' % num for num in van_scans])
+
+    #-------------------------------------------------
+    # Joerg's read_bm.pro code
+    p = 0.000794807
+    
+    # get delta lambda from lamda binning
+    lam_bin = float(lam_binning.split(',')[1])
+
+
+    #-------------------------------------------------
+    # Version 2: Use conversions in mantid
+    monitor_raw = LoadNexusMonitors(van)
+    monitor = 'monitor'
+    NormaliseByCurrent(InputWorkspace=monitor_raw, OutputWorkspace=monitor,   
+                       RecalculatePCharge=True)
+    ConvertUnits(InputWorkspace=monitor, OutputWorkspace=monitor,
+                 Target='Wavelength', EMode='Elastic')
+    monitor = Rebin(InputWorkspace=monitor, Params=lam_binning, PreserveEvents=True)
+
+    lam = monitor.readX(incident)[1:]
+    bm  = monitor.readY(incident)
+    e0 = 5333.0 * lam / 1.8 * 2.43e-5 * p
+    bmeff = bm / ( 1. - np.exp(-e0*.1))
+    bmpp = bmeff / lam_bin 
+   
+    total_intensity = 0.
+    for d_lam, d_bm in zip(lam,bmpp):
+        if d_lam >= 0.1 and d_lam <= 2.9:
+            total_intensity += d_lam*d_bm
+    print "Version 2 Total intensity:", total_intensity / 1.e8, "10^8 neutrons per s"
+    '''
+    plt.plot(lam, bmpp, 'x-')
+    xunit = monitor.getAxis(0).getUnit()
+    plt.xlabel(str(xunit.caption())+' ('+str(xunit.symbol())+')')
+    yunit = monitor.getAxis(1).getUnit()
+    plt.ylabel(str(yunit.caption())+' ('+str(yunit.symbol())+')')
+    plt.show()
+    '''
+    incident_ws = CreateWorkspace(DataX=lam, DataY=bmpp, UnitX='Wavelength')
+    return incident_ws
 
 #-----------------------------------------------------------------------------------------#
 # Start Placzek calculations
@@ -435,65 +524,23 @@ import matplotlib.pyplot as plt
 from scipy import optimize
 
 # get incident spectrums, conver to wavelength for proper fitting  and select bank (banks=0,1,2,3,4,5)
-incident_ws = getIncidentSpectrums(van_scans, van_bg, binning, **alignAndFocusArgs)
+'''
+incident_ws = getIncidentSpectrumsFromVanadium(van_scans, van_bg, binning, **alignAndFocusArgs)
 ConvertUnits(InputWorkspace=incident_ws, OutputWorkspace=incident_ws,
              Target='TOF', EMode='Elastic')
-exit()
-
-# get non-cropped part of spectrum (so we don't fit flat portion of curve)
-xall = mtd[incident_ws].readX(bank)[1:]
-yall = mtd[incident_ws].readY(bank)
 '''
-lam = list()
-spectrum = list()
-for x, y in zip(xall, yall):
-    if y > 0.0 and y < 30.0:
-        lam.append(x)
-        spectrum.append(y)
-x = np.array(lam - lam[0])
-y = np.array(spectrum)
-plt.plot(x,y)
-plt.show()
-exit()
-'''
-x = np.array(xall)
-y = np.array(yall)
-# Define Maxwell Distribution Funcion and the Error Function to Optimize between the actual spectrum
-def myMaxwell(x_0, loc, scale, c):
-    x = (x_0 - loc) / scale
-    y = (1/scale) * np.sqrt(2/np.pi)*x**2 * np.exp(-x**2/2)
-    mask = [ i for i, val in enumerate(x) if val < loc ]
-    y[mask] = 0.0
-    return c*y
+incident_ws = getIncidentSpectrumFromMonitor(van_scans,lam_binning="0.0,0.01,4.")
 
-# Perform least-squares optimization between the difference in the Maxwell fit and the actual incident spectrum
-params = [0.,1., 1000.] # initial-guess params: location of x == 0, distribution scale, and overall scale
-params, convergence = optimize.curve_fit( myMaxwell, x, y, params)
-
-# Plot both curves
-print 'fit params: loc - ', params[0], 'scale -', params[1], 'overall scale - ', params[2]
-plt.plot(x, y, 'bx', label='data', lw=3)
-plt.plot(x, myMaxwell(x, *params), 'b-', label='fit', lw=2)
-plt.legend()
-plt.show()
-exit()
-
-
-mass = 50.9415
+# Fitting using a cubic spline 
+mass = 28.0855
 self_scat = 0.40
 theta = 120.4
 l_0 = 19.5
 l_1 = 1.11
-print calc_self_placzek( mass, self_scat, theta, l_0, l_1 )
-
-placzek = np.vectorize(calc_self_placzek)
-offset = 10.0
-thetas = np.arange( theta - offset, theta + offset, 0.1)
-placzek_out = placzek(mass, self_scat, thetas, l_0, l_1 )
+placzek_out =  calc_self_placzek( incident_ws, mass, self_scat, theta, l_0, l_1 )
 
 # Output the Placzek correction 
 import matplotlib.pyplot as plt
 
-plt.plot(thetas, placzek_out)
+plt.plot(incident_ws.readX(0), placzek_out, 'x-')
 plt.show()
-
