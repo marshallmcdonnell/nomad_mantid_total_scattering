@@ -8,9 +8,10 @@ from h5py import File
 from mantid import mtd
 from mantid.simpleapi import *
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.constants import m_n, hbar, Avogadro, micro
 from scipy.constants import physical_constants
-from scipy import interpolate, signal, ndimage
+from scipy import interpolate, signal, ndimage, optimize
 
 #-----------------------------------------------------------------------------------
 # . NexusHandler
@@ -338,17 +339,12 @@ def calc_self_placzek( incident_ws, mass_amu, self_scat, theta,
     # Fit with Cubic Spline
     fit, fit_prime = fitCubicSpline(x, y, x_lo=lam_lo, x_hi=lam_hi)
     plotPlaczek(x, y, fit, fit_prime, title='Simple Cubic Spline')
+    '''
 
     # Fit with Howells Function
-    fit, fit_prime = fitHowellsFunction(x, y, x_lo=lam_lo, x_hi=lam_hi)
+    fit, fit_prime = fitHowellsFunction(x, y, x_lo=0.16, x_hi=3.1)
     plotPlaczek(x, y, fit, fit_prime, title='HowellsFunction')
 
-    # Fit Cubic Spline with Gaussian Convolution for weights
-    spline_fit, spline_fit_prime = fitCubicSplineWithGaussConv(x, y, x_lo=lam_lo, x_hi=lam_hi)
-    fit = spline_fit(x)
-    fit_prime = spline_fit_prime(x)
-    plotPlaczek(x, y, fit, fit_prime, title='Cubic Spline w/ Conv and range:'+str(lam_lo)+'-'+str(lam_hi))
-    '''
     spline_fit, spline_fit_prime =  fitCubicSplineWithGaussConv(x, y)
     fit = spline_fit(x)
     fit_prime = spline_fit_prime(x)
@@ -568,8 +564,6 @@ def getIncidentSpectrumFromMonitor(van_scans, incident=0, transmission=1, lam_bi
 
 #-----------------------------------------------------------------------------------------#
 # Start Placzek calculations
-import matplotlib.pyplot as plt
-from scipy import optimize
 
 # get incident spectrums, conver to wavelength for proper fitting  and select bank (banks=0,1,2,3,4,5)
 '''
@@ -591,5 +585,5 @@ placzek_out =  calc_self_placzek( incident_ws, mass, self_scat, theta, l_0, l_1 
 # Output the Placzek correction 
 import matplotlib.pyplot as plt
 
-plt.plot(incident_ws.readX(0), placzek_out, 'x-')
-plt.show()
+#plt.plot(incident_ws.readX(0), placzek_out, 'x-')
+#plt.show()
