@@ -10,7 +10,7 @@ from mantid.simpleapi import *
 import numpy as np
 from scipy.constants import m_n, hbar, Avogadro, micro
 from scipy.constants import physical_constants
-from scipy import interpolate, signal
+from scipy import interpolate, signal, ndimage
 
 #-----------------------------------------------------------------------------------
 # . NexusHandler
@@ -286,6 +286,20 @@ def fitHowellsFunction(x, y, x_lo=None, x_hi=None ):
     fit_prime = calc_HowellsFunction1stDerivative(x, *params)
     return fit, fit_prime
 
+def fitCubicSplineWithGaussConv(x, y, x_lo=None, x_hi=None):
+    # Fit with Cubic Spline using a Gaussian Convolution to get weights
+    def moving_average(y, sigma=5):
+        b = signal.gaussian(39, sigma)
+        average = ndimage.filters.convolve1d(y, b/b.sum())
+        var = ndimage.filters.convolve1d(np.power(y-average,2),b/b.sum())
+        return average, var
+
+    x_fit, y_fit = getFitRange(x, y, x_lo, x_hi)
+    avg, var = moving_average(y_fit)
+    spline_fit = interpolate.UnivariateSpline(x_fit, y_fit, w=1./np.sqrt(var))
+    spline_fit_prime = spline_fit.derivative()
+    return spline_fit, spline_fit_prime 
+
 def plotPlaczek(x, y, fit, fit_prime, title=None):
     plt.plot(x,y,'bo',x,fit,'--')
     plt.legend(['Incident Spectrum','Fit f(x)'],loc='best')
@@ -320,10 +334,7 @@ def calc_self_placzek( incident_ws, mass_amu, self_scat, theta,
     x = incident_ws.readX(incident_monitor)
     y = incident_ws.readY(incident_monitor)
 
-    # wavelength range to fit
-    lam_lo = 0.12
-    lam_hi = 2.9
-
+    '''
     # Fit with Cubic Spline
     fit, fit_prime = fitCubicSpline(x, y, x_lo=lam_lo, x_hi=lam_hi)
     plotPlaczek(x, y, fit, fit_prime, title='Simple Cubic Spline')
@@ -332,13 +343,20 @@ def calc_self_placzek( incident_ws, mass_amu, self_scat, theta,
     fit, fit_prime = fitHowellsFunction(x, y, x_lo=lam_lo, x_hi=lam_hi)
     plotPlaczek(x, y, fit, fit_prime, title='HowellsFunction')
 
-
-    exit()
-
-   
+    # Fit Cubic Spline with Gaussian Convolution for weights
+    spline_fit, spline_fit_prime = fitCubicSplineWithGaussConv(x, y, x_lo=lam_lo, x_hi=lam_hi)
+    fit = spline_fit(x)
+    fit_prime = spline_fit_prime(x)
+    plotPlaczek(x, y, fit, fit_prime, title='Cubic Spline w/ Conv and range:'+str(lam_lo)+'-'+str(lam_hi))
+    '''
+    spline_fit, spline_fit_prime =  fitCubicSplineWithGaussConv(x, y)
+    fit = spline_fit(x)
+    fit_prime = spline_fit_prime(x)
+    plotPlaczek(x, y, fit, fit_prime, title='Cubic Spline w/ Gaussian Kernel Convolution ')
 
     if detector == '1/v':
         # See Powles (1973) Eq. (4.23)' for C
+        d_ln_f_over_d_ln_lambda = spline_fit_prime(x)
         term_1 = (2.*l_0 + 3.*l_s) / l_total
         term_2 = (l_s / l_total) * d_ln_f_over_d_ln_lambda
         term_3 = (l_0 / l_total) * -1.
@@ -504,7 +522,7 @@ def getIncidentSpectrumsFromVanadium( van, van_bg, binning, **alignAndFocusArgs)
 
     return van_corrected
 
-def getIncidentSpectrumFromMonitor(van_scans, incident=0, transmission=1, lam_binning="0.0,0.02,4.0"):
+def getIncidentSpectrumFromMonitor(van_scans, incident=0, transmission=1, lam_binning="0.1,0.02,3.1"):
     van = ','.join(['NOM_%d' % num for num in van_scans])
 
     #-------------------------------------------------
@@ -529,6 +547,7 @@ def getIncidentSpectrumFromMonitor(van_scans, incident=0, transmission=1, lam_bi
     bm  = monitor.readY(incident)
     e0 = 5333.0 * lam / 1.8 * 2.43e-5 * p
     bmeff = bm / ( 1. - np.exp(-e0*.1))
+    #bmeff = bm / ( 1. - np.exp((-1./1.44)*lam))
     bmpp = bmeff / lam_bin 
    
     total_intensity = 0.
@@ -544,7 +563,7 @@ def getIncidentSpectrumFromMonitor(van_scans, incident=0, transmission=1, lam_bi
     plt.ylabel(str(yunit.caption())+' ('+str(yunit.symbol())+')')
     plt.show()
     '''
-    incident_ws = CreateWorkspace(DataX=lam, DataY=bmpp, UnitX='Wavelength')
+    incident_ws = CreateWorkspace(DataX=lam, DataY=bmeff, UnitX='Wavelength')
     return incident_ws
 
 #-----------------------------------------------------------------------------------------#
@@ -558,11 +577,12 @@ incident_ws = getIncidentSpectrumsFromVanadium(van_scans, van_bg, binning, **ali
 ConvertUnits(InputWorkspace=incident_ws, OutputWorkspace=incident_ws,
              Target='TOF', EMode='Elastic')
 '''
-incident_ws = getIncidentSpectrumFromMonitor(van_scans,lam_binning="0.0,0.01,4.")
+incident_ws = getIncidentSpectrumFromMonitor(van_scans)
+SetSampleMaterial(incident_ws, ChemicalFormula='Si')
+self_scat = incident_ws.sample().getMaterial().totalScatterLengthSqrd() / 100.
+mass = incident_ws.sample().getMaterial().relativeMolecularMass()
 
 # Fitting using a cubic spline 
-mass = 28.0855
-self_scat = 0.40
 theta = 120.4
 l_0 = 19.5
 l_1 = 1.11
