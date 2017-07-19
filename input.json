@@ -11,6 +11,7 @@
     "van_corr_type" : "Carpenter",
     "sam_corr_type" : "Carpenter", 
     "van_inelastic_corr_type" : "Placzek",
+    "sam_inelastic_corr_type" : "Placzek",
     "packing_fraction" : 0.5,
     "binning": [0.0, 0.02, 50.0],
     "sumbanks": [3],
