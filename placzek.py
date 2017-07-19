@@ -10,7 +10,7 @@ from mantid.simpleapi import *
 import numpy as np
 from scipy.constants import m_n, hbar, Avogadro, micro
 from scipy.constants import physical_constants
-from scipy import interpolate
+from scipy import interpolate, signal
 
 #-----------------------------------------------------------------------------------
 # . NexusHandler
@@ -250,6 +250,58 @@ def calc_placzek_first_moment(q, mass):
     hbar2 = hbar_amu_ang2_per_s * hbar_amu_ang2_per_s
     return ( hbar2 / 2.0 ) * ( q*q / mass / Avogadro)
 
+def getFitRange(x, y, x_lo, x_hi):
+    if x_lo is None:
+        x_lo = min(x)
+    if x_hi is None:
+        x_hi = max(x)
+
+    x_fit = x[ (x >= x_lo) & (x <= x_hi)]
+    y_fit = y[ (x >= x_lo) & (x <= x_hi)]
+    return x_fit, y_fit
+
+def fitCubicSpline(x, y, x_lo=None, x_hi=None):
+    x_fit, y_fit = getFitRange(x, y, x_lo, x_hi)
+    tck = interpolate.splrep(x_fit,y_fit,s=1e16)
+    fit = interpolate.splev(x,tck,der=0)
+    fit_prime = interpolate.splev(x,tck,der=1)
+    return fit, fit_prime
+
+def fitHowellsFunction(x, y, x_lo=None, x_hi=None ):
+    # Fit with analytical function from HowellsEtAl
+    def calc_HowellsFunction(lambdas, phi_max, phi_epi, lam_t, lam_1, lam_2, a ):
+        term1 = phi_max * ((lam_t**4.)/lambdas**5.)*np.exp(-(lam_t/lambdas)**2.) 
+        term2 = (phi_epi/(lambdas**(1.+2.*a)))*(1./(1+np.exp((lambdas-lam_1)/lam_2)))
+        return term1 + term2
+
+    def calc_HowellsFunction1stDerivative(lambdas, phi_max, phi_epi, lam_t, lam_1, lam_2, a ):
+        term1 = (((2*lam_t**2)/lambdas**2) - 5.) * (1./lambdas) * phi_max * ((lam_t**4.)/lambdas**5.)*np.exp(-(lam_t/lambdas)**2.) 
+        term2 = ((1+2*a)/lambdas)*(1./lambdas)*(phi_epi/(lambdas**(1.+2.*a)))*(1./(1+np.exp((lambdas-lam_1)/lam_2)))
+        return term1 + term2
+
+    x_fit, y_fit = getFitRange(x, y, x_lo, x_hi)
+    params = [1.,1.,1.,0.,1.,1.]
+    params, convergence = optimize.curve_fit( calc_HowellsFunction, x_fit, y_fit, params)
+    fit = calc_HowellsFunction(x, *params)
+    fit_prime = calc_HowellsFunction1stDerivative(x, *params)
+    return fit, fit_prime
+
+def plotPlaczek(x, y, fit, fit_prime, title=None):
+    plt.plot(x,y,'bo',x,fit,'--')
+    plt.legend(['Incident Spectrum','Fit f(x)'],loc='best')
+    if title is not None:
+        plt.title(title)
+    plt.show()
+
+    plt.plot(x,x*fit_prime/fit,'x--',label="Fit x*f'(x)/f(x)")
+    plt.xlabel('Wavelength')
+    plt.legend()
+    if title is not None:
+        plt.title(title)
+    plt.show()
+    return
+   
+
 def calc_self_placzek( incident_ws, mass_amu, self_scat, theta, 
                        incident_path_length, scattered_path_length, detector='1/v'):
     # constants and conversions
@@ -268,40 +320,17 @@ def calc_self_placzek( incident_ws, mass_amu, self_scat, theta,
     x = incident_ws.readX(incident_monitor)
     y = incident_ws.readY(incident_monitor)
 
+    # wavelength range to fit
     lam_lo = 0.12
     lam_hi = 2.9
-    x_fit = x[ (x >= lam_lo) & (x <= lam_hi)]
-    y_fit = y[ (x >= lam_lo) & (x <= lam_hi)]
-
 
     # Fit with Cubic Spline
-    tck = interpolate.splrep(x_fit,y_fit,s=1e16)
-    fit = interpolate.splev(x,tck,der=0)
-    fit_der = interpolate.splev(x,tck,der=1)
+    fit, fit_prime = fitCubicSpline(x, y, x_lo=lam_lo, x_hi=lam_hi)
+    plotPlaczek(x, y, fit, fit_prime, title='Simple Cubic Spline')
 
-    plt.plot(x,y,'bo',x,fit,'--')
-    plt.legend(['Incident Spectrum','Spline f(x)'],loc='best')
-    plt.show()
-
-    plt.plot(x,x*fit_der/fit,'x--')
-    plt.xlabel('Wavelength')
-    plt.show()
-
-    # Fit with analytical function from HoweEtAl
-    def fitHoweFunction(lambdas, phi_max, phi_epi, lam_t, lam_1, lam_2,a):
-        term1 = phi_max * ((lam_t**4.)/lambdas**5.)*np.exp(-(lam_t/lambdas)**2.) 
-        term2 = (phi_epi/(lambdas**(1.+2.*a)))*(1./(1+np.exp((lambdas-lam_1)/lam_2)))
-        return term1 + term2
-
-    params = [1.,1.,1.,0.,1.,1.]
-    params, convergence = optimize.curve_fit( fitHoweFunction, x_fit, y_fit, params)
-    print 'params:', params
-
-    # Plot both curves
-    plt.plot(x, y, 'bx', label='data', lw=3)
-    plt.plot(x, fitHoweFunction(x, *params), 'b-', label='fit', lw=2)
-    plt.legend()
-    plt.show()
+    # Fit with Howells Function
+    fit, fit_prime = fitHowellsFunction(x, y, x_lo=lam_lo, x_hi=lam_hi)
+    plotPlaczek(x, y, fit, fit_prime, title='HowellsFunction')
 
 
     exit()
