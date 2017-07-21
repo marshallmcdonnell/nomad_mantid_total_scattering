@@ -1,0 +1,9 @@
+{
+    "sample" : "91621",
+    "vanadium" : "91077",
+    "date" : "2017_04_12",
+    "sample_environment" : "shifter",
+    "caldirectory" : "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL",
+    "oldCal" : "/SNS/NOM/shared/CALIBRATION/2016_2_1B_CAL/NOM_d85746_2016_11_21_shifter.h5"
+}
+
