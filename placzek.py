@@ -261,9 +261,9 @@ def getFitRange(x, y, x_lo, x_hi):
     y_fit = y[ (x >= x_lo) & (x <= x_hi)]
     return x_fit, y_fit
 
-def fitCubicSpline(x, y, x_lo=None, x_hi=None):
+def fitCubicSpline(x, y, x_lo=None, x_hi=None,s=1e15):
     x_fit, y_fit = getFitRange(x, y, x_lo, x_hi)
-    tck = interpolate.splrep(x_fit,y_fit,s=1e16)
+    tck = interpolate.splrep(x_fit,y_fit,s=s)
     fit = interpolate.splev(x,tck,der=0)
     fit_prime = interpolate.splev(x,tck,der=1)
     return fit, fit_prime
@@ -289,7 +289,7 @@ def fitHowellsFunction(x, y, x_lo=None, x_hi=None ):
 
 def fitCubicSplineWithGaussConv(x, y, x_lo=None, x_hi=None):
     # Fit with Cubic Spline using a Gaussian Convolution to get weights
-    def moving_average(y, sigma=5):
+    def moving_average(y, sigma=3):
         b = signal.gaussian(39, sigma)
         average = ndimage.filters.convolve1d(y, b/b.sum())
         var = ndimage.filters.convolve1d(np.power(y-average,2),b/b.sum())
@@ -308,11 +308,13 @@ def plotPlaczek(x, y, fit, fit_prime, title=None):
         plt.title(title)
     plt.show()
 
-    plt.plot(x,x*fit_prime/fit,'x--',label="Fit x*f'(x)/f(x)")
+    plt.plot(x,fit_prime/fit,'x--',label="Fit f'(x)/f(x)")
     plt.xlabel('Wavelength')
     plt.legend()
     if title is not None:
         plt.title(title)
+    axes = plt.gca()
+    axes.set_ylim([-12,6])
     plt.show()
     return
    
@@ -335,17 +337,26 @@ def calc_self_placzek( incident_ws, mass_amu, self_scat, theta,
     x = incident_ws.readX(incident_monitor)
     y = incident_ws.readY(incident_monitor)
 
-    '''
     # Fit with Cubic Spline
+    lam_lo = 0.15
+    lam_hi = 3.2
+    lam_lo = min(x)
+    lam_hi = max(x)
+    print "Wavelength:", lam_lo, 'to', lam_hi
     fit, fit_prime = fitCubicSpline(x, y, x_lo=lam_lo, x_hi=lam_hi)
-    plotPlaczek(x, y, fit, fit_prime, title='Simple Cubic Spline')
-    '''
+    plotPlaczek(x, y, fit, fit_prime, title='Simple Cubic Spline: Default')
+
+    fit, fit_prime = fitCubicSpline(x, y, x_lo=lam_lo, x_hi=lam_hi,s=1e5)
+    plotPlaczek(x, y, fit, fit_prime, title='Simple Cubic Spline: Overfit')
+
+    fit, fit_prime = fitCubicSpline(x, y, x_lo=lam_lo, x_hi=lam_hi,s=1e14)
+    plotPlaczek(x, y, fit, fit_prime, title='Simple Cubic Spline: Underfit')
 
     # Fit with Howells Function
-    fit, fit_prime = fitHowellsFunction(x, y, x_lo=0.16, x_hi=3.1)
+    fit, fit_prime = fitHowellsFunction(x, y, x_lo=lam_lo, x_hi=lam_hi)
     plotPlaczek(x, y, fit, fit_prime, title='HowellsFunction')
 
-    spline_fit, spline_fit_prime =  fitCubicSplineWithGaussConv(x, y)
+    spline_fit, spline_fit_prime =  fitCubicSplineWithGaussConv(x, y,x_lo=lam_lo,x_hi=lam_hi)
     fit = spline_fit(x)
     fit_prime = spline_fit_prime(x)
     plotPlaczek(x, y, fit, fit_prime, title='Cubic Spline w/ Gaussian Kernel Convolution ')
@@ -571,19 +582,24 @@ incident_ws = getIncidentSpectrumsFromVanadium(van_scans, van_bg, binning, **ali
 ConvertUnits(InputWorkspace=incident_ws, OutputWorkspace=incident_ws,
              Target='TOF', EMode='Elastic')
 '''
-incident_ws = getIncidentSpectrumFromMonitor(van_scans)
-SetSampleMaterial(incident_ws, ChemicalFormula='Si')
-self_scat = incident_ws.sample().getMaterial().totalScatterLengthSqrd() / 100.
-mass = incident_ws.sample().getMaterial().relativeMolecularMass()
+for binsize in [0.01,0.02,0.05,0.075]:
+    lam_lo = 0.1
+    lam_hi = 3.1
+    lam_binning = ','.join([ str(x) for x in [lam_lo,binsize,lam_hi]])
+    print "Wavelength Binning:", lam_binning
+    incident_ws = getIncidentSpectrumFromMonitor(van_scans,lam_binning=lam_binning)
+    SetSampleMaterial(incident_ws, ChemicalFormula='Si')
+    self_scat = incident_ws.sample().getMaterial().totalScatterLengthSqrd() / 100.
+    mass = incident_ws.sample().getMaterial().relativeMolecularMass()
 
-# Fitting using a cubic spline 
-theta = 120.4
-l_0 = 19.5
-l_1 = 1.11
-placzek_out =  calc_self_placzek( incident_ws, mass, self_scat, theta, l_0, l_1 )
+    # Fitting using a cubic spline 
+    theta = 120.4
+    l_0 = 19.5
+    l_1 = 1.11
+    placzek_out =  calc_self_placzek( incident_ws, mass, self_scat, theta, l_0, l_1 )
 
-# Output the Placzek correction 
-import matplotlib.pyplot as plt
+    # Output the Placzek correction 
+    import matplotlib.pyplot as plt
 
-#plt.plot(incident_ws.readX(0), placzek_out, 'x-')
-#plt.show()
+    #plt.plot(incident_ws.readX(0), placzek_out, 'x-')
+    #plt.show()
