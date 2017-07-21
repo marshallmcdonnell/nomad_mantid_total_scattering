@@ -1,9 +1,15 @@
 {
-    "sample" : "91621",
-    "vanadium" : "91077",
-    "date" : "2017_04_12",
-    "sample_environment" : "shifter",
-    "caldirectory" : "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL",
-    "oldCal" : "/SNS/NOM/shared/CALIBRATION/2016_2_1B_CAL/NOM_d85746_2016_11_21_shifter.h5"
-}
+    "calibrants": { "94328" : {"vanadium": "94330"},
+                    "94339" : {"vanadium": "94341"},
+                    "94350" : {"vanadium": "94352"},
+                    "94361" : {"vanadium": "94363"},
+                    "94365" : {"vanadium": "94367"},
+                    "94376" : {"vanadium": "94378"},
+                    "94387" : {"vanadium": "94389"}
 
+    },
+    "date": "2017_07_17",
+    "sample_environment": "shifter_slit_test",
+    "caldirectory": "/SNS/NOM/shared/CALIBRATION/2017_2_1B_CAL",
+    "oldCal": "/SNS/NOM/shared/CALIBRATION/2016_2_1B_CAL/NOM_d85746_2016_11_21_shifter.h5"
+}
