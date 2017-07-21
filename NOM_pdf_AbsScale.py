@@ -367,17 +367,17 @@ def GetIncidentSpectrumFromMonitor(Filename=None, OutputWorkspace="IncidentWorks
     # Loop workspaces to get each incident spectrum
     monitor_raw = LoadNexusMonitors(Filename)
     print "Load Monitor"
-    print_unit_info(monitor_raw)
+    #print_unit_info(monitor_raw)
     monitor = 'monitor'
     NormaliseByCurrent(InputWorkspace=monitor_raw, OutputWorkspace=monitor,
                        RecalculatePCharge=True)
     print "Normalize Monitor"
-    print_unit_info(monitor)
+    #print_unit_info(monitor)
     ConvertUnits(InputWorkspace=monitor, OutputWorkspace=monitor,
                  Target='Wavelength', EMode='Elastic')
     monitor = Rebin(InputWorkspace=monitor, Params=lam_binning, PreserveEvents=True)
     print "Monitor Rebinned Monitor"
-    print_unit_info(monitor)
+    #print_unit_info(monitor)
 
     lam = monitor.readX(incident)[:-1] # wavelength in A
     bm  = monitor.readY(incident)     # neutron counts / microsecond
@@ -782,7 +782,6 @@ if van_inelastic_corr_type == "Placzek":
                                        incident=0, 
                                        transmission=1)
         print_unit_info(van_incident_wksp)
-        exit()
         van_placzek = 'van_placzek'
         CalculatePlaczekSelfScattering(IncidentWorkspace=van_incident_wksp, 
                                        OutputWorkspace=van_placzek,
