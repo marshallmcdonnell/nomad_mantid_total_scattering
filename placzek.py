@@ -1,18 +1,19 @@
 #!/usr/bin/env python
 import sys
 import json
-import glob
-import re
-import ConfigParser
-from h5py import File
+import collections
 from mantid import mtd
 from mantid.simpleapi import *
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.constants import m_n, hbar, Avogadro, micro
-from scipy.constants import physical_constants
+from scipy.constants import m_n, physical_constants
 from scipy import interpolate, signal, ndimage, optimize
 
+def ConvertLambdaToQ(lam,angle):
+    angle_conv = np.pi / 180.
+    sin_theta_by_2 = np.sin(angle * angle_conv / 2.)
+    q = (4.*np.pi / lam)*sin_theta_by_2
+    return q
 
 #-----------------------------------------------------------------------------------------#
 # Functions for fitting the incident spectrum
@@ -33,6 +34,10 @@ def fitCubicSpline(x, y, x_lo=None, x_hi=None,s=1e15):
     fit_prime = interpolate.splev(x,tck,der=1)
     return fit, fit_prime
 
+def fitCubicSplineViaMantidSplineSmoothing(InputWorkspace, **kwargs):
+    SplineSmoothing(InputWorkspace, OutputWorkspace='fit', OutputWorkspaceDeriv='fit_prime', DerivOrder=1,**kwargs)
+    return mtd['fit'].readY(0), mtd['fit_prime_1'].readY(0) 
+
 def fitHowellsFunction(x, y, x_lo=None, x_hi=None ):
     # Fit with analytical function from HowellsEtAl
     def calc_HowellsFunction(lambdas, phi_max, phi_epi, lam_t, lam_1, lam_2, a ):
@@ -52,9 +57,9 @@ def fitHowellsFunction(x, y, x_lo=None, x_hi=None ):
     fit_prime = calc_HowellsFunction1stDerivative(x, *params)
     return fit, fit_prime
 
-def fitCubicSplineWithGaussConv(x, y, x_lo=None, x_hi=None):
+def fitCubicSplineWithGaussConv(x, y, x_lo=None, x_hi=None, sigma=3):
     # Fit with Cubic Spline using a Gaussian Convolution to get weights
-    def moving_average(y, sigma=3):
+    def moving_average(y, sigma=sigma):
         b = signal.gaussian(39, sigma)
         average = ndimage.filters.convolve1d(y, b/b.sum())
         var = ndimage.filters.convolve1d(np.power(y-average,2),b/b.sum())
@@ -62,7 +67,6 @@ def fitCubicSplineWithGaussConv(x, y, x_lo=None, x_hi=None):
 
     x_fit, y_fit = getFitRange(x, y, x_lo, x_hi)
     avg, var = moving_average(y_fit)
-    print x_fit
     spline_fit = interpolate.UnivariateSpline(x_fit, y_fit, w=1./np.sqrt(var))
     spline_fit_prime = spline_fit.derivative()
     return spline_fit, spline_fit_prime 
@@ -88,8 +92,8 @@ def plotIncidentSpectrum(x, y, fit, fit_prime, title=None):
     plt.show()
     return
 
-def getIncidentSpectrumFromMonitor(van_scans, incident=0, transmission=1, lam_binning="0.1,0.02,3.1"):
-    van = ','.join(['NOM_%d' % num for num in van_scans])
+def GetIncidentSpectrumFromMonitor(Filename, OutputWorkspace=None, incident=0, transmission=1, lam_binning="0.1,0.02,3.1"):
+    scans = ','.join(['NOM_%d' % num for num in Filename])
 
     #-------------------------------------------------
     # Joerg's read_bm.pro code
@@ -101,7 +105,7 @@ def getIncidentSpectrumFromMonitor(van_scans, incident=0, transmission=1, lam_bi
 
     #-------------------------------------------------
     # Version 2: Use conversions in mantid
-    monitor_raw = LoadNexusMonitors(van)
+    monitor_raw = LoadNexusMonitors(scans)
     monitor = 'monitor'
     NormaliseByCurrent(InputWorkspace=monitor_raw, OutputWorkspace=monitor,   
                        RecalculatePCharge=True)
@@ -129,11 +133,50 @@ def getIncidentSpectrumFromMonitor(van_scans, incident=0, transmission=1, lam_bi
     plt.ylabel(str(yunit.caption())+' ('+str(yunit.symbol())+')')
     plt.show()
     '''
-    incident_ws = CreateWorkspace(DataX=lam, DataY=bmeff, UnitX='Wavelength')
+    incident_ws = CreateWorkspace(DataX=lam, DataY=bmeff, OutputWorkspace=OutputWorkspace, UnitX='Wavelength')
     return incident_ws
 
-def calc_self_placzek( incident_ws, atom_species, theta, L1, L2, detector_alpha=None, detector_lambda_d = 1.44,
-                       FitSpectrum='GaussConvCubicSpline', Binning="0.15,0.05,3.2", detector='1/v'):
+
+def FitIncidentSpectrum(InputWorkspace, OutputWorkspace,FitSpectrumWith='GaussConvCubicSpline', Binning="0.15,0.05,3.2"):
+
+    incident_ws = mtd[InputWorkspace]
+
+    # Fit Incident Spectrum  
+    incident_index = 0
+    x_lambda = incident_ws.readX(incident_index)
+    y_intensity = incident_ws.readY(incident_index)
+
+    lam_lo = float(Binning.split(',')[0])
+    lam_hi = float(Binning.split(',')[2])
+    
+    if FitSpectrumWith == 'CubicSpline': 
+        fit, fit_prime = fitCubicSpline(x_lambda, y_intensity, x_lo=lam_lo, x_hi=lam_hi,s=1e7)
+        plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='Simple Cubic Spline: Default')
+
+    elif FitSpectrumWith == 'CubicSplineViaMantid': 
+        fit, fit_prime = fitCubicSplineViaMantidSplineSmoothing(InputWorkspace=InputWorkspace,MaxNumberOfBreaks=10)
+        plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='Cubic Spline via Mantid SplineSmoothing')
+    elif FitSpectrumWith == 'HowellsFunction': 
+        fit, fit_prime = fitHowellsFunction(x_lambda, y_intensity, x_lo=lam_lo, x_hi=lam_hi)
+        plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='HowellsFunction')
+
+    elif FitSpectrumWith == 'GaussConvCubicSpline':
+        spline_fit, spline_fit_prime =  fitCubicSplineWithGaussConv(x_lambda, y_intensity,x_lo=lam_lo,x_hi=lam_hi,sigma=2)
+        fit = spline_fit(x_lambda)
+        fit_prime = spline_fit_prime(x_lambda)
+        plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='Cubic Spline w/ Gaussian Kernel Convolution ')
+
+    else:
+        raise Exception("Unknown method for fitting incident spectrum")
+        return
+
+    CreateWorkspace(DataX=x_lambda, DataY=np.append(fit,fit_prime), OutputWorkspace=OutputWorkspace, UnitX='Wavelength', NSpec=2)
+    return mtd[OutputWorkspace]
+
+
+def CalculatePlaczekSelf( incident_ws, atom_species, theta, L1, L2,
+                          detector_alpha=None, detector_lambda_d = 1.44,
+                           detector='1/v'):
     # constants and conversions
     neutron_mass = m_n / physical_constants['atomic mass unit-kilogram relationship'][0]
 
@@ -146,30 +189,14 @@ def calc_self_placzek( incident_ws, atom_species, theta, L1, L2, detector_alpha=
     sin_theta_by_2 = np.sin(theta * angle_conv / 2.)
 
     # get derivative of incident spectrum using cubic spline
-    incident_monitor = 0
-    x_lambda = incident_ws.readX(incident_monitor)
-    y_intensity = incident_ws.readY(incident_monitor)
+    incident_index = 0
+    incident_prime_index = 1
 
-    # Fit Incident Spectrum to get phi_1(lambda)
-    lam_lo = float(Binning.split(',')[0])
-    lam_hi = float(Binning.split(',')[2])
-    
-    if FitSpectrum == 'CubicSpline': 
-        fit, fit_prime = fitCubicSpline(x_lambda, y_intensity, x_lo=lam_lo, x_hi=lam_hi,s=1e7)
-        plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='Simple Cubic Spline: Default')
+    x_lambda = mtd[incident_ws].readX(incident_index)
+    incident = mtd[incident_ws].readY(incident_index)
+    incident_prime = mtd[incident_ws].readY(incident_prime_index)
 
-    if FitSpectrum == 'HowellsFunction': 
-        fit, fit_prime = fitHowellsFunction(x_lambda, y_intensity, x_lo=lam_lo, x_hi=lam_hi)
-        plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='HowellsFunction')
-
-    if FitSpectrum == 'GaussConvCubicSpline':
-        print x_lambda
-        spline_fit, spline_fit_prime =  fitCubicSplineWithGaussConv(x_lambda, y_intensity,x_lo=lam_lo,x_hi=lam_hi)
-        fit = spline_fit(x_lambda)
-        fit_prime = spline_fit_prime(x_lambda)
-        plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='Cubic Spline w/ Gaussian Kernel Convolution ')
-
-    phi_1 = x_lambda * fit_prime / fit
+    phi_1 = x_lambda * incident_prime / incident 
     
     # Set detector exponential coefficient alpha
     if detector_alpha is None:
@@ -189,8 +216,8 @@ def calc_self_placzek( incident_ws, atom_species, theta, L1, L2, detector_alpha=
     term3 = f - 3.
     
     term4 = 0.0
-    for species in atom_species:
-        term4 += species['concentration'] * species['sqrdScatLengthBar'] * neutron_mass / species['amu']
+    for species, props in atom_species.iteritems():
+        term4 += props['concentration'] * props['tot_scatt_length'] * neutron_mass / props['mass']
     
     placzek_correction = 2.*( term1 - term2 + term3) * sin_theta_by_2 * sin_theta_by_2 * term4
     return placzek_correction
@@ -205,16 +232,16 @@ if '__main__' == __name__:
     with open(configfile) as handle:
         config = json.loads(handle.read())
 
-    van_scans = config['van']
-    van_bg = config['van_bg']
-    van_corr_type = config.get('van_corr_type', "Carpenter")
+    # Get sample info
+    sample = config['sam']
+    can = sample['Background']
+
+    # Get normalization info
+    van = config['van']
     calib = str(config['calib'])
     charac = str(config['charac'])
     binning= config['binning']
     cache_dir = str(config.get("CacheDir", os.path.abspath('.') ))
-
-    van = ','.join(['NOM_%d' % num for num in van_scans])
-    van_bg = ','.join(['NOM_%d' % num for num in van_bg])
 
     results = PDLoadCharacterizations(Filename=charac, OutputWorkspace='characterizations')
     alignAndFocusArgs = dict(PrimaryFlightPath = results[2],
@@ -242,27 +269,61 @@ if '__main__' == __name__:
     alignAndFocusArgs['CacheDir'] = cache_dir
 
 
+    # Get incident spectrum
+    print "Processing Scan: ", sample['Runs'] 
 
-    for binsize in [0.05]:
-        lam_lo = 0.1
-        lam_hi = 3.1
-        lam_binning = ','.join([ str(x) for x in [lam_lo,binsize,lam_hi]])
-        print "Wavelength Binning:", lam_binning
-        incident_ws = getIncidentSpectrumFromMonitor(van_scans,lam_binning=lam_binning)
-        SetSampleMaterial(incident_ws, ChemicalFormula='Si')
-        mass = incident_ws.sample().getMaterial().relativeMolecularMass()
+    incident_ws = 'incident_ws'
+    lam_binning = str(sample['InelasticCorrection']['LambdaBinning'])
+    GetIncidentSpectrumFromMonitor(sample['Runs'], OutputWorkspace=incident_ws, lam_binning=lam_binning)
+
 
         
+    # Fit incident spectrum
+    incident_fit = 'incident_fit'
+    fit_type = str(sample['InelasticCorrection']['FitSpectrumWith'])
+    FitIncidentSpectrum(InputWorkspace=incident_ws, OutputWorkspace=incident_fit, FitSpectrumWith=fit_type, Binning=lam_binning)
 
-        # Fitting using a cubic spline 
-        theta = 120.4
-        l_0 = 19.5
-        l_1 = 1.11
-        placzek_out =  calc_self_placzek( incident_ws, mass, theta, l_0, l_1, Binning=lam_binning )
+    # Set sample info
+    SetSampleMaterial(incident_fit, ChemicalFormula=str(sample['Material']))
+    material = mtd[incident_fit].sample().getMaterial().chemicalFormula()[0]
+    mass = material[0].mass
+    totalScattLength = material[0].neutron()['tot_scatt_length'] / 10.
+    concentration = 1.0
+    atom_species = { 'Si' : {'mass' : mass,
+                             'concentration' : concentration,
+                             'tot_scatt_length' : totalScattLength }
+                   }
+
+    # Parameters for NOMAD detectors by bank
+    L1 = 19.5
+    banks = collections.OrderedDict()
+    banks[6] = { 'L2'    :   2.06, 'theta' :   8.60 }
+    banks[1] = { 'L2'    :   2.01, 'theta' :  15.10 }
+    banks[2] = { 'L2'    :   1.68, 'theta' :  31.00 }
+    banks[3] = { 'L2'    :   1.14, 'theta' :  65.00 }
+    banks[4] = { 'L2'    :   1.11, 'theta' : 120.40 }
+    banks[5] = { 'L2'    :   0.79, 'theta' : 150.10 }
+
+
+    # Apply bank-by-bank Placzek correction    
+    for bank, params in banks.iteritems():
+        
+        L2 = params['L2']
+        theta = params['theta']
+        
+        # Calculate 1st order self-scattering Placzek correction 
+        placzek_out =  CalculatePlaczekSelf( incident_fit, atom_species, theta, L1, L2 )
 
         # Output the Placzek correction 
         import matplotlib.pyplot as plt
-        lam = incident_spectrum.readX(incident)[1:]
-        plt.plot(lam, placzek_out)
+        incident = 0
+        lam = mtd[incident_fit].readX(incident)
+        q = ConvertLambdaToQ(lam,theta)
+
+        f, axarr = plt.subplots(2)
+        axarr[0].set_title('Placzek vs. lambda for Bank: %d at Theta %d' % (bank,int(theta)))
+        axarr[0].plot(lam, placzek_out)
+        axarr[1].set_title('Placzek vs. Q for Bank: %d at Theta %d' % (bank,int(theta)))
+        axarr[1].plot(q,   placzek_out)
         plt.show()
 

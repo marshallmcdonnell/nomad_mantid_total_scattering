@@ -1,0 +1,34 @@
+{
+    "high_q_linear_fit_range" : 0.60,
+    "title" : "Si_SRM_e_d91772_no_mask", 
+    "sam": { "Runs" : [91796],
+             "Material" : "Si",
+             "PackingFraction" : 0.5,
+             "Background" : [91766], 
+             "AbsorptionCorrection" : "Carpenter",
+             "MultipleScatteringCorrection" : "Carpenter",
+             "InelasticCorrection" : { "Type" : "Placzek", 
+                                       "Order" : "1st",
+                                       "Self" : "True",
+                                       "Interference" : "False",
+                                       "FitSpectrumWith" : "CubicSplineViaMantid",
+                                       "LambdaBinning" : "0.16,0.05,2.8"}
+            },
+    "van": { "Runs" : [91603], 
+             "Background" : [91607], 
+             "AbsorptionCorrection" : "Carpenter",
+             "MultipleScatteringCorrection" : "Carpenter",
+             "InelasticCorrection" : { "Type" : "Placzek", 
+                                       "Order" : "1st",
+                                       "Self" : "True",
+                                       "Interference" : "False",
+                                       "FitSpectrumWith" : "GaussConvCubicSpline"}
+            },
+
+    "calib": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_d91621_2017_04_12_shifter.h5",
+    "charac": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt",
+    "binning": [0.0, 0.02, 50.0],
+    "sumbanks": [3],
+    "CacheDir" : "/SNS/NOM/shared/cache_files"
+}
+
