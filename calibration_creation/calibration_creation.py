@@ -30,7 +30,7 @@ for calibrant in calibrants:
     print 'going to create calibration file: %s' % calfilename
 
     if 'vanadium' in calibrants[calibrant]:
-        vanadium = calibrants[calibrant]['vanadium']
+        vanadium = int(calibrants[calibrant]['vanadium'])
     else:
         vanadium = 0
 
