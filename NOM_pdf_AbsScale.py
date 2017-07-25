@@ -352,10 +352,8 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     return natoms_in_beam, self_scat
 
 
-def GetIncidentSpectrumFromMonitor(Filename=None, OutputWorkspace="IncidentWorkspace",incident=0, transmission=1, lam_binning="0.1,0.02,3.1"):
+def GetIncidentSpectrumFromMonitor(Filename, OutputWorkspace="IncidentWorkspace",incident=0, transmission=1, lam_binning="0.1,0.02,3.1"):
 
-    if Filename is None:
-        return
     Filename = str(Filename)
 
     #-------------------------------------------------
@@ -366,18 +364,12 @@ def GetIncidentSpectrumFromMonitor(Filename=None, OutputWorkspace="IncidentWorks
 
     # Loop workspaces to get each incident spectrum
     monitor_raw = LoadNexusMonitors(Filename)
-    print "Load Monitor"
-    #print_unit_info(monitor_raw)
     monitor = 'monitor'
     NormaliseByCurrent(InputWorkspace=monitor_raw, OutputWorkspace=monitor,
                        RecalculatePCharge=True)
-    print "Normalize Monitor"
-    #print_unit_info(monitor)
     ConvertUnits(InputWorkspace=monitor, OutputWorkspace=monitor,
                  Target='Wavelength', EMode='Elastic')
     monitor = Rebin(InputWorkspace=monitor, Params=lam_binning, PreserveEvents=True)
-    print "Monitor Rebinned Monitor"
-    #print_unit_info(monitor)
 
     lam = monitor.readX(incident)[:-1] # wavelength in A
     bm  = monitor.readY(incident)     # neutron counts / microsecond
@@ -387,7 +379,8 @@ def GetIncidentSpectrumFromMonitor(Filename=None, OutputWorkspace="IncidentWorks
     bmeff = bm / ( 1. - np.exp(-e0))      # neutron counts / microsecond
     bmeff = bmeff / micro                 # neutron counts / second
     
-    CreateWorkspace(OutputWorkspace=OutputWorkspace, DataX=lam, DataY=bmeff, UnitX='Wavelength')
+    CreateWorkspace(DataX=lam, DataY=bmeff, 
+                    OutputWorkspace=OutputWorkspace, UnitX='Wavelength')
     mtd[OutputWorkspace].setYUnit('Counts')
     return mtd[OutputWorkspace]
 
@@ -559,473 +552,564 @@ def print_unit_info(workspace):
         print "\t symbol:{0}".format(unit.symbol())
     return
 
+
+def SetInelasticCorrection(inelastic_dict):
+    corr_type = inelastic_dict.get("Type", "Placzek")
+
+    if corr_type == "Placzek":
+        default_settings = {"Order" : "1st",
+                            "Self" : "True",
+                             "Interference" : "False",
+                             "FitSpectrumWith" : "GaussConvCubicSpline",
+                             "LambdaBinning" : "0.16,0.04,2.8"}
+        inelastic_settings = default_settings.copy()
+        inelastic_settings.update(inelastic_dict)
+
+    else:
+        raise Exception("Unknown Inelastic Correction Type")
+
+    return inelastic_settings
+
+
+
 #-----------------------------------------------------------------------------------
 # . NOM_pdf
-configfile = sys.argv[1]
-print "loading config from", configfile
-with open(configfile) as handle:
-    config = json.loads(handle.read())
-
-mode = str(config.get('mode',None))
-
-title = str(config['title'])
-sam_info = config['sam']
-sam_scans = sam_info['Runs']
-sam_mass_density = sam_info.get('MassDensity', None)
-can = config['can']
-van_scans = config['van']
-van_bg = config['van_bg']
-van_abs = str(config.get('van_absorption_ws', None))
-van_corr_type = config.get('van_corr_type', "Carpenter")
-van_inelastic_corr_type = config.get('van_inelastic_corr_type', None)
-sam_corr_type = config.get('sam_corr_type', "Carpenter")
-sam_inelastic_corr_type = config.get('sam_inelastic_corr_type', None)
-if mode != 'check_levels':
-    material = str(config['material'])
-calib = str(config['calib'])
-charac = str(config['charac'])
-binning= config['binning']
-high_q_linear_fit_range = config['high_q_linear_fit_range']
-wkspIndices=config['sumbanks'] # workspace indices - zero indexed arrays
-packing_fraction = config.get('packing_fraction',None)
-cache_dir = str(config.get("CacheDir", os.path.abspath('.') ))
-
-sam = ','.join(['NOM_%d' % num for num in sam_scans])
-can = ','.join(['NOM_%d' % num for num in can])
-van = ','.join(['NOM_%d' % num for num in van_scans])
-van_bg = ','.join(['NOM_%d' % num for num in van_bg])
 
 
-'''
-print "#-----------------------------------#"
-print "# BaTiO3 test"
-print "#-----------------------------------#"
-getAbsScaleInfoFromNexus([78223],ChemicalFormula="Ba1 Ti1 O3", PackingFraction=0.6,SampleMassDensity=2.95,Geometry={"Radius" : 0.29})
-'''
+if "__main__" == __name__:
+    configfile = sys.argv[1]
+    print "loading config from", configfile
+    with open(configfile) as handle:
+        config = json.loads(handle.read())
 
-print "#-----------------------------------#"
-print "# Sample"
-print "#-----------------------------------#"
-radius_sample_cm = 0.3
-height_sample_cm = 1.8 
-natoms, self_scat = getAbsScaleInfoFromNexus(sam_scans,
-                                             PackingFraction=packing_fraction,
-                                             SampleMassDensity=sam_mass_density,
-                                             Geometry={"Radius" : radius_sample_cm, "Height" : height_sample_cm}, 
-                                             ChemicalFormula=material)
+    mode = str(config.get('mode',None))
 
-print "#-----------------------------------#"
-print "# Vanadium"
-print "#-----------------------------------#"
-diameter_Vrod_cm = 0.585
-radius_Vrod_cm = diameter_Vrod_cm / 2.0
-mass_density_Vrod = 6.11
-height_Vrod_cm = 1.8 
-nvan_atoms, tmp = getAbsScaleInfoFromNexus(van_scans,
-                                           PackingFraction=1.0,
-                                           SampleMassDensity=mass_density_Vrod,
-                                           Geometry={"Radius" : radius_Vrod_cm, "Height" : height_Vrod_cm},
-                                           ChemicalFormula="V")
+    title = str(config['title'])
 
-print "Sample natoms:", natoms
-print "Vanadium natoms:", nvan_atoms
-print "Vanadium natoms / Sample natoms:", nvan_atoms/natoms
-
-results = PDLoadCharacterizations(Filename=charac, OutputWorkspace='characterizations')
-alignAndFocusArgs = dict(PrimaryFlightPath = results[2],
-                         SpectrumIDs       = results[3],
-                         L2                = results[4],
-                         Polar             = results[5],
-                         Azimuthal         = results[6])
-
-alignAndFocusArgs['CalFilename'] = calib
-#alignAndFocusArgs['GroupFilename'] don't use
-#alignAndFocusArgs['Params'] use resampleX
-alignAndFocusArgs['ResampleX'] = -6000
-alignAndFocusArgs['Dspacing'] = True
-#alignAndFocusArgs['PreserveEvents'] = True 
-alignAndFocusArgs['RemovePromptPulseWidth'] = 50
-alignAndFocusArgs['MaxChunkSize'] = 8
-#alignAndFocusArgs['CompressTolerance'] use defaults
-#alignAndFocusArgs['UnwrapRef'] POWGEN option
-#alignAndFocusArgs['LowResRef'] POWGEN option
-#alignAndFocusArgs['LowResSpectrumOffset'] POWGEN option
-#alignAndFocusArgs['CropWavelengthMin'] from characterizations file
-#alignAndFocusArgs['CropWavelengthMax'] from characterizations file
-alignAndFocusArgs['Characterizations'] = 'characterizations'
-alignAndFocusArgs['ReductionProperties'] = '__snspowderreduction'
-alignAndFocusArgs['CacheDir'] = cache_dir
+    # Get sample info
+    sample = config['sam']
+    sam_mass_density = sample.get('MassDensity', None)
+    sam_material = sample.get('Material', None)
+    sam_packing_fraction = sample.get('PackingFraction',None)
+    sam_geometry = sample.get('Geometry', None)
+    sam_abs_corr_type = sample.get("AbsorptionCorrection", "Carpenter")
+    sam_ms_corr_type = sample.get("MultipleScatteringCorrection", "Carpenter")
+    sam_inelastic_corr_type = SetInelasticCorrection(sample.get('InelasticCorrection', None))
 
 
-AlignAndFocusPowderFromFiles(OutputWorkspace='sample', Filename=sam, Absorption=None, **alignAndFocusArgs)
-sam = 'sample'
-NormaliseByCurrent(InputWorkspace=sam, OutputWorkspace=sam,
-                   RecalculatePCharge=True)
-#SaveNexusProcessed(mtd[sam], os.path.abspath('.') + '/sample_nexus.nxs')
+    # Get normalization info
+    van = config['van']
+    van_material = van.get('Material', 'V')
+    van_mass_density = van.get('MassDensity', None)
+    van_packing_fraction = van.get('PackingFraction',1.0)
+    van_geometry = van.get('Geometry', None)
+    van_abs_corr_type = van.get("AbsorptionCorrection", "Carpenter")
+    van_ms_corr_type = van.get("MultipleScatteringCorrection", "Carpenter")
+    van_inelastic_corr_type = SetInelasticCorrection(sample.get('InelasticCorrection', None))
+  
+    # Get calibration, characterization, and other settings
+    calib = str(config['calib'])
+    charac = str(config['charac'])
+    binning= config['binning']
+    high_q_linear_fit_range = config['high_q_linear_fit_range']
+    wkspIndices=config['sumbanks'] # workspace indices - zero indexed arrays
+    cache_dir = str(config.get("CacheDir", os.path.abspath('.') ))
 
-PDDetermineCharacterizations(InputWorkspace=sam,
-                             Characterizations='characterizations',
-                             ReductionProperties='__snspowderreduction')
-propMan = PropertyManagerDataService.retrieve('__snspowderreduction')
-qmax = 2.*np.pi/propMan['d_min'].value
-qmin = 2.*np.pi/propMan['d_max'].value
-for a,b in zip(qmin, qmax):
-    print 'Qrange:', a, b
-mask_info = generateCropingTable(qmin, qmax)
-
-# TODO take out the RecalculatePCharge in the future once tested
-
-AlignAndFocusPowderFromFiles(OutputWorkspace='container', Filename=can, Absorption=None, **alignAndFocusArgs)
-can = 'container'
-NormaliseByCurrent(InputWorkspace=can, OutputWorkspace=can,
-                   RecalculatePCharge=True)
-#SaveNexusProcessed(mtd['container'], os.path.abspath('.') + '/container_nexus.nxs')
-
-#Load(Filename=van_abs, OutputWorkspace='van_absorption')
-AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium', Filename=van, AbsorptionWorkspace=None, **alignAndFocusArgs)
-van = 'vanadium'
-NormaliseByCurrent(InputWorkspace=van, OutputWorkspace=van,
-                   RecalculatePCharge=True)
-SetSample(InputWorkspace=van, 
-                  Geometry={'Shape' : 'Cylinder', 'Height' : height_Vrod_cm,
-                            'Radius' : radius_Vrod_cm, 'Center' : [0.,0.,0.]},
-                  Material={'ChemicalFormula': 'V', 'SampleMassDensity' : mass_density_Vrod} )
-#SaveNexusProcessed(mtd['vanadium'], os.path.abspath('.') + '/vanadium_nexus.nxs')
+    # Create Nexus file basenames
+    sam = ','.join(['NOM_%d' % num for num in sample['Runs']])
+    can = ','.join(['NOM_%d' % num for num in sample['Background']])
+    van = ','.join(['NOM_%d' % num for num in van['Runs']])
+    van_bg = ','.join(['NOM_%d' % num for num in van['Background']])
 
 
-AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium_background', Filename=van_bg, AbsorptionWorkspace=None, **alignAndFocusArgs)
-van_bg = 'vanadium_background'
-NormaliseByCurrent(InputWorkspace=van_bg, OutputWorkspace=van_bg,
-                   RecalculatePCharge=True)
-#SaveNexusProcessed(mtd['vanadium_background'], os.path.abspath('.') + '/vanadium_background_nexus.nxs')
+    # Get absolute scale information from Nexus file
+    print "#-----------------------------------#"
+    print "# Sample"
+    print "#-----------------------------------#"
+    natoms, self_scat = getAbsScaleInfoFromNexus(sample['Runs'],
+                                                 PackingFraction=sample['PackingFraction'],
+                                                 SampleMassDensity=sam_mass_density,
+                                                 Geometry=sam_geometry, 
+                                                 ChemicalFormula=material)
 
-ConvertUnits(InputWorkspace=van, OutputWorkspace=van, Target="MomentumTransfer", EMode="Elastic")
-save_banks(van, title="vanadium_and_background.dat", binning=binning)
+    print "#-----------------------------------#"
+    print "# Vanadium"
+    print "#-----------------------------------#"
+    nvan_atoms, tmp = getAbsScaleInfoFromNexus(van['Runs'],
+                                               PackingFraction=1.0,
+                                               SampleMassDensity=van_mass_density,
+                                               Geometry=van_geometry,
+                                               ChemicalFormula="V")
 
-ConvertUnits(InputWorkspace=van_bg, OutputWorkspace=van_bg, Target="MomentumTransfer", EMode="Elastic")
-save_banks(van_bg, title="vanadium_background.dat", binning=binning)
+    print "Sample natoms:", natoms
+    print "Vanadium natoms:", nvan_atoms
+    print "Vanadium natoms / Sample natoms:", nvan_atoms/natoms
+    print
 
-ConvertUnits(InputWorkspace=sam, OutputWorkspace=sam, Target="MomentumTransfer", EMode="Elastic")
-save_banks(sam, title="sample_and_can.dat", binning=binning)
+    results = PDLoadCharacterizations(Filename=charac, OutputWorkspace='characterizations')
+    alignAndFocusArgs = dict(PrimaryFlightPath = results[2],
+                             SpectrumIDs       = results[3],
+                             L2                = results[4],
+                             Polar             = results[5],
+                             Azimuthal         = results[6])
 
-ConvertUnits(InputWorkspace=can, OutputWorkspace=can, Target="MomentumTransfer", EMode="Elastic")
-save_banks(can, title="can.dat", binning=binning)
+    alignAndFocusArgs['CalFilename'] = calib
+    #alignAndFocusArgs['GroupFilename'] don't use
+    #alignAndFocusArgs['Params'] use resampleX
+    alignAndFocusArgs['ResampleX'] = -6000
+    alignAndFocusArgs['Dspacing'] = True
+    #alignAndFocusArgs['PreserveEvents'] = True 
+    alignAndFocusArgs['RemovePromptPulseWidth'] = 50
+    alignAndFocusArgs['MaxChunkSize'] = 8
+    #alignAndFocusArgs['CompressTolerance'] use defaults
+    #alignAndFocusArgs['UnwrapRef'] POWGEN option
+    #alignAndFocusArgs['LowResRef'] POWGEN option
+    #alignAndFocusArgs['LowResSpectrumOffset'] POWGEN option
+    #alignAndFocusArgs['CropWavelengthMin'] from characterizations file
+    #alignAndFocusArgs['CropWavelengthMax'] from characterizations file
+    alignAndFocusArgs['Characterizations'] = 'characterizations'
+    alignAndFocusArgs['ReductionProperties'] = '__snspowderreduction'
+    alignAndFocusArgs['CacheDir'] = cache_dir
 
-#-----------------------------------------------------------------------------------------#
-# STEP 1: Subtract Backgrounds 
+    # TODO take out the RecalculatePCharge in the future once tested
 
-Minus(LHSWorkspace=sam, RHSWorkspace=can, OutputWorkspace=sam)
-Minus(LHSWorkspace=van, RHSWorkspace=van_bg, OutputWorkspace=van)
+    #-----------------------------------------------------------------------------------------#
+    # Load Sample
+    AlignAndFocusPowderFromFiles(OutputWorkspace='sample', 
+                                 Filename=sam, 
+                                 Absorption=None, 
+                                 **alignAndFocusArgs)
+    sam = 'sample'
+    NormaliseByCurrent(InputWorkspace=sam, 
+                       OutputWorkspace=sam,
+                       RecalculatePCharge=True)
+    #SaveNexusProcessed(mtd[sam], os.path.abspath('.') + '/sample_nexus.nxs')
+    ConvertUnits(InputWorkspace=sam, 
+                 OutputWorkspace=sam, 
+                 Target="MomentumTransfer", 
+                  EMode="Elastic")
+    save_banks(sam, title="sample_and_can.dat", binning=binning)
 
-ConvertUnits(InputWorkspace=van, OutputWorkspace=van, Target="MomentumTransfer", EMode="Elastic")
-save_banks(van, title="vanadium_minus_background.dat", binning=binning)
-
-#-----------------------------------------------------------------------------------------#
-# STEP 2.0: Prepare vanadium as normalization calibrant
-
-# Multiple-Scattering and Absorption (Steps 2-4) for Vanadium
-
-print "Workspace type before corrections: ", type(mtd[van])
-van_corrected = 'van_corrected'
-ConvertUnits(InputWorkspace=van, OutputWorkspace=van, Target="Wavelength", EMode="Elastic")
-if van_corr_type == 'Carpenter':
-    MultipleScatteringCylinderAbsorption(InputWorkspace=van, OutputWorkspace=van_corrected, CylinderSampleRadius=radius_Vrod_cm)
-elif van_corr_type == 'Mayers':
-    MayersSampleCorrection(InputWorkspace=van, OutputWorkspace=van_corrected, MultipleScattering=True) 
-else:
-    print "NO VANADIUM absorption or multiple scattering!"
-
-print "Workspace type after corrections: ", type(mtd[van])
-ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
-             Target='MomentumTransfer', EMode='Elastic')
-van_title = "vanadium_ms_abs_corrected"
-save_banks(van_corrected, title=van_title+'.dat', binning=binning)
-
-# Divide by numer of vanadium atoms (Step 5)
-mtd[van_corrected] = (1./nvan_atoms)*mtd[van_corrected]
-ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
-             Target='MomentumTransfer', EMode='Elastic')
-van_title += '_norm_by_atoms'
-save_banks(van_corrected, title=van_title+"_with_peaks.dat", binning=binning)
-
-# Smooth Vanadium (strip peaks plus smooth)
-
-ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
-             Target='dSpacing', EMode='Elastic')
-StripVanadiumPeaks(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
-                   BackgroundType='Quadratic')
-ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
-             Target='MomentumTransfer', EMode='Elastic')
-van_title += '_peaks_stripped'
-save_banks(van_corrected, title=van_title+".dat", binning=binning)
-
-ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
-             Target='TOF', EMode='Elastic')
-FFTSmooth(InputWorkspace=van_corrected,
-          OutputWorkspace=van_corrected,
-          Filter="Butterworth",
-          Params='20,2',
-          IgnoreXBins=True,
-          AllSpectra=True)
-ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
-             Target='MomentumTransfer', EMode='Elastic')
-van_title += '_smoothed'
-save_banks(van_corrected, title=van_title+".dat", binning=binning)
+    #-----------------------------------------------------------------------------------------#
+    # Load Sample Container
+    AlignAndFocusPowderFromFiles(OutputWorkspace='container', 
+                                 Filename=can, 
+                                 Absorption=None, 
+                                 **alignAndFocusArgs)
+    can = 'container'
+    NormaliseByCurrent(InputWorkspace=can, 
+                       OutputWorkspace=can,
+                       RecalculatePCharge=True)
+    #SaveNexusProcessed(mtd['container'], os.path.abspath('.') + '/container_nexus.nxs')
+    ConvertUnits(InputWorkspace=can, 
+                 OutputWorkspace=can, 
+                 Target="MomentumTransfer", 
+                 EMode="Elastic")
+    save_banks(can, title="can.dat", binning=binning)
 
 
-# Inelastic correction
-if van_inelastic_corr_type == "Placzek":
-    for van_scan in van_scans:
-        van_incident_wksp = 'van_incident_wksp'
-        GetIncidentSpectrumFromMonitor(van_scan, 
-                                       OutputWorkspace=van_incident_wksp, 
-                                       incident=0, 
-                                       transmission=1)
-        print_unit_info(van_incident_wksp)
-        van_placzek = 'van_placzek'
-        CalculatePlaczekSelfScattering(IncidentWorkspace=van_incident_wksp, 
-                                       OutputWorkspace=van_placzek,
-                                       ChemicalFormula='V',
-                                       L1=19.5,**alignAndFocusArgs)
+    #-----------------------------------------------------------------------------------------#
+    # Load Vanadium 
+    #Load(Filename=van_abs, OutputWorkspace='van_absorption')
+    AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium', 
+                                 Filename=van, 
+                                 AbsorptionWorkspace=None, 
+                                 **alignAndFocusArgs)
+    van = 'vanadium'
+    NormaliseByCurrent(InputWorkspace=van, 
+                       OutputWorkspace=van,
+                       RecalculatePCharge=True)
+    SetSample(InputWorkspace=van, 
+              Geometry={'Shape' : 'Cylinder', 'Center' : [0.,0.,0.], **van_geometry },
+              Material={'ChemicalFormula': van_material, 'SampleMassDensity' : van_mass_density} )
+    #SaveNexusProcessed(mtd['vanadium'], os.path.abspath('.') + '/vanadium_nexus.nxs')
+    ConvertUnits(InputWorkspace=van, 
+                 OutputWorkspace=van, 
+                 Target="MomentumTransfer", 
+                 EMode="Elastic")
+    save_banks(van, title="vanadium_and_background.dat", binning=binning)
 
-    save_banks(van_placzek, title="vanadium_placzek.dat", binning=binning)
-    ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
-                 Target='Wavelength', EMode='Elastic')
-    lam_binning="0.1,0.02,3.1"
-    Rebin(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Params=lam_binning, PreserveEvents=True)
-    ConvertToHistogram(InputWorkspace=van_placzek, OutputWorkspace=van_placzek)
-    RebinToWorkspace(WorkspaceToRebin=van_placzek, WorkspaceToMatch=van_corrected, 
-                     OutputWorkspace=van_placzek, PreserveEvents=True)
-    
-    for wksp in [ mtd[van_corrected], mtd[van_placzek] ] :
-        for i in range(wksp.axes()):
-            axis = wksp.getAxis(i)
-            print "Axis {0} is a {1}{2}{3} Yunit = {4}".format(i,
-                                           "Spectrum Axis" if axis.isSpectra() else "",
-                                           "Text Axis" if axis.isText() else "",
-                                           "Numeric Axis" if axis.isNumeric() else "",
-                                           wksp.YUnit())
-            print ("Bins in the X axis: %i" % wksp.blocksize())
-            print ("Bins in the Y axis: %i" % wksp.getNumberHistograms())
 
-            unit = axis.getUnit()
-            print "\t caption:{0}".format(unit.caption())
-            print "\t symbol:{0}".format(unit.symbol())
-    print type(mtd[van_placzek]), type(mtd[van_corrected])
-    Minus(LHSWorkspace=van_corrected, RHSWorkspace=van_placzek, OutputWorkspace=van_corrected)
-    ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
-                 Target='MomentumTransfer', EMode='Elastic')
-    van_title += '_placzek_corrected'
+    #-----------------------------------------------------------------------------------------#
+    # Load Vanadium Background
+    AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium_background', 
+                                 Filename=van_bg, 
+                                 AbsorptionWorkspace=None, 
+                                 **alignAndFocusArgs)
+
+    van_bg = 'vanadium_background'
+    NormaliseByCurrent(InputWorkspace=van_bg, 
+                       OutputWorkspace=van_bg,
+                       RecalculatePCharge=True)
+    #SaveNexusProcessed(mtd['vanadium_background'], os.path.abspath('.') + '/vanadium_background_nexus.nxs')
+    ConvertUnits(InputWorkspace=van_bg, 
+                 OutputWorkspace=van_bg, 
+                 Target="MomentumTransfer", 
+                 EMode="Elastic")
+    save_banks(van_bg, title="vanadium_background.dat", binning=binning)
+
+
+    #-----------------------------------------------------------------------------------------#
+    # Load Instrument Characterizations
+    PDDetermineCharacterizations(InputWorkspace=sam,
+                                 Characterizations='characterizations',
+                                 ReductionProperties='__snspowderreduction')
+    propMan = PropertyManagerDataService.retrieve('__snspowderreduction')
+    qmax = 2.*np.pi/propMan['d_min'].value
+    qmin = 2.*np.pi/propMan['d_max'].value
+    for a,b in zip(qmin, qmax):
+        print 'Qrange:', a, b
+    mask_info = generateCropingTable(qmin, qmax)
+
+
+    #-----------------------------------------------------------------------------------------#
+    # STEP 1: Subtract Backgrounds 
+
+    Minus(LHSWorkspace=sam, RHSWorkspace=can, OutputWorkspace=sam)
+    Minus(LHSWorkspace=van, RHSWorkspace=van_bg, OutputWorkspace=van)
+
+    ConvertUnits(InputWorkspace=van, 
+                 OutputWorkspace=van, 
+                 Target="MomentumTransfer", 
+                 EMode="Elastic")
+    save_banks(van, title="vanadium_minus_background.dat", binning=binning)
+
+    #-----------------------------------------------------------------------------------------#
+    # STEP 2.0: Prepare vanadium as normalization calibrant
+
+    # Multiple-Scattering and Absorption (Steps 2-4) for Vanadium
+
+    van_corrected = 'van_corrected'
+    ConvertUnits(InputWorkspace=van, 
+                 OutputWorkspace=van, 
+                 Target="Wavelength", 
+                 EMode="Elastic")
+
+    if van_corr_type == 'Carpenter':
+        MultipleScatteringCylinderAbsorption(InputWorkspace=van, 
+                                             OutputWorkspace=van_corrected, 
+                                             CylinderSampleRadius=sample['Geometry']['Radius'])
+    elif van_corr_type == 'Mayers':
+        MayersSampleCorrection(InputWorkspace=van, 
+                               OutputWorkspace=van_corrected, 
+                               MultipleScattering=True) 
+    else:
+        print "NO VANADIUM absorption or multiple scattering!"
+
+    ConvertUnits(InputWorkspace=van_corrected, 
+                 OutputWorkspace=van_corrected,
+                 Target='MomentumTransfer', 
+                 EMode='Elastic')
+    van_title = "vanadium_ms_abs_corrected"
+    save_banks(van_corrected, title=van_title+'.dat', binning=binning)
+
+    # Divide by numer of vanadium atoms (Step 5)
+    mtd[van_corrected] = (1./nvan_atoms)*mtd[van_corrected]
+    ConvertUnits(InputWorkspace=van_corrected, 
+                 OutputWorkspace=van_corrected,
+                 Target='MomentumTransfer', 
+                 EMode='Elastic')
+    van_title += '_norm_by_atoms'
+    save_banks(van_corrected, title=van_title+"_with_peaks.dat", binning=binning)
+
+    # Smooth Vanadium (strip peaks plus smooth)
+
+    ConvertUnits(InputWorkspace=van_corrected, 
+                 OutputWorkspace=van_corrected,
+                 Target='dSpacing', 
+                 EMode='Elastic')
+    StripVanadiumPeaks(InputWorkspace=van_corrected, 
+                       OutputWorkspace=van_corrected,
+                       BackgroundType='Quadratic')
+    ConvertUnits(InputWorkspace=van_corrected, 
+                 OutputWorkspace=van_corrected,
+                 Target='MomentumTransfer', 
+                 EMode='Elastic')
+    van_title += '_peaks_stripped'
+    save_banks(van_corrected, title=van_title+".dat", binning=binning)
+
+    ConvertUnits(InputWorkspace=van_corrected, 
+                 OutputWorkspace=van_corrected,
+                 Target='TOF', 
+                 EMode='Elastic')
+    FFTSmooth(InputWorkspace=van_corrected,
+              OutputWorkspace=van_corrected,
+              Filter="Butterworth",
+              Params='20,2',
+              IgnoreXBins=True,
+              AllSpectra=True)
+    ConvertUnits(InputWorkspace=van_corrected, 
+                 OutputWorkspace=van_corrected,
+                 Target='MomentumTransfer', 
+                 EMode='Elastic')
+    van_title += '_smoothed'
     save_banks(van_corrected, title=van_title+".dat", binning=binning)
 
 
-    
-SetUncertainties(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
-                 SetError='zero')
+    # Inelastic correction
+    if van_inelastic_corr_type == "Placzek":
+        for van_scan in van['Runs']:
+            van_incident_wksp = 'van_incident_wksp'
+            lambda_binning = sample['InelasticCorrection']['LambdaBinning']
+            GetIncidentSpectrumFromMonitor(van_scan, 
+                                           OutputWorkspace=van_incident_wksp, 
+                                           LambdaBinning=lambda_binning)
+
+            van_incident_fit = 'van_incident_fit'
+            fit_type = sample['InelasticCorrection']['FitSpectrumWith']
+            FitIncidentSpectrum(InputWorkspace=van_incident_wksp, 
+                                OutputWorkspace=van_incident_fit,
+                                FitSpectrumWith=fit_type,
+                                Binning=lambda_binning)
+
+            van_placzek = 'van_placzek'
+            CalculatePlaczekSelfScattering(IncidentWorkspace=van_incident_wksp, 
+                                           OutputWorkspace=van_placzek,
+                                           L1=19.5,
+                                           L2=alignAndFocusArgs['L2'],
+                                           Polar=alignAndFocusArgs['Polar'])
+        # Stopped here. Need to copy FitIncidentSpectrum and CalculatePlaczekSelfScattering
+        # from placzek.py
+        #__________________________________________________________________________#
+
+        save_banks(van_placzek, title="vanadium_placzek.dat", binning=binning)
+        ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+                     Target='Wavelength', EMode='Elastic')
+        lam_binning="0.1,0.02,3.1"
+        Rebin(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Params=lam_binning, PreserveEvents=True)
+        ConvertToHistogram(InputWorkspace=van_placzek, OutputWorkspace=van_placzek)
+        RebinToWorkspace(WorkspaceToRebin=van_placzek, WorkspaceToMatch=van_corrected, 
+                         OutputWorkspace=van_placzek, PreserveEvents=True)
+        
+        for wksp in [ mtd[van_corrected], mtd[van_placzek] ] :
+            for i in range(wksp.axes()):
+                axis = wksp.getAxis(i)
+                print "Axis {0} is a {1}{2}{3} Yunit = {4}".format(i,
+                                               "Spectrum Axis" if axis.isSpectra() else "",
+                                               "Text Axis" if axis.isText() else "",
+                                               "Numeric Axis" if axis.isNumeric() else "",
+                                               wksp.YUnit())
+                print ("Bins in the X axis: %i" % wksp.blocksize())
+                print ("Bins in the Y axis: %i" % wksp.getNumberHistograms())
+
+                unit = axis.getUnit()
+                print "\t caption:{0}".format(unit.caption())
+                print "\t symbol:{0}".format(unit.symbol())
+        print type(mtd[van_placzek]), type(mtd[van_corrected])
+        Minus(LHSWorkspace=van_corrected, RHSWorkspace=van_placzek, OutputWorkspace=van_corrected)
+        ConvertUnits(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+                     Target='MomentumTransfer', EMode='Elastic')
+        van_title += '_placzek_corrected'
+        save_banks(van_corrected, title=van_title+".dat", binning=binning)
 
 
-#-----------------------------------------------------------------------------------------#
-# STEP 2.1: Normalize by Vanadium
+        
+    SetUncertainties(InputWorkspace=van_corrected, OutputWorkspace=van_corrected,
+                     SetError='zero')
 
 
-for name in [sam, can, van, van_corrected, van_bg]:
-    ConvertUnits(InputWorkspace=name, OutputWorkspace=name,
+    #-----------------------------------------------------------------------------------------#
+    # STEP 2.1: Normalize by Vanadium
+
+
+    for name in [sam, can, van, van_corrected, van_bg]:
+        ConvertUnits(InputWorkspace=name, OutputWorkspace=name,
+                     Target='MomentumTransfer', EMode='Elastic')
+
+    save_banks(sam, title="sample_minus_back.dat", binning=binning)
+    Divide(LHSWorkspace=sam, RHSWorkspace=van_corrected, OutputWorkspace=sam)
+    sam_title = "sample_minus_back_normalized"
+    save_banks(sam, title=sam_title+".dat", binning=binning)
+
+    #-----------------------------------------------------------------------------------------#
+    # STEP 3 & 4: Subtract multiple scattering and apply absorption correction
+
+    ConvertUnits(InputWorkspace=sam, OutputWorkspace=sam, Target="Wavelength", EMode="Elastic")
+
+    sam_corrected = 'sam_corrected'
+    if sam_corr_type == 'Carpenter':
+        MultipleScatteringCylinderAbsorption(InputWorkspace=sam, OutputWorkspace=sam_corrected, CylinderSampleRadius=radius_sample_cm)
+    elif sam_corr_type == 'Mayers':
+        MayersSampleCorrection(InputWorkspace=sam, OutputWorkspace=sam_corrected, MultipleScattering=True) 
+    else:
+        print "NO SAMPLE absorption or multiple scattering!"
+        CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_corrected)
+
+    ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
                  Target='MomentumTransfer', EMode='Elastic')
-
-save_banks(sam, title="sample_minus_back.dat", binning=binning)
-Divide(LHSWorkspace=sam, RHSWorkspace=van_corrected, OutputWorkspace=sam)
-sam_title = "sample_minus_back_normalized"
-save_banks(sam, title=sam_title+".dat", binning=binning)
-
-#-----------------------------------------------------------------------------------------#
-# STEP 3 & 4: Subtract multiple scattering and apply absorption correction
-
-ConvertUnits(InputWorkspace=sam, OutputWorkspace=sam, Target="Wavelength", EMode="Elastic")
-
-sam_corrected = 'sam_corrected'
-if sam_corr_type == 'Carpenter':
-    MultipleScatteringCylinderAbsorption(InputWorkspace=sam, OutputWorkspace=sam_corrected, CylinderSampleRadius=radius_sample_cm)
-elif sam_corr_type == 'Mayers':
-    MayersSampleCorrection(InputWorkspace=sam, OutputWorkspace=sam_corrected, MultipleScattering=True) 
-else:
-    print "NO SAMPLE absorption or multiple scattering!"
-    CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_corrected)
-
-ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
-             Target='MomentumTransfer', EMode='Elastic')
-sam_title += "_ms_abs_corrected"
-save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
-
-#-----------------------------------------------------------------------------------------#
-# STEP 5: Divide by number of atoms in sample
-
-mtd[sam_corrected] = (1./natoms) * mtd[sam_corrected]
-ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
-             Target='MomentumTransfer', EMode='Elastic')
-sam_title += "_norm_by_atoms"
-save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
-
-#-----------------------------------------------------------------------------------------#
-# STEP 6: Inelastic correction
-if sam_inelastic_corr_type == "Placzek":
-    for sam_scan in sam_scans:
-        sam_incident_wksp = 'sam_incident_wksp'
-        GetIncidentSpectrumFromMonitor(sam_scan, 
-                                       OutputWorkspace=sam_incident_wksp, 
-                                       incident=0, 
-                                       transmission=1)
-        sam_placzek = 'sam_placzek'
-        CalculatePlaczekSelfScattering(IncidentWorkspace=sam_incident_wksp, 
-                                       OutputWorkspace=sam_placzek,
-                                       L1=19.5,**alignAndFocusArgs)
-
-    for wksp in [sam_corrected, sam_placzek]:
-        ConvertUnits(InputWorkspace=wksp, OutputWorkspace=wksp,
-                 Target='MomentumTransfer', EMode='Elastic')
-    Rebin(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected, Params=binning, PreserveEvents=True)
-    Rebin(InputWorkspace=sam_placzek,   OutputWorkspace=sam_placzek,   Params=binning, PreserveEvents=True)
-    Minus(LHSWorkspace=sam_corrected, RHSWorkspace=sam_placzek, OutputWorkspace=sam_corrected)
-    sam_title += '_placzek_corrected'
+    sam_title += "_ms_abs_corrected"
     save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
-    save_banks(sam_placzek, title="sample_placzek.dat", binning=binning)
+
+    #-----------------------------------------------------------------------------------------#
+    # STEP 5: Divide by number of atoms in sample
+
+    mtd[sam_corrected] = (1./natoms) * mtd[sam_corrected]
+    ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
+                 Target='MomentumTransfer', EMode='Elastic')
+    sam_title += "_norm_by_atoms"
+    save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
+
+    #-----------------------------------------------------------------------------------------#
+    # STEP 6: Inelastic correction
+    if sam_inelastic_corr_type == "Placzek":
+        for sam_scan in sample['Runs']:
+            sam_incident_wksp = 'sam_incident_wksp'
+            GetIncidentSpectrumFromMonitor(sam_scan, 
+                                           OutputWorkspace=sam_incident_wksp, 
+                                           incident=0, 
+                                           transmission=1)
+            sam_placzek = 'sam_placzek'
+            CalculatePlaczekSelfScattering(IncidentWorkspace=sam_incident_wksp, 
+                                           OutputWorkspace=sam_placzek,
+                                           L1=19.5,**alignAndFocusArgs)
+
+        for wksp in [sam_corrected, sam_placzek]:
+            ConvertUnits(InputWorkspace=wksp, OutputWorkspace=wksp,
+                     Target='MomentumTransfer', EMode='Elastic')
+        Rebin(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected, Params=binning, PreserveEvents=True)
+        Rebin(InputWorkspace=sam_placzek,   OutputWorkspace=sam_placzek,   Params=binning, PreserveEvents=True)
+        Minus(LHSWorkspace=sam_corrected, RHSWorkspace=sam_placzek, OutputWorkspace=sam_corrected)
+        sam_title += '_placzek_corrected'
+        save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
+        save_banks(sam_placzek, title="sample_placzek.dat", binning=binning)
 
 
- 
-#-----------------------------------------------------------------------------------------#
-# STEP 6: Output spectrum
+     
+    #-----------------------------------------------------------------------------------------#
+    # STEP 6: Output spectrum
 
-# TODO Since we already went from Event -> 2D workspace, can't use this anymore
-#if alignAndFocusArgs['PreserveEvents']:
-#    CompressEvents(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected)
-#    CompressEvents(InputWorkspace=van_corrected, OutputWorkspace=van_corrected)
-
-
-# S(Q) bank-by-bank Section
-material = mtd[sam].sample().getMaterial()
-bcoh_avg_sqrd = material.cohScatterLength()*material.cohScatterLength()
-btot_sqrd_avg = material.totalScatterLengthSqrd()
-print bcoh_avg_sqrd, btot_sqrd_avg
-term_to_subtract = btot_sqrd_avg / bcoh_avg_sqrd
-CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='SQ_banks_ws')
-SQ_banks =  (1./bcoh_avg_sqrd)*mtd['SQ_banks_ws'] - (term_to_subtract-1.) 
+    # TODO Since we already went from Event -> 2D workspace, can't use this anymore
+    #if alignAndFocusArgs['PreserveEvents']:
+    #    CompressEvents(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected)
+    #    CompressEvents(InputWorkspace=van_corrected, OutputWorkspace=van_corrected)
 
 
-# F(Q) bank-by-bank Section
-sigma_v = mtd[van_corrected].sample().getMaterial().totalScatterXSection()
-prefactor = ( sigma_v / (4.*np.pi) )
-CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='FQ_banks_ws')
-FQ_banks_raw = (prefactor) * mtd['FQ_banks_ws']
-FQ_banks = FQ_banks_raw - self_scat 
-
-#-----------------------------------------------------------------------------------------#
-# Ouput bank-by-bank with linear fits for high-Q 
-
-# fit the last 80% of the bank being used
-for i, q in zip(range(mtd[sam_corrected].getNumberHistograms()), qmax):
-    qmax_data = getQmaxFromData(sam_corrected, i)
-    qmax[i] = q if q <= qmax_data else qmax_data
-
-fitrange_individual = [(high_q_linear_fit_range*q, q) for q in qmax]
-
-for q in qmax:
-    print 'Linear Fit Qrange:', high_q_linear_fit_range*q, q
+    # S(Q) bank-by-bank Section
+    material = mtd[sam].sample().getMaterial()
+    bcoh_avg_sqrd = material.cohScatterLength()*material.cohScatterLength()
+    btot_sqrd_avg = material.totalScatterLengthSqrd()
+    print bcoh_avg_sqrd, btot_sqrd_avg
+    term_to_subtract = btot_sqrd_avg / bcoh_avg_sqrd
+    CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='SQ_banks_ws')
+    SQ_banks =  (1./bcoh_avg_sqrd)*mtd['SQ_banks_ws'] - (term_to_subtract-1.) 
 
 
-kwargs = { 'btot_sqrd_avg' : btot_sqrd_avg,
-           'bcoh_avg_sqrd' : bcoh_avg_sqrd,
-           'self_scat' : self_scat }
+    # F(Q) bank-by-bank Section
+    sigma_v = mtd[van_corrected].sample().getMaterial().totalScatterXSection()
+    prefactor = ( sigma_v / (4.*np.pi) )
+    CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='FQ_banks_ws')
+    FQ_banks_raw = (prefactor) * mtd['FQ_banks_ws']
+    FQ_banks = FQ_banks_raw - self_scat 
 
-'''
-save_banks_with_fit( title, fitrange_individual, InputWorkspace='SQ_banks', **kwargs)
-save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks', **kwargs)
-save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks_raw', **kwargs)
-'''
-save_banks('SQ_banks',         title=title+"_SQ_banks.dat",     binning=binning)
-save_banks('FQ_banks',         title=title+"_FQ_banks.dat",     binning=binning)
-save_banks('FQ_banks_raw', title=title+"_FQ_banks_raw.dat", binning=binning)
+    #-----------------------------------------------------------------------------------------#
+    # Ouput bank-by-bank with linear fits for high-Q 
 
-#-----------------------------------------------------------------------------------------#
-# Event workspace -> Histograms
-Rebin(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected, Params=binning, PreserveEvents=True)
-Rebin(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Params=binning, PreserveEvents=True)
-Rebin(InputWorkspace='container',   OutputWorkspace='container',   Params=binning, PreserveEvents=True)
-Rebin(InputWorkspace='sample',      OutputWorkspace='sample',      Params=binning, PreserveEvents=True)
-Rebin(InputWorkspace=van_bg,        OutputWorkspace='background',      Params=binning, PreserveEvents=True)
+    # fit the last 80% of the bank being used
+    for i, q in zip(range(mtd[sam_corrected].getNumberHistograms()), qmax):
+        qmax_data = getQmaxFromData(sam_corrected, i)
+        qmax[i] = q if q <= qmax_data else qmax_data
 
-#-----------------------------------------------------------------------------------------#
-# Apply Qmin Qmax limits
+    fitrange_individual = [(high_q_linear_fit_range*q, q) for q in qmax]
 
-#MaskBinsFromTable(InputWorkspace=sam_corrected, OutputWorkspace='sam_single',       MaskingInformation=mask_info)
-#MaskBinsFromTable(InputWorkspace=van_corrected, OutputWorkspace='van_single',       MaskingInformation=mask_info)
-#MaskBinsFromTable(InputWorkspace='container',   OutputWorkspace='container_single', MaskingInformation=mask_info)
-#MaskBinsFromTable(InputWorkspace='sample',      OutputWorkspace='sample_raw_single',MaskingInformation=mask_info)
-
-#-----------------------------------------------------------------------------------------#
-# Get sinlge, merged spectrum from banks
-
-CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='sam_single')
-CloneWorkspace(InputWorkspace=van_corrected, OutputWorkspace='van_single')
-CloneWorkspace(InputWorkspace='container', OutputWorkspace='container_single')
-CloneWorkspace(InputWorkspace='sample', OutputWorkspace='sample_raw_single')
-CloneWorkspace(InputWorkspace='background', OutputWorkspace='background_single')
-
-SumSpectra(InputWorkspace='sam_single', OutputWorkspace='sam_single',
-           ListOfWorkspaceIndices=wkspIndices)
-SumSpectra(InputWorkspace='van_single', OutputWorkspace='van_single',
-           ListOfWorkspaceIndices=wkspIndices)
-
-# Diagnostic workspaces
-SumSpectra(InputWorkspace='container_single', OutputWorkspace='container_single',
-           ListOfWorkspaceIndices=wkspIndices)
-SumSpectra(InputWorkspace='sample_raw_single', OutputWorkspace='sample_raw_single',
-           ListOfWorkspaceIndices=wkspIndices)
-SumSpectra(InputWorkspace='background_single', OutputWorkspace='background_single',
-           ListOfWorkspaceIndices=wkspIndices)
-
-#-----------------------------------------------------------------------------------------#
-# Merged S(Q) and F(Q)
-
-# do the division correctly and subtract off the material specific term
-CloneWorkspace(InputWorkspace='sam_single', OutputWorkspace='SQ_ws')
-SQ = (1./bcoh_avg_sqrd)*mtd['SQ_ws'] - (term_to_subtract-1.)  # +1 to get back to S(Q)
-
-CloneWorkspace(InputWorkspace='sam_single', OutputWorkspace='FQ_ws')
-FQ_raw = prefactor * mtd['FQ_ws']
-FQ = FQ_raw - self_scat
-
-qmax = 48.0
-Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
-    StartX=high_q_linear_fit_range*qmax, EndX=qmax, # range cannot include area with NAN
-    InputWorkspace='SQ', Output='SQ', OutputCompositeMembers=True)
-fitParams = mtd['SQ_Parameters']
-
-qmax = getQmaxFromData('FQ', WorkspaceIndex=0)
-Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
-    StartX=high_q_linear_fit_range*qmax, EndX=qmax, # range cannot include area with NAN
-    InputWorkspace='FQ', Output='FQ', OutputCompositeMembers=True)
-fitParams = mtd['FQ_Parameters']
-
-qmax = 48.0
-Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
-    StartX=high_q_linear_fit_range*qmax, EndX=qmax, # range cannot include area with NAN
-    InputWorkspace='FQ_raw', Output='FQ_raw', OutputCompositeMembers=True)
-fitParams = mtd['FQ_raw_Parameters']
-
-# Save dat file
-header_lines = ['<b^2> : %f ' % btot_sqrd_avg, \
-                '<b>^2 : %f ' % bcoh_avg_sqrd, \
-                'self scattering: %f ' % self_scat, \
-                'fitrange: %f %f '  % (high_q_linear_fit_range*qmax,qmax), \
-                'for merged banks %s: %f + %f * Q' % (','.join([ str(i) for i in wkspIndices]), \
-                                                   fitParams.cell('Value', 0), fitParams.cell('Value', 1)) ]
+    for q in qmax:
+        print 'Linear Fit Qrange:', high_q_linear_fit_range*q, q
 
 
-save_file(mtd['sample_raw_single'], title+'_merged_sample_raw.dat',        header=header_lines)
-save_file(mtd['container_single'],  title+'_merged_container.dat',         header=header_lines)
-save_file(mtd['sam_single'],        title+'_merged_sample_minus_background.dat', header=header_lines)
-save_file(mtd['van_single'],        title+'_merged_vanadium.dat',          header=header_lines)
-save_file(mtd['background_single'], title+'_merged_background.dat',          header=header_lines)
-save_file(SQ,                       title+'_merged_sample_normalized.dat', header=header_lines)
+    kwargs = { 'btot_sqrd_avg' : btot_sqrd_avg,
+               'bcoh_avg_sqrd' : bcoh_avg_sqrd,
+               'self_scat' : self_scat }
 
-save_file(FQ,                       title+'_FQ.dat', header=header_lines)
-save_file(FQ_raw,                   title+'_FQ_raw.dat', header=header_lines)
+    '''
+    save_banks_with_fit( title, fitrange_individual, InputWorkspace='SQ_banks', **kwargs)
+    save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks', **kwargs)
+    save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks_raw', **kwargs)
+    '''
+    save_banks('SQ_banks',         title=title+"_SQ_banks.dat",     binning=binning)
+    save_banks('FQ_banks',         title=title+"_FQ_banks.dat",     binning=binning)
+    save_banks('FQ_banks_raw', title=title+"_FQ_banks_raw.dat", binning=binning)
+
+    #-----------------------------------------------------------------------------------------#
+    # Event workspace -> Histograms
+    Rebin(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected, Params=binning, PreserveEvents=True)
+    Rebin(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Params=binning, PreserveEvents=True)
+    Rebin(InputWorkspace='container',   OutputWorkspace='container',   Params=binning, PreserveEvents=True)
+    Rebin(InputWorkspace='sample',      OutputWorkspace='sample',      Params=binning, PreserveEvents=True)
+    Rebin(InputWorkspace=van_bg,        OutputWorkspace='background',      Params=binning, PreserveEvents=True)
+
+    #-----------------------------------------------------------------------------------------#
+    # Apply Qmin Qmax limits
+
+    #MaskBinsFromTable(InputWorkspace=sam_corrected, OutputWorkspace='sam_single',       MaskingInformation=mask_info)
+    #MaskBinsFromTable(InputWorkspace=van_corrected, OutputWorkspace='van_single',       MaskingInformation=mask_info)
+    #MaskBinsFromTable(InputWorkspace='container',   OutputWorkspace='container_single', MaskingInformation=mask_info)
+    #MaskBinsFromTable(InputWorkspace='sample',      OutputWorkspace='sample_raw_single',MaskingInformation=mask_info)
+
+    #-----------------------------------------------------------------------------------------#
+    # Get sinlge, merged spectrum from banks
+
+    CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='sam_single')
+    CloneWorkspace(InputWorkspace=van_corrected, OutputWorkspace='van_single')
+    CloneWorkspace(InputWorkspace='container', OutputWorkspace='container_single')
+    CloneWorkspace(InputWorkspace='sample', OutputWorkspace='sample_raw_single')
+    CloneWorkspace(InputWorkspace='background', OutputWorkspace='background_single')
+
+    SumSpectra(InputWorkspace='sam_single', OutputWorkspace='sam_single',
+               ListOfWorkspaceIndices=wkspIndices)
+    SumSpectra(InputWorkspace='van_single', OutputWorkspace='van_single',
+               ListOfWorkspaceIndices=wkspIndices)
+
+    # Diagnostic workspaces
+    SumSpectra(InputWorkspace='container_single', OutputWorkspace='container_single',
+               ListOfWorkspaceIndices=wkspIndices)
+    SumSpectra(InputWorkspace='sample_raw_single', OutputWorkspace='sample_raw_single',
+               ListOfWorkspaceIndices=wkspIndices)
+    SumSpectra(InputWorkspace='background_single', OutputWorkspace='background_single',
+               ListOfWorkspaceIndices=wkspIndices)
+
+    #-----------------------------------------------------------------------------------------#
+    # Merged S(Q) and F(Q)
+
+    # do the division correctly and subtract off the material specific term
+    CloneWorkspace(InputWorkspace='sam_single', OutputWorkspace='SQ_ws')
+    SQ = (1./bcoh_avg_sqrd)*mtd['SQ_ws'] - (term_to_subtract-1.)  # +1 to get back to S(Q)
+
+    CloneWorkspace(InputWorkspace='sam_single', OutputWorkspace='FQ_ws')
+    FQ_raw = prefactor * mtd['FQ_ws']
+    FQ = FQ_raw - self_scat
+
+    qmax = 48.0
+    Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
+        StartX=high_q_linear_fit_range*qmax, EndX=qmax, # range cannot include area with NAN
+        InputWorkspace='SQ', Output='SQ', OutputCompositeMembers=True)
+    fitParams = mtd['SQ_Parameters']
+
+    qmax = getQmaxFromData('FQ', WorkspaceIndex=0)
+    Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
+        StartX=high_q_linear_fit_range*qmax, EndX=qmax, # range cannot include area with NAN
+        InputWorkspace='FQ', Output='FQ', OutputCompositeMembers=True)
+    fitParams = mtd['FQ_Parameters']
+
+    qmax = 48.0
+    Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
+        StartX=high_q_linear_fit_range*qmax, EndX=qmax, # range cannot include area with NAN
+        InputWorkspace='FQ_raw', Output='FQ_raw', OutputCompositeMembers=True)
+    fitParams = mtd['FQ_raw_Parameters']
+
+    # Save dat file
+    header_lines = ['<b^2> : %f ' % btot_sqrd_avg, \
+                    '<b>^2 : %f ' % bcoh_avg_sqrd, \
+                    'self scattering: %f ' % self_scat, \
+                    'fitrange: %f %f '  % (high_q_linear_fit_range*qmax,qmax), \
+                    'for merged banks %s: %f + %f * Q' % (','.join([ str(i) for i in wkspIndices]), \
+                                                       fitParams.cell('Value', 0), fitParams.cell('Value', 1)) ]
+
+
+    save_file(mtd['sample_raw_single'], title+'_merged_sample_raw.dat',        header=header_lines)
+    save_file(mtd['container_single'],  title+'_merged_container.dat',         header=header_lines)
+    save_file(mtd['sam_single'],        title+'_merged_sample_minus_background.dat', header=header_lines)
+    save_file(mtd['van_single'],        title+'_merged_vanadium.dat',          header=header_lines)
+    save_file(mtd['background_single'], title+'_merged_background.dat',          header=header_lines)
+    save_file(SQ,                       title+'_merged_sample_normalized.dat', header=header_lines)
+
+    save_file(FQ,                       title+'_FQ.dat', header=header_lines)
+    save_file(FQ_raw,                   title+'_FQ_raw.dat', header=header_lines)
