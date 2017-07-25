@@ -118,22 +118,9 @@ def GetIncidentSpectrumFromMonitor(Filename, OutputWorkspace=None, incident=0, t
     e0 = 5333.0 * lam / 1.8 * 2.43e-5 * p
     bmeff = bm / ( 1. - np.exp(-e0*.1))
     #bmeff = bm / ( 1. - np.exp((-1./1.44)*lam))
-    bmpp = bmeff / lam_bin 
    
-    total_intensity = 0.
-    for d_lam, d_bm in zip(lam,bmpp):
-        if d_lam >= 0.1 and d_lam <= 2.9:
-            total_intensity += d_lam*d_bm
-    print "Version 2 Total intensity:", total_intensity / 1.e8, "10^8 neutrons per s"
-    '''
-    plt.plot(lam, bmpp, 'x-')
-    xunit = monitor.getAxis(0).getUnit()
-    plt.xlabel(str(xunit.caption())+' ('+str(xunit.symbol())+')')
-    yunit = monitor.getAxis(1).getUnit()
-    plt.ylabel(str(yunit.caption())+' ('+str(yunit.symbol())+')')
-    plt.show()
-    '''
-    incident_ws = CreateWorkspace(DataX=lam, DataY=bmeff, OutputWorkspace=OutputWorkspace, UnitX='Wavelength')
+    incident_ws = CreateWorkspace(DataX=lam, DataY=bmeff, 
+                                  OutputWorkspace=OutputWorkspace, UnitX='Wavelength')
     return incident_ws
 
 
@@ -174,59 +161,119 @@ def FitIncidentSpectrum(InputWorkspace, OutputWorkspace,FitSpectrumWith='GaussCo
     return mtd[OutputWorkspace]
 
 
-def CalculatePlaczekSelf( incident_ws, atom_species, theta, L1, L2,
-                          detector_alpha=None, detector_lambda_d = 1.44,
-                           detector='1/v'):
+def GetSamplePropsForInelasticCorr(InputWorkspace):
+
+    # Get concentrations from formula
+    #       Note: for chemicalFormula 
+    #                 index == 0 is atom info, 
+    #                 index == 1 is stoichiometry
+    total_stoich = 0.0
+    material =  mtd[InputWorkspace].sample().getMaterial().chemicalFormula()
+    atom_species = collections.OrderedDict()
+    for atom, stoich in zip(material[0], material[1]):
+        totalScattLength = atom.neutron()['tot_scatt_length'] / 10.
+        atom_species[atom.symbol] = {'mass' : atom.mass,
+                                    'stoich' : stoich,
+                                    'tot_scatt_length' : totalScattLength }
+        total_stoich += stoich
+
+    for atom, props in atom_species.iteritems():
+        props['concentration'] = props['stoich'] / total_stoich        
+
+    return atom_species
+
+
+def CalculatePlaczekSelfScattering(IncidentWorkspace, OutputWorkspace, 
+                                   L1, L2, Polar, Azimuthal=None, Detector=None):
+
     # constants and conversions
     neutron_mass = m_n / physical_constants['atomic mass unit-kilogram relationship'][0]
 
-    # variables
-    L_total = L1 + L2
-    f = L1 / L_total
+    # get sample information: mass, total scattering length, and concentration of each species
+    total_stoich = 0.0
+    material =  mtd[IncidentWorkspace].sample().getMaterial().chemicalFormula()
+    atom_species = collections.OrderedDict()
+    for atom, stoich in zip(material[0], material[1]):
+        totalScattLength = atom.neutron()['tot_scatt_length'] / 10.
+        atom_species[atom.symbol] = {'mass' : atom.mass,
+                                    'stoich' : stoich,
+                                    'tot_scatt_length' : totalScattLength }
+        total_stoich += stoich
 
-    angle_conv = np.pi / 180.
-    sin_theta = np.sin(theta * angle_conv)
-    sin_theta_by_2 = np.sin(theta * angle_conv / 2.)
+    for atom, props in atom_species.iteritems():
+        props['concentration'] = props['stoich'] / total_stoich        
 
-    # get derivative of incident spectrum using cubic spline
+    elastic_term = 0.0
+    for species, props in atom_species.iteritems():
+        elastic_term += props['concentration'] * props['tot_scatt_length'] * neutron_mass / props['mass']
+ 
+    # get incident spectrum and 1st derivative 
     incident_index = 0
     incident_prime_index = 1
 
-    x_lambda = mtd[incident_ws].readX(incident_index)
+    x_lambda = mtd[IncidentWorkspace].readX(incident_index)
     incident = mtd[incident_ws].readY(incident_index)
-    incident_prime = mtd[incident_ws].readY(incident_prime_index)
+    incident_prime = mtd[IncidentWorkspace].readY(incident_prime_index)
 
     phi_1 = x_lambda * incident_prime / incident 
+ 
+    # Set default Detector Law
+    if Detector is None:
+        Detector={'Alpha' : None, 
+                  'LambdaD' : 1.44, 
+                  'Law' : '1/v'}
     
     # Set detector exponential coefficient alpha
-    if detector_alpha is None:
-        detector_alpha = 2.* np.pi / detector_lambda_d
+    if Detector['Alpha'] is None:
+        Detector['Alpha'] = 2.* np.pi / Detector['LambdaD']
 
     # Detector law to get eps_1(lambda) 
-    if detector == '1/v':
-        c = -detector_alpha / (2. * np.pi)
+    if Detector['Law'] == '1/v':
+        c = -Detector['Alpha'] / (2. * np.pi)
         x = x_lambda
         detector_law_term = c*x*np.exp(c*x) / (1. - np.exp(c*x))
 
     eps_1 = detector_law_term
 
+    # Set default azimuthal angle
+    if Azimuthal is None:
+        Azimuthal = np.zeros(len(Polar))
     # Placzek
-    term1 = (f - 1.) * phi_1
-    term2 = f*eps_1
-    term3 = f - 3.
+    q = np.array([])
+    placzek_correction = np.array([])
+    for bank, (l2, theta, phi) in enumerate(zip(L2, Polar, Azimuthal)):
+        # variables
+        L_total = L1 + l2
+        f = L1 / L_total
+
+        angle_conv = np.pi / 180.
+        sin_theta = np.sin(theta * angle_conv)
+        sin_theta_by_2 = np.sin(theta * angle_conv / 2.)
+
+
+        term1 = (f - 1.) * phi_1
+        term2 = f*eps_1
+        term3 = f - 3.
     
-    term4 = 0.0
-    for species, props in atom_species.iteritems():
-        term4 += props['concentration'] * props['tot_scatt_length'] * neutron_mass / props['mass']
+   
+        per_bank_q = ConvertLambdaToQ(x_lambda,theta)
+        per_bank_correction = 2.*(term1 - term2 + term3) * sin_theta_by_2 * sin_theta_by_2 * elastic_term 
+
+        q = np.append(q, per_bank_q)
+        placzek_correction = np.append(placzek_correction, per_bank_correction)
+
+    CreateWorkspace(DataX=q, DataY=placzek_correction, OutputWorkspace=OutputWorkspace,
+                    UnitX='MomentumTransfer',  NSpec=len(Polar))
     
-    placzek_correction = 2.*( term1 - term2 + term3) * sin_theta_by_2 * sin_theta_by_2 * term4
-    return placzek_correction
+    return mtd[OutputWorkspace]
+
 
 
 #-----------------------------------------------------------------------------------------#
 # Start Placzek calculations
 
 if '__main__' == __name__:
+    #-----------------------------------------------------------------------------------------#
     # Get input parameters
     configfile = sys.argv[1]
     with open(configfile) as handle:
@@ -250,6 +297,8 @@ if '__main__' == __name__:
                              Polar             = results[5],
                              Azimuthal         = results[6])
 
+    #-----------------------------------------------------------------------------------------#
+    # Setup Alignment and Focussing arguments
     alignAndFocusArgs['CalFilename'] = calib
     #alignAndFocusArgs['GroupFilename'] don't use
     #alignAndFocusArgs['Params'] use resampleX
@@ -269,40 +318,29 @@ if '__main__' == __name__:
     alignAndFocusArgs['CacheDir'] = cache_dir
 
 
+    #-----------------------------------------------------------------------------------------#
     # Get incident spectrum
     print "Processing Scan: ", sample['Runs'] 
 
     incident_ws = 'incident_ws'
     lam_binning = str(sample['InelasticCorrection']['LambdaBinning'])
-    GetIncidentSpectrumFromMonitor(sample['Runs'], OutputWorkspace=incident_ws, lam_binning=lam_binning)
-
-
+    GetIncidentSpectrumFromMonitor(sample['Runs'], 
+                                   OutputWorkspace=incident_ws, 
+                                   lam_binning=lam_binning)
         
+    #-----------------------------------------------------------------------------------------#
     # Fit incident spectrum
     incident_fit = 'incident_fit'
     fit_type = str(sample['InelasticCorrection']['FitSpectrumWith'])
-    FitIncidentSpectrum(InputWorkspace=incident_ws, OutputWorkspace=incident_fit, FitSpectrumWith=fit_type, Binning=lam_binning)
+    FitIncidentSpectrum(InputWorkspace=incident_ws, 
+                        OutputWorkspace=incident_fit, 
+                        FitSpectrumWith=fit_type, 
+                        Binning=lam_binning)
 
     # Set sample info
     SetSampleMaterial(incident_fit, ChemicalFormula=str(sample['Material']))
-
-    # Get concentrations from formula
-    #       Note: for chemicalFormula 
-    #                 index == 0 is atom info, 
-    #                 index == 1 is stoichiometry
-    total_stoich = 0.0
-    material =  mtd[incident_fit].sample().getMaterial().chemicalFormula()
-    atom_species = collections.OrderedDict()
-    for atom, stoich in zip(material[0], material[1]):
-        totalScattLength = atom.neutron()['tot_scatt_length'] / 10.
-        atom_species[atom.symbol] = {'mass' : atom.mass,
-                                    'stoich' : stoich,
-                                    'tot_scatt_length' : totalScattLength }
-        total_stoich += stoich
-
-    for atom, props in atom_species.iteritems():
-        props['concentration'] = props['stoich'] / total_stoich        
-    
+    atom_species = GetSamplePropsForInelasticCorr( incident_fit )
+        
     # Parameters for NOMAD detectors by bank
     L1 = 19.5
     banks = collections.OrderedDict()
@@ -313,28 +351,27 @@ if '__main__' == __name__:
     banks[4] = { 'L2'    :   1.11, 'theta' : 120.40 }
     banks[5] = { 'L2'    :   0.79, 'theta' : 150.10 }
 
-
-    # Apply bank-by-bank Placzek correction   
+    L2 = [ x['L2'] for bank, x in banks.iteritems()]
+    Polar = [ x['theta'] for bank, x in banks.iteritems()]
+   
+    CalculatePlaczekSelfScattering(IncidentWorkspace=incident_fit,
+                                   OutputWorkspace='placzek_out',
+                                   L1=19.5, 
+                                   L2=L2, 
+                                   Polar=Polar)
+   
     import matplotlib.pyplot as plt
     bank_colors = ['k', 'r', 'b', 'g', 'y', 'c'] 
-    for i, (bank, params) in enumerate(banks.iteritems()):
-        L2 = params['L2']
-        theta = params['theta']
-        
-        # Calculate 1st order self-scattering Placzek correction 
-        placzek_out =  CalculatePlaczekSelf( incident_fit, atom_species, theta, L1, L2 )
-
-        # Output the Placzek correction 
-        incident = 0
-        lam = mtd[incident_fit].readX(incident)
-        q = ConvertLambdaToQ(lam,theta)
-
+    nbanks = range(mtd['placzek_out'].getNumberHistograms())
+    for bank, theta in zip(nbanks,Polar):
+        q = mtd['placzek_out'].readX(bank)
+        per_bank_placzek = mtd['placzek_out'].readY(bank)
         label= 'Bank: %d at Theta %d' % (bank,int(theta))
-        plt.plot(q,   placzek_out, bank_colors[i]+'-', label=label)
-
+        plt.plot(q,   1.+per_bank_placzek, bank_colors[bank]+'-', label=label)
+         
     material = ' '.join([symbol+str(int(props['stoich']))+' ' for symbol, props in atom_species.iteritems()])
     plt.title('Placzek vs. Q for '+material)
     plt.xlabel('Q (Angstroms^-1')
-    plt.ylabel('P(Q)')
+    plt.ylabel('1 - P(Q)')
     plt.legend()
     plt.show()
