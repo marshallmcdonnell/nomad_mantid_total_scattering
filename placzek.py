@@ -154,7 +154,7 @@ def FitIncidentSpectrum(InputWorkspace, OutputWorkspace,FitSpectrumWith='GaussCo
         plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='Simple Cubic Spline: Default')
 
     elif FitSpectrumWith == 'CubicSplineViaMantid': 
-        fit, fit_prime = fitCubicSplineViaMantidSplineSmoothing(InputWorkspace=InputWorkspace,MaxNumberOfBreaks=10)
+        fit, fit_prime = fitCubicSplineViaMantidSplineSmoothing(InputWorkspace=InputWorkspace,MaxNumberOfBreaks=8)
         plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='Cubic Spline via Mantid SplineSmoothing')
     elif FitSpectrumWith == 'HowellsFunction': 
         fit, fit_prime = fitHowellsFunction(x_lambda, y_intensity, x_lo=lam_lo, x_hi=lam_hi)
@@ -285,15 +285,24 @@ if '__main__' == __name__:
 
     # Set sample info
     SetSampleMaterial(incident_fit, ChemicalFormula=str(sample['Material']))
-    material = mtd[incident_fit].sample().getMaterial().chemicalFormula()[0]
-    mass = material[0].mass
-    totalScattLength = material[0].neutron()['tot_scatt_length'] / 10.
-    concentration = 1.0
-    atom_species = { 'Si' : {'mass' : mass,
-                             'concentration' : concentration,
-                             'tot_scatt_length' : totalScattLength }
-                   }
 
+    # Get concentrations from formula
+    #       Note: for chemicalFormula 
+    #                 index == 0 is atom info, 
+    #                 index == 1 is stoichiometry
+    total_stoich = 0.0
+    material =  mtd[incident_fit].sample().getMaterial().chemicalFormula()
+    atom_species = collections.OrderedDict()
+    for atom, stoich in zip(material[0], material[1]):
+        totalScattLength = atom.neutron()['tot_scatt_length'] / 10.
+        atom_species[atom.symbol] = {'mass' : atom.mass,
+                                    'stoich' : stoich,
+                                    'tot_scatt_length' : totalScattLength }
+        total_stoich += stoich
+
+    for atom, props in atom_species.iteritems():
+        props['concentration'] = props['stoich'] / total_stoich        
+    
     # Parameters for NOMAD detectors by bank
     L1 = 19.5
     banks = collections.OrderedDict()
@@ -305,9 +314,10 @@ if '__main__' == __name__:
     banks[5] = { 'L2'    :   0.79, 'theta' : 150.10 }
 
 
-    # Apply bank-by-bank Placzek correction    
-    for bank, params in banks.iteritems():
-        
+    # Apply bank-by-bank Placzek correction   
+    import matplotlib.pyplot as plt
+    bank_colors = ['k', 'r', 'b', 'g', 'y', 'c'] 
+    for i, (bank, params) in enumerate(banks.iteritems()):
         L2 = params['L2']
         theta = params['theta']
         
@@ -315,15 +325,16 @@ if '__main__' == __name__:
         placzek_out =  CalculatePlaczekSelf( incident_fit, atom_species, theta, L1, L2 )
 
         # Output the Placzek correction 
-        import matplotlib.pyplot as plt
         incident = 0
         lam = mtd[incident_fit].readX(incident)
         q = ConvertLambdaToQ(lam,theta)
 
-        f, axarr = plt.subplots(2)
-        axarr[0].set_title('Placzek vs. lambda for Bank: %d at Theta %d' % (bank,int(theta)))
-        axarr[0].plot(lam, placzek_out)
-        axarr[1].set_title('Placzek vs. Q for Bank: %d at Theta %d' % (bank,int(theta)))
-        axarr[1].plot(q,   placzek_out)
-        plt.show()
+        label= 'Bank: %d at Theta %d' % (bank,int(theta))
+        plt.plot(q,   placzek_out, bank_colors[i]+'-', label=label)
 
+    material = ' '.join([symbol+str(int(props['stoich']))+' ' for symbol, props in atom_species.iteritems()])
+    plt.title('Placzek vs. Q for '+material)
+    plt.xlabel('Q (Angstroms^-1')
+    plt.ylabel('P(Q)')
+    plt.legend()
+    plt.show()

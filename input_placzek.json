@@ -1,8 +1,8 @@
 {
     "high_q_linear_fit_range" : 0.60,
     "title" : "Si_SRM_e_d91772_no_mask", 
-    "sam": { "Runs" : [91796],
-             "Material" : "Si",
+    "sam": { "Runs" : [94733],
+             "Material" : "O2",
              "PackingFraction" : 0.5,
              "Background" : [91766], 
              "AbsorptionCorrection" : "Carpenter",
@@ -11,10 +11,12 @@
                                        "Order" : "1st",
                                        "Self" : "True",
                                        "Interference" : "False",
-                                       "FitSpectrumWith" : "CubicSplineViaMantid",
-                                       "LambdaBinning" : "0.16,0.05,2.8"}
+                                       "FitSpectrumWith" : "GaussConvCubicSpline",
+                                       "LambdaBinning" : "0.16,0.04,2.8"}
             },
-    "van": { "Runs" : [91603], 
+    "van": { "Runs" : [91603],
+             "Material" : "V",
+             "PackingFraction" : 1.0, 
              "Background" : [91607], 
              "AbsorptionCorrection" : "Carpenter",
              "MultipleScatteringCorrection" : "Carpenter",
