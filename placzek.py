@@ -9,14 +9,42 @@ import matplotlib.pyplot as plt
 from scipy.constants import m_n, physical_constants
 from scipy import interpolate, signal, ndimage, optimize
 
-def ConvertLambdaToQ(lam,angle):
-    angle_conv = np.pi / 180.
-    sin_theta_by_2 = np.sin(angle * angle_conv / 2.)
-    q = (4.*np.pi / lam)*sin_theta_by_2
-    return q
+
+#-----------------------------------------------------------------------------------------#
+# JSON load with convert from unicode to string
+
+def json_load_byteified(file_handle):
+    return _byteify(
+        json.load(file_handle, object_hook=_byteify),
+        ignore_dicts=True
+    )
+
+def json_loads_byteified(json_text):
+    return _byteify(
+        json.loads(json_text, object_hook=_byteify),
+        ignore_dicts=True
+    )
+
+def _byteify(data, ignore_dicts = False):
+    # if this is a unicode string, return its string representation
+    if isinstance(data, unicode):
+        return data.encode('utf-8')
+    # if this is a list of values, return list of byteified values
+    if isinstance(data, list):
+        return [ _byteify(item, ignore_dicts=True) for item in data ]
+    # if this is a dictionary, return dictionary of byteified keys and values
+    # but only if we haven't already byteified it
+    if isinstance(data, dict) and not ignore_dicts:
+        return {
+            _byteify(key, ignore_dicts=True): _byteify(value, ignore_dicts=True)
+            for key, value in data.iteritems()
+        }
+    # if it's anything else, return it in its original form
+    return data
 
 #-----------------------------------------------------------------------------------------#
 # Functions for fitting the incident spectrum
+
 def getFitRange(x, y, x_lo, x_hi):
     if x_lo is None:
         x_lo = min(x)
@@ -182,6 +210,13 @@ def GetSamplePropsForInelasticCorr(InputWorkspace):
 
     return atom_species
 
+def ConvertLambdaToQ(lam,angle):
+    angle_conv = np.pi / 180.
+    sin_theta_by_2 = np.sin(angle * angle_conv / 2.)
+    q = (4.*np.pi / lam)*sin_theta_by_2
+    return q
+
+
 
 def CalculatePlaczekSelfScattering(IncidentWorkspace, OutputWorkspace, 
                                    L1, L2, Polar, Azimuthal=None, Detector=None):
@@ -250,11 +285,9 @@ def CalculatePlaczekSelfScattering(IncidentWorkspace, OutputWorkspace,
         sin_theta = np.sin(theta * angle_conv)
         sin_theta_by_2 = np.sin(theta * angle_conv / 2.)
 
-
         term1 = (f - 1.) * phi_1
         term2 = f*eps_1
         term3 = f - 3.
-    
    
         per_bank_q = ConvertLambdaToQ(x_lambda,theta)
         per_bank_correction = 2.*(term1 - term2 + term3) * sin_theta_by_2 * sin_theta_by_2 * elastic_term 
@@ -267,6 +300,16 @@ def CalculatePlaczekSelfScattering(IncidentWorkspace, OutputWorkspace,
     
     return mtd[OutputWorkspace]
 
+def byteify(input):
+    if isinstance(input, dict):
+        return {byteify(key): byteify(value)
+                for key, value in input.iteritems()}
+    elif isinstance(input, list):
+        return [byteify(element) for element in input]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
 
 
 #-----------------------------------------------------------------------------------------#
@@ -277,8 +320,8 @@ if '__main__' == __name__:
     # Get input parameters
     configfile = sys.argv[1]
     with open(configfile) as handle:
-        config = json.loads(handle.read())
-
+        config = json_loads_byteified(handle.read())
+        
     # Get sample info
     sample = config['sam']
     can = sample['Background']
@@ -344,12 +387,12 @@ if '__main__' == __name__:
     # Parameters for NOMAD detectors by bank
     L1 = 19.5
     banks = collections.OrderedDict()
-    banks[6] = { 'L2'    :   2.06, 'theta' :   8.60 }
-    banks[1] = { 'L2'    :   2.01, 'theta' :  15.10 }
-    banks[2] = { 'L2'    :   1.68, 'theta' :  31.00 }
-    banks[3] = { 'L2'    :   1.14, 'theta' :  65.00 }
-    banks[4] = { 'L2'    :   1.11, 'theta' : 120.40 }
-    banks[5] = { 'L2'    :   0.79, 'theta' : 150.10 }
+    banks[0] = { 'L2'    :   2.01, 'theta' :  15.10 }
+    banks[1] = { 'L2'    :   1.68, 'theta' :  31.00 }
+    banks[2] = { 'L2'    :   1.14, 'theta' :  65.00 }
+    banks[3] = { 'L2'    :   1.11, 'theta' : 120.40 }
+    banks[4] = { 'L2'    :   0.79, 'theta' : 150.10 }
+    banks[5] = { 'L2'    :   2.06, 'theta' :   8.60 }
 
     L2 = [ x['L2'] for bank, x in banks.iteritems()]
     Polar = [ x['theta'] for bank, x in banks.iteritems()]
@@ -373,5 +416,7 @@ if '__main__' == __name__:
     plt.title('Placzek vs. Q for '+material)
     plt.xlabel('Q (Angstroms^-1')
     plt.ylabel('1 - P(Q)')
+    axes = plt.gca()
+    axes.set_ylim([0.96,1.0])
     plt.legend()
     plt.show()
