@@ -298,7 +298,7 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     if ChemicalFormula:
         info["formula"] = ChemicalFormula
     if SampleMassDensity:
-        info["mass_density"] = SampleMassDensity 
+        info["mass_density"] = SampleMassDensity
 
     # setup the geometry of the sample
     if Geometry is None:
@@ -323,6 +323,8 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     if PackingFraction is None:
         sample_density = info["mass"] / volume_in_container
         PackingFraction = sample_density / info["mass_density"]
+
+    info['packing_fraction'] = PackingFraction
 
     print "PackingFraction:", PackingFraction
 
@@ -384,7 +386,7 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
 
     natoms_in_beam = mass_density_in_beam / material.relativeMolecularMass() * avogadro / 10**24. * volume_in_beam
     #print "Sample density (corrected) in form unit / A^3: ", mass_density_in_beam/ ws.sample().getMaterial().relativeMolecularMass() * avogadro / 10**24.
-    return natoms_in_beam, self_scat
+    return natoms_in_beam, self_scat, info
 
 
 #-----------------------------------------------------------------------------------------#
@@ -400,18 +402,18 @@ def getFitRange(x, y, x_lo, x_hi):
     y_fit = y[ (x >= x_lo) & (x <= x_hi)]
     return x_fit, y_fit
 
-def fitCubicSpline(x, y, x_lo=None, x_hi=None,s=1e15):
-    x_fit, y_fit = getFitRange(x, y, x_lo, x_hi)
+def fitCubicSpline(x_fit, y_fit, x, s=1e15):
     tck = interpolate.splrep(x_fit,y_fit,s=s)
     fit = interpolate.splev(x,tck,der=0)
     fit_prime = interpolate.splev(x,tck,der=1)
     return fit, fit_prime
 
-def fitCubicSplineViaMantidSplineSmoothing(InputWorkspace, **kwargs):
-    SplineSmoothing(InputWorkspace, OutputWorkspace='fit', OutputWorkspaceDeriv='fit_prime', DerivOrder=1,**kwargs)
+def fitCubicSplineViaMantidSplineSmoothing(InputWorkspace, Params, **kwargs):
+    Rebin(InputWorkspace=InputWorkspace, OutputWorkspace='fit', Params=Params, PreserveEvents=True)
+    SplineSmoothing(InputWorkspace='fit', OutputWorkspace='fit', OutputWorkspaceDeriv='fit_prime', DerivOrder=1,**kwargs)
     return mtd['fit'].readY(0), mtd['fit_prime_1'].readY(0)
 
-def fitHowellsFunction(x, y, x_lo=None, x_hi=None ):
+def fitHowellsFunction(x_fit, y_fit, x ):
     # Fit with analytical function from HowellsEtAl
     def calc_HowellsFunction(lambdas, phi_max, phi_epi, lam_t, lam_1, lam_2, a ):
         term1 = phi_max * ((lam_t**4.)/lambdas**5.)*np.exp(-(lam_t/lambdas)**2.)
@@ -423,14 +425,13 @@ def fitHowellsFunction(x, y, x_lo=None, x_hi=None ):
         term2 = ((1+2*a)/lambdas)*(1./lambdas)*(phi_epi/(lambdas**(1.+2.*a)))*(1./(1+np.exp((lambdas-lam_1)/lam_2)))
         return term1 + term2
 
-    x_fit, y_fit = getFitRange(x, y, x_lo, x_hi)
     params = [1.,1.,1.,0.,1.,1.]
     params, convergence = optimize.curve_fit( calc_HowellsFunction, x_fit, y_fit, params)
     fit = calc_HowellsFunction(x, *params)
     fit_prime = calc_HowellsFunction1stDerivative(x, *params)
     return fit, fit_prime
 
-def fitCubicSplineWithGaussConv(x, y, x_lo=None, x_hi=None, sigma=3):
+def fitCubicSplineWithGaussConv(x_fit, y_fit, x, sigma=3):
     # Fit with Cubic Spline using a Gaussian Convolution to get weights
     def moving_average(y, sigma=sigma):
         b = signal.gaussian(39, sigma)
@@ -438,24 +439,25 @@ def fitCubicSplineWithGaussConv(x, y, x_lo=None, x_hi=None, sigma=3):
         var = ndimage.filters.convolve1d(np.power(y-average,2),b/b.sum())
         return average, var
 
-    x_fit, y_fit = getFitRange(x, y, x_lo, x_hi)
     avg, var = moving_average(y_fit)
     spline_fit = interpolate.UnivariateSpline(x_fit, y_fit, w=1./np.sqrt(var))
     spline_fit_prime = spline_fit.derivative()
-    return spline_fit, spline_fit_prime
+    fit = spline_fit(x)
+    fit_prime = spline_fit_prime(x)
+    return fit, fit_prime
 
 
 #-----------------------------------------------------------------------------------------#
 #Get incident spectrum from Monitor 
 
-def plotIncidentSpectrum(x, y, fit, fit_prime, title=None):
-    plt.plot(x,y,'bo',x,fit,'--')
+def plotIncidentSpectrum(x, y, x_fit, fit, fit_prime, title=None):
+    plt.plot(x,y,'bo',x_fit,fit,'--')
     plt.legend(['Incident Spectrum','Fit f(x)'],loc='best')
     if title is not None:
         plt.title(title)
     plt.show()
 
-    plt.plot(x,fit_prime/fit,'x--',label="Fit f'(x)/f(x)")
+    plt.plot(x_fit,fit_prime/fit,'x--',label="Fit f'(x)/f(x)")
     plt.xlabel('Wavelength')
     plt.legend()
     if title is not None:
@@ -468,15 +470,13 @@ def plotIncidentSpectrum(x, y, fit, fit_prime, title=None):
 
 def GetIncidentSpectrumFromMonitor(Filename, OutputWorkspace="IncidentWorkspace",
                                    IncidentIndex=0, TransmissionIndex=1, 
-                                   LambdaBinning="0.1,0.02,3.1"):
+                                   LambdaBinning="-6000",
+                                   BinType="ResampleX"):
 
     Filename = str(Filename)
 
     #-------------------------------------------------
     # Joerg's read_bm.pro code
-
-    # get delta lambda from lamda binning
-    lam_bin = float(LambdaBinning.split(',')[1])
 
     # Loop workspaces to get each incident spectrum
     monitor_raw = LoadNexusMonitors(Filename)
@@ -485,7 +485,18 @@ def GetIncidentSpectrumFromMonitor(Filename, OutputWorkspace="IncidentWorkspace"
                        RecalculatePCharge=True)
     ConvertUnits(InputWorkspace=monitor, OutputWorkspace=monitor,
                  Target='Wavelength', EMode='Elastic')
-    monitor = Rebin(InputWorkspace=monitor, Params=LambdaBinning, PreserveEvents=True)
+    if BinType == 'ResampleX':
+        LambdaBinning = int(LambdaBinning)
+        monitor = ResampleX(InputWorkspace=monitor, 
+                            XMin=0.1,
+                            XMax=2.9,
+                            NumberBins=abs(LambdaBinning), 
+                            LogBinning=(LambdaBinning < 0), 
+                            PreserveEvents=True)
+    elif BinType == 'Rebin':
+        monitor = Rebin(InputWorkspace=monitor, 
+                        Params=LambdaBinning, 
+                        PreserveEvents=True)
 
     lam = monitor.readX(IncidentIndex)[:-1] # wavelength in A
     bm  = monitor.readY(IncidentIndex)     # neutron counts / microsecond
@@ -500,40 +511,40 @@ def GetIncidentSpectrumFromMonitor(Filename, OutputWorkspace="IncidentWorkspace"
     mtd[OutputWorkspace].setYUnit('Counts')
     return mtd[OutputWorkspace]
 
-def FitIncidentSpectrum(InputWorkspace, OutputWorkspace,FitSpectrumWith='GaussConvCubicSpline', Binning="0.15,0.05,3.2"):
+def FitIncidentSpectrum(InputWorkspace, OutputWorkspace,FitSpectrumWith='GaussConvCubicSpline', BinningForFit="0.15,0.05,3.2"):
 
     incident_ws = mtd[InputWorkspace]
 
     # Fit Incident Spectrum  
     incident_index = 0
-    x_lambda = incident_ws.readX(incident_index)
-    y_intensity = incident_ws.readY(incident_index)
+    x = incident_ws.readX(incident_index)
+    y = incident_ws.readY(incident_index)
 
-    lam_lo = float(Binning.split(',')[0])
-    lam_hi = float(Binning.split(',')[2])
+    Rebin(incident_ws, OutputWorkspace='fit', Params=BinningForFit, PreserveEvents=True)
+    x_fit = np.array(mtd['fit'].readX(incident_index))
+    y_fit = np.array(mtd['fit'].readY(incident_index))
 
     if FitSpectrumWith == 'CubicSpline':
-        fit, fit_prime = fitCubicSpline(x_lambda, y_intensity, x_lo=lam_lo, x_hi=lam_hi,s=1e7)
-        plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='Simple Cubic Spline: Default')
+        fit, fit_prime = fitCubicSpline(x_fit, y_fit, x, s=1e7)
+        plotIncidentSpectrum(x_fit, y_fit, x, fit, fit_prime, title='Simple Cubic Spline: Default')
 
     elif FitSpectrumWith == 'CubicSplineViaMantid':
-        fit, fit_prime = fitCubicSplineViaMantidSplineSmoothing(InputWorkspace=InputWorkspace,MaxNumberOfBreaks=8)
-        plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='Cubic Spline via Mantid SplineSmoothing')
+        fit, fit_prime = fitCubicSplineViaMantidSplineSmoothing(InputWorkspace, Params=BinningForFit, MaxNumberOfBreaks=8)
+        plotIncidentSpectrum(x_fit, y_fit, x, fit, fit_prime, title='Cubic Spline via Mantid SplineSmoothing')
+
     elif FitSpectrumWith == 'HowellsFunction':
-        fit, fit_prime = fitHowellsFunction(x_lambda, y_intensity, x_lo=lam_lo, x_hi=lam_hi)
-        plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='HowellsFunction')
+        fit, fit_prime = fitHowellsFunction(x_fit, y_fit, x)
+        plotIncidentSpectrum(x_fit, y_fit, x, fit, fit_prime, title='HowellsFunction')
 
     elif FitSpectrumWith == 'GaussConvCubicSpline':
-        spline_fit, spline_fit_prime =  fitCubicSplineWithGaussConv(x_lambda, y_intensity,x_lo=lam_lo,x_hi=lam_hi,sigma=2)
-        fit = spline_fit(x_lambda)
-        fit_prime = spline_fit_prime(x_lambda)
-        plotIncidentSpectrum(x_lambda, y_intensity, fit, fit_prime, title='Cubic Spline w/ Gaussian Kernel Convolution ')
+        fit, fit_prime =  fitCubicSplineWithGaussConv(x_fit, y_fit, x, sigma=2)
+        plotIncidentSpectrum(x_fit, y_fit, x, fit, fit_prime, title='Cubic Spline w/ Gaussian Kernel Convolution ')
 
     else:
         raise Exception("Unknown method for fitting incident spectrum")
         return
 
-    CreateWorkspace(DataX=x_lambda, DataY=np.append(fit,fit_prime), OutputWorkspace=OutputWorkspace, UnitX='Wavelength', NSpec=2)
+    CreateWorkspace(DataX=x, DataY=np.append(fit,fit_prime), OutputWorkspace=OutputWorkspace, UnitX='Wavelength', NSpec=2)
     return mtd[OutputWorkspace]
 
 
@@ -556,6 +567,9 @@ def plotPlaczek(x, y, fit, fit_prime, title=None):
     return
 
 
+def GetLogBinning(start, stop, num=100):
+    return  np.logspace(np.log(start), np.log(stop), num=num, endpoint=True, base=np.exp(1))
+
 def ConvertLambdaToQ(lam,angle):
     angle_conv = np.pi / 180.
     sin_theta_by_2 = np.sin(angle * angle_conv / 2.)
@@ -567,7 +581,6 @@ def ConvertQToLambda(q,angle):
     sin_theta_by_2 = np.sin(angle * angle_conv / 2.)
     lam = (4.*np.pi / q)*sin_theta_by_2
     return lam
-
 
 
 def CalculatePlaczekSelfScattering(IncidentWorkspace, ParentWorkspace, OutputWorkspace, 
@@ -669,7 +682,11 @@ def print_unit_info(workspace):
 
 
 def SetInelasticCorrection(inelastic_dict):
-    corr_type = inelastic_dict.get("Type", "Placzek")
+    if inelastic_dict is None:
+        inelastic_dict = {"Type" : None }
+        return inelastic_dict
+
+    corr_type = inelastic_dict["Type"]
 
     if corr_type == "Placzek":
         default_settings = {"Order" : "1st",
@@ -703,24 +720,17 @@ if "__main__" == __name__:
     # Get sample info
     sample = config['sam']
     sam_mass_density = sample.get('MassDensity', None)
-    sam_material = sample.get('Material', None)
-    sam_packing_fraction = sample.get('PackingFraction',None)
+    sam_packing_fraction = sample.get('PackingFraction', None)
     sam_geometry = sample.get('Geometry', None)
-    sam_abs_corr= sample.get("AbsorptionCorrection", "Carpenter")
-    sam_ms_corr = sample.get("MultipleScatteringCorrection", "Carpenter")
-    sam_inelastic_corr = SetInelasticCorrection(sample.get('InelasticCorrection', None))
-
+    sam_material = sample.get('Material', None)
 
     # Get normalization info
     van = config['van']
-    van_material = van.get('Material', 'V')
     van_mass_density = van.get('MassDensity', None)
     van_packing_fraction = van.get('PackingFraction',1.0)
     van_geometry = van.get('Geometry', None)
-    van_abs_corr = van.get("AbsorptionCorrection", "Carpenter")
-    van_ms_corr = van.get("MultipleScatteringCorrection", "Carpenter")
-    van_inelastic_corr = SetInelasticCorrection(sample.get('InelasticCorrection', None))
-  
+    van_material = van.get('Material', 'V')
+ 
     # Get calibration, characterization, and other settings
     calib = config['calib']
     charac = config['charac']
@@ -740,8 +750,8 @@ if "__main__" == __name__:
     print "#-----------------------------------#"
     print "# Sample"
     print "#-----------------------------------#"
-    natoms, self_scat = getAbsScaleInfoFromNexus(sample['Runs'],
-                                                 PackingFraction=sample['PackingFraction'],
+    natoms, self_scat, sam_info = getAbsScaleInfoFromNexus(sample['Runs'],
+                                                 PackingFraction=sam_packing_fraction,
                                                  SampleMassDensity=sam_mass_density,
                                                  Geometry=sam_geometry, 
                                                  ChemicalFormula=sam_material)
@@ -749,7 +759,7 @@ if "__main__" == __name__:
     print "#-----------------------------------#"
     print "# Vanadium"
     print "#-----------------------------------#"
-    nvan_atoms, tmp = getAbsScaleInfoFromNexus(van['Runs'],
+    nvan_atoms, tmp, van_info = getAbsScaleInfoFromNexus(van['Runs'],
                                                PackingFraction=1.0,
                                                SampleMassDensity=van_mass_density,
                                                Geometry=van_geometry,
@@ -760,6 +770,24 @@ if "__main__" == __name__:
     print "Vanadium natoms / Sample natoms:", nvan_atoms/natoms
     print
 
+    # Get sample corrections
+    sam_mass_density = float(sample.get('MassDensity', sam_info['mass_density']))
+    sam_material = sample.get('Material', sam_info['formula'])
+    sam_packing_fraction = sample.get('PackingFraction',sam_info['packing_fraction'])
+    sam_geometry = sample.get('Geometry', None)
+    sam_abs_corr= sample.get("AbsorptionCorrection", "Carpenter")
+    sam_ms_corr = sample.get("MultipleScatteringCorrection", "Carpenter")
+    sam_inelastic_corr = SetInelasticCorrection(sample.get('InelasticCorrection', None))
+
+    # Get vanadium corrections
+    van_material = van.get('Material', 'V')
+    van_mass_density = van.get('MassDensity', van_info['mass_density'])
+    van_packing_fraction = van.get('PackingFraction', van_info['packing_fraction'])
+    van_geometry = van.get('Geometry', None)
+    van_abs_corr = van.get("AbsorptionCorrection", "Carpenter")
+    van_ms_corr = van.get("MultipleScatteringCorrection", "Carpenter")
+    van_inelastic_corr = SetInelasticCorrection(van.get('InelasticCorrection', None))
+ 
     results = PDLoadCharacterizations(Filename=charac, OutputWorkspace='characterizations')
     alignAndFocusArgs = dict(PrimaryFlightPath = results[2],
                              SpectrumIDs       = results[3],
@@ -903,7 +931,7 @@ if "__main__" == __name__:
     if van_abs_corr['Type'] == 'Carpenter' or van_ms_corr['Type'] == 'Carpenter':
         MultipleScatteringCylinderAbsorption(InputWorkspace=van_corrected, 
                                              OutputWorkspace=van_corrected, 
-                                             CylinderSampleRadius=sample['Geometry']['Radius'])
+                                             CylinderSampleRadius=van['Geometry']['Radius'])
     elif van_abs_corr['Type'] == 'Mayers' or van_ms_corr['Type'] == 'Mayers':
         if van_ms_corr['Type'] == 'Mayers':
             MayersSampleCorrection(InputWorkspace=van_corrected, 
@@ -965,6 +993,11 @@ if "__main__" == __name__:
     van_title += '_smoothed'
     save_banks(van_corrected, title=van_title+".dat", binning=binning)
 
+    # debugging
+    ConvertUnits(InputWorkspace=van_corrected, 
+                 OutputWorkspace=van_corrected,
+                 Target='Wavelength', 
+                 EMode='Elastic')
 
     # Inelastic correction
     print van_inelastic_corr['Type']
@@ -972,15 +1005,13 @@ if "__main__" == __name__:
         for van_scan in van['Runs']:
             van_incident_wksp = 'van_incident_wksp'
             lambda_binning = van['InelasticCorrection']['LambdaBinning']
-            GetIncidentSpectrumFromMonitor(van_scan, 
-                                           OutputWorkspace=van_incident_wksp, 
-                                           LambdaBinning=lambda_binning)
+            GetIncidentSpectrumFromMonitor(van_scan, OutputWorkspace=van_incident_wksp) 
 
             fit_type = sample['InelasticCorrection']['FitSpectrumWith']
             FitIncidentSpectrum(InputWorkspace=van_incident_wksp, 
                                 OutputWorkspace=van_incident_wksp,
                                 FitSpectrumWith=fit_type,
-                                Binning=lambda_binning)
+                                BinningForFit=lambda_binning)
 
             van_placzek = 'van_placzek'
             
@@ -997,18 +1028,13 @@ if "__main__" == __name__:
                          OutputWorkspace=van_placzek,
                          Target='MomentumTransfer', 
                          EMode='Elastic')
+
         save_banks(van_placzek, title="vanadium_placzek.dat")
 
         ConvertUnits(InputWorkspace=van_corrected, 
                      OutputWorkspace=van_corrected,
                      Target='MomentumTransfer', 
                      EMode='Elastic')
-        '''
-        Rebin(InputWorkspace=van_corrected, 
-              OutputWorkspace=van_corrected, 
-              Params=lamda_binning, 
-              PreserveEvents=True)
-        '''
         ConvertToHistogram(InputWorkspace=van_placzek, 
                            OutputWorkspace=van_placzek)
         RebinToWorkspace(WorkspaceToRebin=van_corrected, 
@@ -1023,15 +1049,16 @@ if "__main__" == __name__:
                      EMode='Elastic')
         van_title += '_placzek_corrected'
         save_banks(van_corrected, title=van_title+".dat", binning=binning)
-        exit()
 
-        
+    ConvertUnits(InputWorkspace=van_corrected, 
+                 OutputWorkspace=van_corrected,
+                 Target='MomentumTransfer', 
+                 EMode='Elastic')
+ 
     SetUncertainties(InputWorkspace=van_corrected, 
                      OutputWorkspace=van_corrected,
                      SetError='zero')
 
-
-    exit()
     #-----------------------------------------------------------------------------------------#
     # STEP 2.1: Normalize by Vanadium
 
@@ -1054,7 +1081,7 @@ if "__main__" == __name__:
     if sam_abs_corr['Type'] == 'Carpenter' or sam_ms_corr['Type'] == 'Carpenter':
         MultipleScatteringCylinderAbsorption(InputWorkspace=sam, 
                                              OutputWorkspace=sam_corrected, 
-                                             CylinderSampleRadius=radius_sample_cm)
+                                             CylinderSampleRadius=sample['Geometry']['Radius'])
     elif sam_abs_corr['Type'] == 'Mayers' or sam_ms_corr['Type'] == 'Mayers':
         if sam_ms_corr['Type'] == 'Mayers':
             MayersSampleCorrection(InputWorkspace=sam, 
@@ -1088,28 +1115,57 @@ if "__main__" == __name__:
         for sam_scan in sample['Runs']:
             sam_incident_wksp = 'sam_incident_wksp'
             lambda_binning = sample['InelasticCorrection']['LambdaBinning']
-            GetIncidentSpectrumFromMonitor(sam_scan, 
-                                           OutputWorkspace=sam_incident_wksp, 
-                                           LambdaBinning=lambda_binning)
-            sam_placzek = 'sam_placzek'
-            CalculatePlaczekSelfScattering(IncidentWorkspace=sam_incident_wksp, 
-                                           OutputWorkspace=sam_placzek,
-                                           L1=19.5,**alignAndFocusArgs)
+            GetIncidentSpectrumFromMonitor(sam_scan, OutputWorkspace=sam_incident_wksp)
 
-        for wksp in [sam_corrected, sam_placzek]:
-            ConvertUnits(InputWorkspace=wksp, OutputWorkspace=wksp,
-                     Target='MomentumTransfer', EMode='Elastic')
-        Rebin(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected, Params=binning, PreserveEvents=True)
-        Rebin(InputWorkspace=sam_placzek,   OutputWorkspace=sam_placzek,   Params=binning, PreserveEvents=True)
+            fit_type = sample['InelasticCorrection']['FitSpectrumWith']
+            FitIncidentSpectrum(InputWorkspace=sam_incident_wksp, 
+                                OutputWorkspace=sam_incident_wksp,
+                                FitSpectrumWith=fit_type,
+                                BinningForFit=lambda_binning)
+
+            sam_placzek = 'sam_placzek'
+            SetSample(InputWorkspace=sam_incident_wksp, 
+                      Material={'ChemicalFormula': sam_material, 
+                                'SampleMassDensity' : sam_mass_density} )
+            CalculatePlaczekSelfScattering(IncidentWorkspace=sam_incident_wksp,
+                                           ParentWorkspace=sam_corrected,
+                                           OutputWorkspace=sam_placzek,
+                                           L1=19.5,
+                                           L2=alignAndFocusArgs['L2'],
+                                           Polar=alignAndFocusArgs['Polar'])
+            ConvertUnits(InputWorkspace=sam_placzek, 
+                         OutputWorkspace=sam_placzek,
+                         Target='MomentumTransfer', 
+                         EMode='Elastic')
+
+        save_banks(sam_placzek, title="sample_placzek.dat")
+
+        ConvertUnits(InputWorkspace=sam_corrected, 
+                     OutputWorkspace=sam_corrected,
+                     Target='MomentumTransfer', 
+                     EMode='Elastic')
+        ConvertToHistogram(InputWorkspace=sam_placzek, 
+                           OutputWorkspace=sam_placzek)
+        RebinToWorkspace(WorkspaceToRebin=sam_corrected, 
+                         WorkspaceToMatch=sam_placzek, 
+                         OutputWorkspace=sam_corrected, 
+                         PreserveEvents=False)
+        
+        ConvertFromDistribution(sam_corrected)
+
+        save_banks(sam_placzek, title="sample_placzek_v2.dat")
+        save_banks(sam_corrected, title="sample_before_placzek_v2.dat")
         Minus(LHSWorkspace=sam_corrected, RHSWorkspace=sam_placzek, OutputWorkspace=sam_corrected)
+        ConvertUnits(InputWorkspace=sam_corrected, 
+                     OutputWorkspace=sam_corrected,
+                     Target='MomentumTransfer', 
+                     EMode='Elastic')
         sam_title += '_placzek_corrected'
         save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
-        save_banks(sam_placzek, title="sample_placzek.dat", binning=binning)
 
 
-     
     #-----------------------------------------------------------------------------------------#
-    # STEP 6: Output spectrum
+    # STEP 7: Output spectrum
 
     # TODO Since we already went from Event -> 2D workspace, can't use this anymore
     #if alignAndFocusArgs['PreserveEvents']:

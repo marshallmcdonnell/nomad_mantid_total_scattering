@@ -3,7 +3,7 @@
     "title" : "Si_SRM_e_d91772_no_mask", 
     "sam": { "Runs" : [91796],
              "Background" : [91766], 
-             "Material" : "V",
+             "Material" : "Si",
              "PackingFraction" : 0.5,
              "Geometry" : {"Radius" : 0.3,
                            "Height" : 1.8 },
@@ -24,13 +24,7 @@
              "Geometry" : {"Radius" : 0.2925,
                            "Height" : 1.8 },
              "AbsorptionCorrection" : { "Type" : "Carpenter" },
-             "MultipleScatteringCorrection" : { "Type" : "Carpenter" },
-             "InelasticCorrection" : { "Type" : "Placzek", 
-                                       "Order" : "1st",
-                                       "Self" : "True",
-                                       "Interference" : "False",
-                                       "FitSpectrumWith" : "GaussConvCubicSpline",
-                                       "LambdaBinning" : "0.16,0.04,2.8"}
+             "MultipleScatteringCorrection" : { "Type" : "Carpenter" }
             },
 
     "calib": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_d91621_2017_04_12_shifter.h5",
