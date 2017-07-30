@@ -603,9 +603,15 @@ def CalculatePlaczekSelfScattering(IncidentWorkspace, ParentWorkspace, OutputWor
     for atom, props in atom_species.iteritems():
         props['concentration'] = props['stoich'] / total_stoich
 
+    # calculate summation term w/ neutron mass over molecular mass ratio
+    summation_term = 0.0
+    for species, props in atom_species.iteritems():
+        summation_term += props['concentration'] * props['tot_scatt_length'] * neutron_mass / props['mass']
+
+    # calculate elastic self-scattering term
     elastic_term = 0.0
     for species, props in atom_species.iteritems():
-        elastic_term += props['concentration'] * props['tot_scatt_length'] * neutron_mass / props['mass']
+        elastic_term += props['concentration'] * props['tot_scatt_length']
 
     # get incident spectrum and 1st derivative 
     incident_index = 0
@@ -655,7 +661,8 @@ def CalculatePlaczekSelfScattering(IncidentWorkspace, ParentWorkspace, OutputWor
         term3 = f - 3.
 
         #per_bank_q = ConvertLambdaToQ(x_lambda,theta)
-        per_bank_correction = 2.*(term1 - term2 + term3) * sin_theta_by_2 * sin_theta_by_2 * elastic_term
+        per_bank_correction = 2.*(term1 - term2 + term3) * sin_theta_by_2 * sin_theta_by_2 * summation_term
+        #per_bank_correction = elastic_term + 2.*(term1 - term2 + term3) * sin_theta_by_2 * sin_theta_by_2 * summation_term
         x_lambdas = np.append(x_lambdas, x_lambda)
         placzek_correction = np.append(placzek_correction, per_bank_correction)
 
@@ -958,7 +965,16 @@ if "__main__" == __name__:
                  Target='MomentumTransfer', 
                  EMode='Elastic')
     van_title += '_norm_by_atoms'
+    save_banks(van_corrected, title=van_title+".dat", binning=binning)
+
+    # Divide by total scattering length squared = total scattering cross-section over 4 * pi
+    sigma_v = mtd[van_corrected].sample().getMaterial().totalScatterXSection()
+    prefactor = ( sigma_v / (4.*np.pi) )
+    mtd[van_corrected] = (1./prefactor)*mtd[van_corrected]
+    van_title += '_multiply_by_tot_scat_len'
     save_banks(van_corrected, title=van_title+"_with_peaks.dat", binning=binning)
+
+    # TODO subtract self-scattering of vanadium (According to Eq. 7 of Howe, McGreevey, and Howells, JPCM, 1989)
 
     # Smooth Vanadium (strip peaks plus smooth)
 
@@ -1035,8 +1051,8 @@ if "__main__" == __name__:
                      OutputWorkspace=van_corrected,
                      Target='MomentumTransfer', 
                      EMode='Elastic')
-        ConvertToHistogram(InputWorkspace=van_placzek, 
-                           OutputWorkspace=van_placzek)
+        #ConvertToHistogram(InputWorkspace=van_placzek, 
+        #                   OutputWorkspace=van_placzek)
         RebinToWorkspace(WorkspaceToRebin=van_corrected, 
                          WorkspaceToMatch=van_placzek, 
                          OutputWorkspace=van_corrected, 
@@ -1184,10 +1200,8 @@ if "__main__" == __name__:
 
 
     # F(Q) bank-by-bank Section
-    sigma_v = mtd[van_corrected].sample().getMaterial().totalScatterXSection()
-    prefactor = ( sigma_v / (4.*np.pi) )
     CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='FQ_banks_ws')
-    FQ_banks_raw = (prefactor) * mtd['FQ_banks_ws']
+    FQ_banks_raw = mtd['FQ_banks_ws']
     FQ_banks = FQ_banks_raw - self_scat 
 
     #-----------------------------------------------------------------------------------------#
@@ -1263,7 +1277,7 @@ if "__main__" == __name__:
     SQ = (1./bcoh_avg_sqrd)*mtd['SQ_ws'] - (term_to_subtract-1.)  # +1 to get back to S(Q)
 
     CloneWorkspace(InputWorkspace='sam_single', OutputWorkspace='FQ_ws')
-    FQ_raw = prefactor * mtd['FQ_ws']
+    FQ_raw = mtd['FQ_ws']
     FQ = FQ_raw - self_scat
 
     qmax = 48.0
