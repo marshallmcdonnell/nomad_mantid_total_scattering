@@ -1,0 +1,37 @@
+{
+    "high_q_linear_fit_range" : 0.60,
+    "title" : "Si_open1_18vx6h_minus_MTinst", 
+    "sam": { "Runs" : [94740],
+             "Background" : [94741], 
+             "Material" : "Si",
+             "PackingFraction" : 0.5,
+             "Geometry" : {"Radius" : 0.3,
+                           "Height" : 1.8 },
+             "AbsorptionCorrection" : { "Type" : "Carpenter" },
+             "MultipleScatteringCorrection" : { "Type" : "Carpenter" },
+             "InelasticCorrection" : { "Type" : "Placzek", 
+                                       "Order" : "1st",
+                                       "Self" : "True",
+                                       "Interference" : "False",
+                                       "FitSpectrumWith" : "GaussConvCubicSpline",
+                                       "LambdaBinning" : "0.16,0.04,2.8"}
+            },
+    "van": { "Runs" : [94739],
+             "Background" : [94741], 
+             "Material" : "V",
+             "MassDensity" : 6.11,
+             "PackingFraction" : 1.0, 
+             "Geometry" : {"Radius" : 0.2925,
+                           "Height" : 1.8 },
+             "AbsorptionCorrection" : { "Type" : "Carpenter" },
+             "MultipleScatteringCorrection" : { "Type" : "Carpenter" }
+            },
+
+    "calib": "/SNS/NOM/shared/CALIBRATION/2017_2_1B_CAL/NOM_d94737_2017_07_24_shifter_open1_18vx6h.h5",
+    "charac": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt",
+    "binning": [0.0, 0.02, 50.0],
+    "sumbanks": [3],
+    "CacheDir" : "/SNS/NOM/shared/cache_files",
+    "OutputDir" : "/SNS/NOM/IPTS-19565/shared/autoreduce_open1/"
+}
+
