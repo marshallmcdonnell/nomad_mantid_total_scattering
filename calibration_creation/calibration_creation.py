@@ -14,7 +14,6 @@ with open(infile) as handle:
 
 calibrants = args['calibrants']
 date = str(args.get('date', datetime.datetime.now().strftime('%Y_%m_%d')))
-samp_env = str(args['sample_environment'])
 oldCal= str(args['oldCal'])
 chunkSize = int(args.get('chunkSize', 8))
 filterBadPulses = int(args.get('filterBadPulses', 25))
@@ -24,15 +23,21 @@ caldirectory = str(args.get('caldirectory',os.path.abspath('.')))
 # -------------------------------------
 
 for calibrant in calibrants:
-    runNumber = int(calibrant)
-    wkspName='NOM_%d' % runNumber
-    calfilename = caldirectory+'/NOM_d%d_%s_%s.h5' % (runNumber, date, samp_env)
-    print 'going to create calibration file: %s' % calfilename
+    if 'sample_environment' in calibrants[calibrant]:
+        samp_env = str(calibrants[calibrant]['sample_environment'])
+    else:
+        samp_env = str(args['sample_environment'])
+        
 
     if 'vanadium' in calibrants[calibrant]:
         vanadium = int(calibrants[calibrant]['vanadium'])
     else:
         vanadium = 0
+
+    runNumber = int(calibrant)
+    wkspName='NOM_%d' % runNumber
+    calfilename = caldirectory+'/NOM_d%d_%s_%s.h5' % (runNumber, date, samp_env)
+    print 'going to create calibration file: %s' % calfilename
 
     LoadEventAndCompress(Filename=wkspName, OutputWorkspace=wkspName,
                          MaxChunkSize=chunkSize, FilterBadPulses=filterBadPulses)

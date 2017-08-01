@@ -1,15 +1,23 @@
 {
-    "calibrants": { "94328" : {"vanadium": "94330"},
-                    "94339" : {"vanadium": "94341"},
-                    "94350" : {"vanadium": "94352"},
-                    "94361" : {"vanadium": "94363"},
-                    "94365" : {"vanadium": "94367"},
-                    "94376" : {"vanadium": "94378"},
-                    "94387" : {"vanadium": "94389"}
+    "calibrants": { "94723" : {"vanadium": "94725",
+                               "sample_environment": "shifter_open1_6vx6h"},
+                    "94730" : {"vanadium": "94732",
+                               "sample_environment": "shifter_open1_12vx6h"},
+                    "94737" : {"vanadium": "94739",
+                               "sample_environment": "shifter_open1_18vx6h"},
+                    "94744" : {"vanadium": "94746",
+                               "sample_environment": "shifter_open1_18vx10h"},
+                    "94799" : {"vanadium": "94801",
+                               "sample_environment": "shifter_open2_6vx6h"},
+                    "94806" : {"vanadium": "94808",
+                               "sample_environment": "shifter_open2_12vx6h"},
+                    "94813" : {"vanadium": "94815",
+                               "sample_environment": "shifter_open2_18vx6h"},
+                    "94820" : {"vanadium": "94822",
+                               "sample_environment": "shifter_open2_18vx10h"}
 
     },
-    "date": "2017_07_17",
-    "sample_environment": "shifter_slit_test",
+    "date": "2017_07_24",
     "caldirectory": "/SNS/NOM/shared/CALIBRATION/2017_2_1B_CAL",
     "oldCal": "/SNS/NOM/shared/CALIBRATION/2016_2_1B_CAL/NOM_d85746_2016_11_21_shifter.h5"
 }
