@@ -143,7 +143,7 @@ if vanRun > 0:
 
 # process the run
 SNSPowderReduction(Filename=eventFile,
-                   MaxChunkSize=maxChunkSize, PreserveEvents=True,PushDataPositive='AddMinimum',
+                   MaxChunkSize=maxChunkSize, PreserveEvents=True,PushDataPositive='ResetToZero',
                    CalibrationFile=calFile,
                    CharacterizationRunsFile=charFile,
                    BackgroundNumber=str(sampleBackRun),

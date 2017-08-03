@@ -68,8 +68,9 @@ for i, filename in enumerate(args.filenames):
         else:
             plot_banks(f,title=filename,banks_list=args.banks, line_style=line_styles[i])
 
-plt.legend()
+plt.legend(loc='best')
 plt.xlabel("Q (angstroms^-1")
+#plt.xlabel("Wavelength")
 plt.ylabel("I(Q) (arb. units)")
 #lt.title("Carpenter Corrections (Abs. + Mult. Scat.)")
 plt.show()            

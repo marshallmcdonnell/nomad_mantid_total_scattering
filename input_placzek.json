@@ -4,7 +4,7 @@
     "sam": { "Runs" : [91796],
              "Background" : [91766], 
              "Material" : "Si",
-             "PackingFraction" : 0.5,
+             "PackingFraction" : 0.4,
              "Geometry" : {"Radius" : 0.3,
                            "Height" : 1.8 },
              "AbsorptionCorrection" : { "Type" : "Carpenter" },
@@ -14,7 +14,8 @@
                                        "Self" : "True",
                                        "Interference" : "False",
                                        "FitSpectrumWith" : "GaussConvCubicSpline",
-                                       "LambdaBinning" : "0.16,0.04,2.8"}
+                                       "LambdaBinningForFit"  : "0.16,0.04,2.8",
+                                       "LambdaBinningForCalc" : "0.1,0.0001,3.1"}
             },
     "van": { "Runs" : [91603],
              "Background" : [91607], 
@@ -29,8 +30,9 @@
 
     "calib": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_d91621_2017_04_12_shifter.h5",
     "charac": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt",
-    "binning": [0.0, 0.02, 50.0],
+    "binning": [0.0, 0.02, 31.4],
     "sumbanks": [3],
-    "CacheDir" : "/SNS/NOM/shared/cache_files"
+    "CacheDir" : "/SNS/NOM/shared/cache_files",
+    "OutputDir" : "./"
 }
 
