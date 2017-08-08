@@ -51,12 +51,12 @@ title = config.get('title',None)
 # Get sample info
 sample = config['sam']
 samRun = sample['Runs'][0]
-sampleBackRun=sample['Background'][0]
+sampleBackRun=sample['Background']['Runs'][0]
 
 # Get normalization info
 van = config['van']
 vanRun=van['Runs'][0]
-vanBackRun=van['Background'][0]
+vanBackRun=van['Background']['Runs'][0]
 vanRadius=van['Geometry']['Radius']
 
 # Get calibration, characterization, and other settings
