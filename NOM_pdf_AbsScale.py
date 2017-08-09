@@ -997,10 +997,10 @@ if "__main__" == __name__:
     #-----------------------------------------------------------------------------------------#
     # STEP 1: Subtract Backgrounds 
 
-    if container_bg is not None:
-        Minus(LHSWorkspace=container, RHSWorkspace=container_bg, OutputWorkspace=container)
     Minus(LHSWorkspace=van_wksp, RHSWorkspace=van_bg, OutputWorkspace=van_wksp)
     Minus(LHSWorkspace=sam, RHSWorkspace=container, OutputWorkspace=sam)
+    if container_bg is not None:
+        Minus(LHSWorkspace=container, RHSWorkspace=container_bg, OutputWorkspace=container)
 
     for wksp in [container, van_wksp, sam]:
         ConvertUnits(InputWorkspace=wksp, 
