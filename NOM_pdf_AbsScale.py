@@ -638,7 +638,7 @@ def CalculatePlaczekSelfScattering(IncidentWorkspace, ParentWorkspace, OutputWor
     atom_species = collections.OrderedDict()
     for atom, stoich in zip(material[0], material[1]):
         print atom.neutron()['tot_scatt_length']                  
-        b_sqrd_bar = mtd[van_corrected].sample().getMaterial().totalScatterXSection() / (4.*np.pi) # <b^2> == sigma_s / 4*pi (in barns)
+        b_sqrd_bar = mtd[IncidentWorkspace].sample().getMaterial().totalScatterXSection() / (4.*np.pi) # <b^2> == sigma_s / 4*pi (in barns)
         atom_species[atom.symbol] = {'mass' : atom.mass,
                                     'stoich' : stoich,
                                     'b_sqrd_bar' : b_sqrd_bar }
@@ -650,12 +650,12 @@ def CalculatePlaczekSelfScattering(IncidentWorkspace, ParentWorkspace, OutputWor
     # calculate summation term w/ neutron mass over molecular mass ratio
     summation_term = 0.0
     for species, props in atom_species.iteritems():
-        summation_term += props['concentration'] * props['b_sqrd_bar'] * props['b_sqrd_bar'] * neutron_mass / props['mass']
+        summation_term += props['concentration'] * props['b_sqrd_bar'] * neutron_mass / props['mass']
 
     # calculate elastic self-scattering term
     elastic_term = 0.0
     for species, props in atom_species.iteritems():
-        elastic_term += props['concentration'] * props['b_sqrd_bar'] * props['b_sqrd_bar']
+        elastic_term += props['concentration'] * props['b_sqrd_bar'] 
 
     # get incident spectrum and 1st derivative 
     incident_index = 0
@@ -1314,10 +1314,8 @@ if "__main__" == __name__:
                                            L1=19.5,
                                            L2=alignAndFocusArgs['L2'],
                                            Polar=alignAndFocusArgs['Polar'])
-            save_banks(sam_placzek, title="sample_placzek_before_Histogram.dat",binning=binning)
             ConvertToHistogram(InputWorkspace=sam_placzek, 
                                OutputWorkspace=sam_placzek)
-            save_banks(sam_placzek, title="sample_placzek_after_Histogram.dat",binning=binning)
 
 
         # Save before rebin in Q
@@ -1383,24 +1381,30 @@ if "__main__" == __name__:
 
 
     #-----------------------------------------------------------------------------------------#
-    # STOP HERE FOR NOW
-    exit()
-    #-----------------------------------------------------------------------------------------#
-
-    # S(Q) bank-by-bank Section
-    material = mtd[sam].sample().getMaterial()
-    bcoh_avg_sqrd = material.cohScatterLength()*material.cohScatterLength()
-    btot_sqrd_avg = material.totalScatterLengthSqrd()
-    print bcoh_avg_sqrd, btot_sqrd_avg
-    term_to_subtract = btot_sqrd_avg / bcoh_avg_sqrd
-    CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='SQ_banks_ws')
-    SQ_banks =  (1./bcoh_avg_sqrd)*mtd['SQ_banks_ws'] - (term_to_subtract-1.) 
-
 
     # F(Q) bank-by-bank Section
     CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='FQ_banks_ws')
-    FQ_banks_raw = mtd['FQ_banks_ws']
-    FQ_banks = FQ_banks_raw - self_scat 
+    FQ_banks = mtd['FQ_banks_ws']
+
+    # S(Q) bank-by-bank Section
+    material = mtd[sam_corrected].sample().getMaterial()
+    bcoh_avg_sqrd = material.cohScatterLength()*material.cohScatterLength()
+    btot_sqrd_avg = material.totalScatterLengthSqrd()
+    laue_monotonic_diffuse_scat = btot_sqrd_avg / bcoh_avg_sqrd
+    CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='SQ_banks_ws')
+    SQ_banks =  (1./bcoh_avg_sqrd)*mtd['SQ_banks_ws'] - laue_monotonic_diffuse_scat + 1.
+
+    save_banks('FQ_banks_ws', title='FQ_banks.dat', binning=binning)
+    save_banks('SQ_banks_ws', title='SQ_banks.dat', binning=binning)
+
+    #-----------------------------------------------------------------------------------------#
+    # STOP HERE FOR NOW
+    print "<b>^2:", bcoh_avg_sqrd
+    print "<b^2>:", btot_sqrd_avg
+    print "Laue term:", laue_monotonic_diffuse_scat
+    print mtd[sam_corrected].sample().getMaterial().totalScatterXSection()
+    print mtd[van_corrected].sample().getMaterial().totalScatterXSection()
+    exit()
 
     #-----------------------------------------------------------------------------------------#
     # Ouput bank-by-bank with linear fits for high-Q 
