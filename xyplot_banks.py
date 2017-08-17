@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import (absolute_import, division, print_function)
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
@@ -42,8 +43,8 @@ def plot_banks(f, title=None,banks_list=None,line_style=None):
         if i in banks_list:
             myLabel = 'bank: '+str(i)+' '+title.split('.')[0]
             plt.plot(datasets[i,:,0], datasets[i,:,1],line_style+color_line_styles[i],markersize=4,label=myLabel )
-   
-    return datasets 
+
+    return datasets
 
 parser = argparse.ArgumentParser()
 parser.add_argument('filenames', nargs='+', help="Filename with bank info")
@@ -74,4 +75,4 @@ plt.xlabel("Q (angstroms^-1")
 #plt.xlabel("Wavelength")
 plt.ylabel("I(Q) (arb. units)")
 #lt.title("Carpenter Corrections (Abs. + Mult. Scat.)")
-plt.show()            
+plt.show()

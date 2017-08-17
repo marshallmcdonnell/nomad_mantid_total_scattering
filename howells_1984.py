@@ -1,10 +1,11 @@
 #!/usr/bin/env python
+from __future__ import (absolute_import, division, print_function)
 import collections
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import m_n, physical_constants, Planck, Boltzmann, angstrom, Avogadro
 
-angle_conv = np.pi / 180. 
+angle_conv = np.pi / 180.
 
 
 #-------------------------------------------------------------------------------------#
@@ -30,10 +31,10 @@ def phi_m_1st_der(lam, phi_max, phi_epi, lam_t, a, lam_1, lam_2  ):
 
 def phi_m_2nd_der(lam, phi_max, phi_epi, lam_t, a, lam_1, lam_2  ):
     args = [phi_max, phi_epi, lam_t, a, lam_1, lam_2]
-    term1 = 30. - 26.*(lam_t/lam)**2. + 4.*((lam_t/lam)**4.) 
+    term1 = 30. - 26.*(lam_t/lam)**2. + 4.*((lam_t/lam)**4.)
     term2 = (phi_m(lam,*args )/(lam**2.))
-    return term1*term2 
- 
+    return term1*term2
+
 def phi_e_1st_der(lam, phi_max, phi_epi, lam_t, a, lam_1, lam_2  ):
     return -(1+2*a)/lam*phi_e(lam, phi_max, phi_epi, lam_t, a, lam_1, lam_2)
 
@@ -42,7 +43,7 @@ def phi_e_2nd_der(lam, phi_max, phi_epi, lam_t, a, lam_1, lam_2  ):
     denominator = (lam*lam)
     return numerator / denominator
 
-  
+
 def calc_HowellsFunction1stDer(lam, *args):
     return phi_m_1st_der(lam, *args) + phi_e_1st_der(lam, *args)
 
@@ -51,7 +52,7 @@ def calc_HowellsFunction1stDer(lam, *args):
 
 def placzek_self(lam, phi_max, phi_epi, lam_t, a, lam_1, lam_2, angle=150, M=14, T=77, R=0.1, plot_type='full'):
     neutron_mass = m_n / physical_constants['atomic mass unit-kilogram relationship'][0]
-   
+
 
     def F1(lam, lamd=1.44):
         numerator   = (-lam/lamd)*np.exp(-lam/lamd)
@@ -70,10 +71,10 @@ def placzek_self(lam, phi_max, phi_epi, lam_t, a, lam_1, lam_2, angle=150, M=14,
     def D(R,lam,*args):
         term1 = (1.+R)**-2.
         term2 = F2(lam)
-        term3 = (9.*R + 3.)*F1(lam) 
+        term3 = (9.*R + 3.)*F1(lam)
         term4 = R*R*f2(lam,*args)
-        term5 = R*(9.*R+1.)*f1(lam,*args) 
-        term6 = 2.*R*F1(lam)*f1(lam,*args) 
+        term5 = R*(9.*R+1.)*f1(lam,*args)
+        term6 = 2.*R*F1(lam)*f1(lam,*args)
         term7 = (1. + 5.*R + 16.*R*R)
         total = 0.5*term1*( term2 + term3 + term4 + term5 + term6 + term7 )
         return total
@@ -92,9 +93,9 @@ def placzek_self(lam, phi_max, phi_epi, lam_t, a, lam_1, lam_2, angle=150, M=14,
     term3 = 0.5*(neutron_mass/(M))*(Boltzmann*T)/E(lam)
     term4 = (cos_theta + (4.*D(R,lam,*args)*sin_theta_by_2 * sin_theta_by_2))
 
-    if plot_type=='1-t2': 
+    if plot_type=='1-t2':
         total = 1. - term2
-    if plot_type=='1-t1*t2': 
+    if plot_type=='1-t1*t2':
         total = 1. - term1*term2
     if plot_type=='1+t4':
         total = 1. + term3*term4
@@ -102,9 +103,9 @@ def placzek_self(lam, phi_max, phi_epi, lam_t, a, lam_1, lam_2, angle=150, M=14,
         total = 1. + term3*term4
     if plot_type=='1-t1*t2+t3*t4' or plot_type=='full':
         total = 1. - term1*term2 + term3*term4
-        
+
     return total
-   
+
 #-------------------------------------------------------------------------------------#
 # Plots of Howells in 1984
 
@@ -136,7 +137,7 @@ def plot_moderators_ratio_f_prime_over_f(x, incident_spectrums, lines=['k-', 'k-
 
 def plot_placzek_wavelength(x, incident_spectrums, angle=150., M=14, T=77, R=0.1,lines=['k-', 'k--', 'k:']):
     for i, key in enumerate(incident_spectrums):
-        args = incident_spectrums[key] + [angle, M, T, R ] 
+        args = incident_spectrums[key] + [angle, M, T, R ]
         y=placzek_self(x, *args)
         plt.plot(x,y,lines[i])
     plt.legend(incident_spectrums,loc='best')
@@ -157,7 +158,7 @@ def ConvertLambdaToQ(lam,angle):
 
 def plot_placzek_momentum_transfer(x, incident_spectrums, angle=150., M=14, T=77, R=0.1, color='k',plot_type='full',lines=['-', '--', ':'] ):
     for i, moderator in enumerate(incident_spectrums):
-        args = incident_spectrums[moderator] + [angle, M, T, R ] 
+        args = incident_spectrums[moderator] + [angle, M, T, R ]
         y=placzek_self(x, *args,plot_type=plot_type)
         q = ConvertLambdaToQ(x,angle)
         plt.plot(q,y,color+lines[i])
@@ -173,9 +174,9 @@ if '__main__' == __name__:
     W. S. Howells
     "On the choice of moderator for a diquids diffractometer on a pulsed neutron source."
     Nuclear Instruments and Methods in Physics Research, 223, 1984, pp 141-146
-    ''' 
-   
-    
+    '''
+
+
     # Table 1: Moderator parameters
     # NOTE: have scaled phi_max and phi_epi to get the correct scale (here, have multiplied by 1e-2) in Fig. 1
 
@@ -187,10 +188,10 @@ if '__main__' == __name__:
 
     # Create wavelength vector for lamda min to lambda max
     lam_lo = 0.1
-    lam_hi = 7.4 
+    lam_hi = 7.4
     x = np.linspace(lam_lo, lam_hi,1000)
 
-    # Figure 1 
+    # Figure 1
     plot_moderators(x, incident_spectrums)
     plot_moderators_ratio_f_prime_over_f(x, incident_spectrums)
 
@@ -216,7 +217,7 @@ if '__main__' == __name__:
     #for plot_type in ['1-t2', '1-t1*t2', '1+t4', '1+t3*t4', '1-t1*t2+t3*t4']:
     for plot_type in ['1-t1*t2+t3*t4']:
         for i, angle in enumerate([30., 60., 90., 150.]):
-            plot_placzek_momentum_transfer(x,incident_spectrums, 
+            plot_placzek_momentum_transfer(x,incident_spectrums,
                                            plot_type=plot_type,angle=angle,color=colors[i])
 
         labels = list()
@@ -234,5 +235,3 @@ if '__main__' == __name__:
         plt.title('Figure 4')
 
         plt.show()
-
-

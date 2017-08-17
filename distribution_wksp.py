@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+from __future__ import (absolute_import, division, print_function)
 from mantid.simpleapi import *
 
 ws_multi = CreateSampleWorkspace("Histogram", "Multiple Peaks")
@@ -24,5 +24,3 @@ ws_multi = ConvertToPointData(InputWorkspace=ws_multi)
 plt.plot(ws_multi.readX(0), ws_multi.readY(0))
 plt.show()
 ws_multi = ConvertToHistogram(InputWorkspace=ws_multi)
-
-
