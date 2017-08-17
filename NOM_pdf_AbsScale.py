@@ -371,6 +371,9 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     #              Material={"ChemicalFormula" : info["formula"], "SampleMassDensity" : PackingFraction * info["mass_density"]})
    
     print info["formula"], mass_density_in_beam, volume_in_beam
+    if not info["formula"] or info["formula"] == 'N/A':
+        return [None, None, None]
+
     SetSampleMaterial(ws, ChemicalFormula=info["formula"], SampleMassDensity=mass_density_in_beam)
     material = ws.sample().getMaterial()
 
@@ -835,15 +838,17 @@ if "__main__" == __name__:
                                                Geometry=van_geometry,
                                                ChemicalFormula="V")
 
-    print "Sample natoms:", natoms
-    print "Vanadium natoms:", nvan_atoms
-    print "Vanadium natoms / Sample natoms:", nvan_atoms/natoms
-    print
+    if natoms and nvan_atoms:
+        print "Sample natoms:", natoms
+        print "Vanadium natoms:", nvan_atoms
+        print "Vanadium natoms / Sample natoms:", nvan_atoms/natoms
+        print
 
     # Get sample corrections
-    sam_mass_density = float(sample.get('MassDensity', sam_info['mass_density']))
-    sam_material = sample.get('Material', sam_info['formula'])
-    sam_packing_fraction = sample.get('PackingFraction',sam_info['packing_fraction'])
+    if sam_info:
+        sam_mass_density = float(sample.get('MassDensity', sam_info['mass_density']))
+        sam_material = sample.get('Material', sam_info['formula'])
+        sam_packing_fraction = sample.get('PackingFraction',sam_info['packing_fraction'])
     sam_geometry = sample.get('Geometry', None)
     sam_abs_corr= sample.get("AbsorptionCorrection", "Carpenter")
     sam_ms_corr = sample.get("MultipleScatteringCorrection", "Carpenter")
@@ -947,7 +952,9 @@ if "__main__" == __name__:
                                  AbsorptionWorkspace=None, 
                                  **alignAndFocusArgs)
     van_wksp = 'vanadium'
-    van_geometry.update( {'Shape' : 'Cylinder', 'Center' : [0.,0.,0.,] } )
+    if "Shape" not in van_geometry:
+        van_geometry.update( {'Shape' : 'Cylinder'} )
+    van_geometry.update( {'Center' : [0.,0.,0.,] } )
     NormaliseByCurrent(InputWorkspace=van_wksp, 
                        OutputWorkspace=van_wksp,
                        RecalculatePCharge=True)
@@ -996,6 +1003,9 @@ if "__main__" == __name__:
 
     #-----------------------------------------------------------------------------------------#
     # STEP 1: Subtract Backgrounds 
+    
+    sam_raw='sam_raw'
+    CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_raw) # for later
 
     Minus(LHSWorkspace=van_wksp, RHSWorkspace=van_bg, OutputWorkspace=van_wksp)
     Minus(LHSWorkspace=sam, RHSWorkspace=container, OutputWorkspace=sam)
@@ -1091,7 +1101,7 @@ if "__main__" == __name__:
             lambda_binning_calc = van['InelasticCorrection']['LambdaBinningForCalc']
             GetIncidentSpectrumFromMonitor(van_scan, OutputWorkspace=van_incident_wksp) 
 
-            fit_type = sample['InelasticCorrection']['FitSpectrumWith']
+            fit_type = van['InelasticCorrection']['FitSpectrumWith']
             FitIncidentSpectrum(InputWorkspace=van_incident_wksp, 
                                 OutputWorkspace=van_incident_wksp,
                                 FitSpectrumWith=fit_type,
@@ -1195,6 +1205,7 @@ if "__main__" == __name__:
     print "Distributions?", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution()
     print
 
+    Divide(LHSWorkspace=sam_raw, RHSWorkspace=van_corrected, OutputWorkspace=sam_raw)
     Divide(LHSWorkspace=sam, RHSWorkspace=van_corrected, OutputWorkspace=sam)
 
     print
@@ -1209,6 +1220,8 @@ if "__main__" == __name__:
 
     sam_title = "sample_minus_back_normalized"
     save_banks(sam, title=sam_title+".dat", binning=binning)
+
+    save_banks(sam_raw, title="sample_normalized.dat", binning=binning)
 
     for name in [container, van_corrected]:
         ConvertUnits(InputWorkspace=name, OutputWorkspace=name,
@@ -1305,6 +1318,8 @@ if "__main__" == __name__:
                                 BinningForCalc=lambda_binning_calc)
 
             sam_placzek = 'sam_placzek'
+            if sam_material is None:
+                raise Exception("ERROR: For Placzek correction, must specifiy a sample material.")
             SetSample(InputWorkspace=sam_incident_wksp, 
                       Material={'ChemicalFormula': sam_material, 
                                 'SampleMassDensity' : sam_mass_density} )
