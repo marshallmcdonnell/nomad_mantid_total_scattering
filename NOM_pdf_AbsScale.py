@@ -843,6 +843,10 @@ if "__main__" == __name__:
         print "Vanadium natoms:", nvan_atoms
         print "Vanadium natoms / Sample natoms:", nvan_atoms/natoms
         print
+    else:
+        natoms = 1
+        nvan_atoms
+        print "No sample atoms or vanadium atoms => no normalization by atoms."
 
     # Get sample corrections
     if sam_info:
@@ -850,8 +854,8 @@ if "__main__" == __name__:
         sam_material = sample.get('Material', sam_info['formula'])
         sam_packing_fraction = sample.get('PackingFraction',sam_info['packing_fraction'])
     sam_geometry = sample.get('Geometry', None)
-    sam_abs_corr= sample.get("AbsorptionCorrection", "Carpenter")
-    sam_ms_corr = sample.get("MultipleScatteringCorrection", "Carpenter")
+    sam_abs_corr= sample.get("AbsorptionCorrection", None)
+    sam_ms_corr = sample.get("MultipleScatteringCorrection", None)
     sam_inelastic_corr = SetInelasticCorrection(sample.get('InelasticCorrection', None))
 
     # Get vanadium corrections
@@ -1006,6 +1010,9 @@ if "__main__" == __name__:
     
     sam_raw='sam_raw'
     CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_raw) # for later
+
+    container_raw='container_raw'
+    CloneWorkspace(InputWorkspace=container, OutputWorkspace=container_raw) # for later
 
     Minus(LHSWorkspace=van_wksp, RHSWorkspace=van_bg, OutputWorkspace=van_wksp)
     Minus(LHSWorkspace=sam, RHSWorkspace=container, OutputWorkspace=sam)
@@ -1205,8 +1212,8 @@ if "__main__" == __name__:
     print "Distributions?", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution()
     print
 
-    Divide(LHSWorkspace=sam_raw, RHSWorkspace=van_corrected, OutputWorkspace=sam_raw)
     Divide(LHSWorkspace=sam, RHSWorkspace=van_corrected, OutputWorkspace=sam)
+    Divide(LHSWorkspace=sam_raw, RHSWorkspace=van_corrected, OutputWorkspace=sam_raw)
 
     print
     print "## Sample After Divide##"
@@ -1240,6 +1247,7 @@ if "__main__" == __name__:
     print 
 
     Divide(LHSWorkspace=container, RHSWorkspace=van_corrected, OutputWorkspace=container)
+    Divide(LHSWorkspace=container_raw, RHSWorkspace=van_corrected, OutputWorkspace=container_raw)
 
     print 
     print "## Container After Divide##"
@@ -1252,6 +1260,7 @@ if "__main__" == __name__:
 
 
     save_banks(container, title="container_minus_back_normalized.dat", binning=binning)
+    save_banks(container_raw, title="container_normalized.dat", binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 3 & 4: Subtract multiple scattering and apply absorption correction
@@ -1259,27 +1268,30 @@ if "__main__" == __name__:
     ConvertUnits(InputWorkspace=sam, OutputWorkspace=sam, Target="Wavelength", EMode="Elastic")
 
     sam_corrected = 'sam_corrected'
-    if sam_abs_corr['Type'] == 'Carpenter' or sam_ms_corr['Type'] == 'Carpenter':
-        MultipleScatteringCylinderAbsorption(InputWorkspace=sam, 
-                                             OutputWorkspace=sam_corrected, 
-                                             CylinderSampleRadius=sample['Geometry']['Radius'])
-    elif sam_abs_corr['Type'] == 'Mayers' or sam_ms_corr['Type'] == 'Mayers':
-        if sam_ms_corr['Type'] == 'Mayers':
-            MayersSampleCorrection(InputWorkspace=sam, 
-                                   OutputWorkspace=sam_corrected, 
-                                   MultipleScattering=True) 
+    if sam_abs_corr:
+        if sam_abs_corr['Type'] == 'Carpenter' or sam_ms_corr['Type'] == 'Carpenter':
+            MultipleScatteringCylinderAbsorption(InputWorkspace=sam, 
+                                                 OutputWorkspace=sam_corrected, 
+                                                 CylinderSampleRadius=sample['Geometry']['Radius'])
+        elif sam_abs_corr['Type'] == 'Mayers' or sam_ms_corr['Type'] == 'Mayers':
+            if sam_ms_corr['Type'] == 'Mayers':
+                MayersSampleCorrection(InputWorkspace=sam, 
+                                       OutputWorkspace=sam_corrected, 
+                                       MultipleScattering=True) 
+            else:
+                MayersSampleCorrection(InputWorkspace=sam, 
+                                       OutputWorkspace=sam_corrected, 
+                                       MultipleScattering=False) 
         else:
-            MayersSampleCorrection(InputWorkspace=sam, 
-                                   OutputWorkspace=sam_corrected, 
-                                   MultipleScattering=False) 
-    else:
-        print "NO SAMPLE absorption or multiple scattering!"
-        CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_corrected)
+            print "NO SAMPLE absorption or multiple scattering!"
+            CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_corrected)
 
-    ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
-                 Target='MomentumTransfer', EMode='Elastic')
-    sam_title += "_ms_abs_corrected"
-    save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
+        ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
+                     Target='MomentumTransfer', EMode='Elastic')
+        sam_title += "_ms_abs_corrected"
+        save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
+    else:
+        CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_corrected)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 5: Divide by number of atoms in sample
