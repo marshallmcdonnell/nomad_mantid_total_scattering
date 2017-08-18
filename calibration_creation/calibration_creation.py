@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from mantid.simpleapi import *
 
 infile = os.path.abspath(sys.argv[1])
-print 'reading \'%s\'' % infile
+print('reading \'%s\'' % infile)
 with open(infile) as handle:
     args = json.loads(handle.read())
 
@@ -38,7 +38,7 @@ for calibrant in calibrants:
     runNumber = int(calibrant)
     wkspName='NOM_%d' % runNumber
     calfilename = caldirectory+'/NOM_d%d_%s_%s.h5' % (runNumber, date, samp_env)
-    print 'going to create calibration file: %s' % calfilename
+    print('going to create calibration file: %s' % calfilename)
 
     LoadEventAndCompress(Filename=wkspName, OutputWorkspace=wkspName,
                          MaxChunkSize=chunkSize, FilterBadPulses=filterBadPulses)
@@ -87,7 +87,7 @@ for calibrant in calibrants:
     CreateGroupingWorkspace(InstrumentName='NOMAD', GroupDetectorsBy='Group',
                            OutputWorkspace='NOM_group')
 
-    print 'saving file', calfilename
+    print('saving file', calfilename)
     SaveDiffCal(CalibrationWorkspace='new_cal',
                  GroupingWorkspace='NOM_group',
                  MaskWorkspace='NOM_mask_final',

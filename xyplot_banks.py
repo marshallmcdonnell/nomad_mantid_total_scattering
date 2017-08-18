@@ -50,7 +50,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('filenames', nargs='+', help="Filename with bank info")
 parser.add_argument('-b', '--banks', nargs='+', help='Banks to plot')
 args = parser.parse_args()
-print args
+print(args)
 
 line_styles = { 0 : '-',
                 1 : '--',

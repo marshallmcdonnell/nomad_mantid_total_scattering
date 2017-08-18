@@ -8,7 +8,7 @@ from mantid.simpleapi import *
 # Load file
 
 configfile = sys.argv[1]
-print "loading config from", configfile
+print("loading config from", configfile)
 with open(configfile) as handle:
     config = json.loads(handle.read())
 
@@ -36,7 +36,7 @@ alignArgs['ReductionProperties'] = '__snspowderreduction'
 
 
 for x, y in alignArgs.iteritems():
-    print x, y
+    print(x, y)
 
 #-----------------------------------------------------------------------------------
 # Load and Align

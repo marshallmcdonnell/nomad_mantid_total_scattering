@@ -60,7 +60,7 @@ def myMatchingBins(leftWorkspace, rightWorkspace):
         return False
 
     if abs( sum(leftXData) - sum(rightXData) ) >  1.e-7:
-        print "Sums do not match: LHS = ", sum(leftXData), "RHS =", sum(rightXData)
+        print("Sums do not match: LHS = ", sum(leftXData), "RHS =", sum(rightXData))
         return False
 
     leftDeltaX = leftXData[0] - leftXData[1]
@@ -81,7 +81,7 @@ def findacipts(NOMhome):
 def parseInt(number):
     try:
         return int(number)
-    except ValueError, e:
+    except ValueError as e:
         raise Exception("Invalid scan numbers: %s" % str(e))
 
     return 0
@@ -182,7 +182,7 @@ def save_banks(ws,title,binning=None):
               PreserveEvents=False)
     if mtd["tmp"].YUnit() == "Counts":
         try:
-            print "Unit:", mtd["tmp"].YUnit(), "Distribution:", mtd["tmp"].isDistribution()
+            print("Unit:", mtd["tmp"].YUnit(), "Distribution:", mtd["tmp"].isDistribution())
             ConvertToDistribution("tmp")
         except:
             pass
@@ -197,7 +197,7 @@ def save_banks(ws,title,binning=None):
 def save_banks_with_fit( title, fitrange_individual, InputWorkspace=None, **kwargs ):
     # Header
     for i, fitrange in enumerate(fitrange_individual):
-        print 'fitrange:', fitrange[0], fitrange[1]
+        print('fitrange:', fitrange[0], fitrange[1])
 
         Fit(Function='name=LinearBackground,A0=1.0,A1=0.0',
             WorkspaceIndex=i,
@@ -221,7 +221,7 @@ def save_banks_with_fit( title, fitrange_individual, InputWorkspace=None, **kwar
         x_data = mtd[InputWorkspace].readX(bank)[0:-1]
         y_data = mtd[InputWorkspace].readY(bank)
         bank_title=title+'_'+InputWorkspace+'_bank_'+str(bank)+'.dat'
-        print "####", bank_title
+        print("####", bank_title)
         with open(bank_title,'a') as f:
             for x, y in zip(x_data, y_data):
                 f.write("%f %f \n" % (x, y))
@@ -283,7 +283,7 @@ def GenerateEventsFilterFromFiles(filenames, OutputWorkspace, InformationWorkspa
 def combine_dictionaries( dic1, dic2 ):
     result = dict()
     for key in (dic1.viewkeys() | dic2.keys()):
-        print key, dic1[key]
+        print(key, dic1[key])
         if key in dic1: result.setdefault(key, {}).update(dic1[key])
         if key in dic2: result.setdefault(key, {}).update(dic2[key])
     return result
@@ -323,7 +323,7 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     info['sample_diameter'] =  0.1 * info['sample_diameter'] # mm -> cm
 
     for key in info:
-        print key, info[key]
+        print(key, info[key])
 
     if ChemicalFormula:
         info["formula"] = ChemicalFormula
@@ -348,7 +348,7 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     Geometry.pop("Shape", None)
     volume_in_container = space.volume(**Geometry)
 
-    print "NeXus Packing Fraction:",  info["mass"] / volume_in_container / info["mass_density"]
+    print("NeXus Packing Fraction:",  info["mass"] / volume_in_container / info["mass_density"])
     # get packing fraction
     if PackingFraction is None:
         sample_density = info["mass"] / volume_in_container
@@ -356,7 +356,7 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
 
     info['packing_fraction'] = PackingFraction
 
-    print "PackingFraction:", PackingFraction
+    print("PackingFraction:", PackingFraction)
 
     # get sample volume in the beam and correct mass density of what is in the beam
     if space.getShape() == 'Cylinder':
@@ -371,7 +371,7 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     #SetSample(ws, Geometry={"Shape" : "Cylinder", "Height" : geo_dict["height"], "Radius" : geo_dict["radius"], "Center" : [0.,0.,0.]},
     #              Material={"ChemicalFormula" : info["formula"], "SampleMassDensity" : PackingFraction * info["mass_density"]})
 
-    print info["formula"], mass_density_in_beam, volume_in_beam
+    print(info["formula"], mass_density_in_beam, volume_in_beam)
     if not info["formula"] or info["formula"] == 'N/A':
         return [None, None, None]
 
@@ -388,37 +388,37 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     atoms = combine_dictionaries(concentrations, neutron_info)
 
     sigfree = [ atom['tot_scatt_xs']*atom['concentration']*(atom['mass']/(atom['mass']+1.0))**2. for atom in atoms.values() ]
-    print sum(sigfree)
+    print(sum(sigfree))
 
     # get number of atoms using packing fraction, density, and volume
-    print "Total scattering Xsection", material.totalScatterXSection() * natoms
-    print "Coh Xsection:", material.cohScatterXSection() * natoms
-    print "Incoh Xsection:", material.incohScatterXSection() * natoms
-    print "Abs. Xsection:", material.absorbXSection() * natoms
+    print("Total scattering Xsection", material.totalScatterXSection() * natoms)
+    print("Coh Xsection:", material.cohScatterXSection() * natoms)
+    print("Incoh Xsection:", material.incohScatterXSection() * natoms)
+    print("Abs. Xsection:", material.absorbXSection() * natoms)
 
-    print ''.join( [x.strip() for x in info["formula"] ]), "#sample title"
-    print info["formula"], "#sample formula"
-    print info["mass_density"], "#density"
-    print Geometry["Radius"], "#radius"
-    print PackingFraction, "#PackingFraction"
-    print space.getShape(), "#sample shape"
-    print "nogo", "#do absorption correction now"
-    print info["mass_density"]/ material.relativeMolecularMass() * avogadro / 10**24., "Sample density in form unit / A^3"
+    print(''.join( [x.strip() for x in info["formula"] ]), "#sample title")
+    print(info["formula"], "#sample formula")
+    print(info["mass_density"], "#density")
+    print(Geometry["Radius"], "#radius")
+    print(PackingFraction, "#PackingFraction")
+    print(space.getShape(), "#sample shape")
+    print("nogo", "#do absorption correction now")
+    print(info["mass_density"]/ material.relativeMolecularMass() * avogadro / 10**24., "Sample density in form unit / A^3")
 
-    print "\n\n#########################################################"
-    print "##############Check levels###########################################"
-    print "b bar:", material.cohScatterLengthReal()
-    print "sigma:", material.totalScatterXSection()
-    print "b: ", np.sqrt(material.totalScatterXSection()/(4.*np.pi))
-    print material.cohScatterLengthReal() * material.cohScatterLengthReal() * natoms * natoms, "# (sum b)^2"
-    print material.cohScatterLengthSqrd() * natoms, "# (sum c*bbar^2)"
+    print("\n\n#########################################################")
+    print("##############Check levels###########################################")
+    print("b bar:", material.cohScatterLengthReal())
+    print("sigma:", material.totalScatterXSection())
+    print("b: ", np.sqrt(material.totalScatterXSection()/(4.*np.pi)))
+    print(material.cohScatterLengthReal() * material.cohScatterLengthReal() * natoms * natoms, "# (sum b)^2")
+    print(material.cohScatterLengthSqrd() * natoms, "# (sum c*bbar^2)")
     self_scat =  material.totalScatterLengthSqrd() * natoms / 100. # 100 fm^2 == 1 barn
-    print "self scattering:", self_scat
-    print "#########################################################\n"
+    print("self scattering:", self_scat)
+    print("#########################################################\n")
 
 
     natoms_in_beam = mass_density_in_beam / material.relativeMolecularMass() * avogadro / 10**24. * volume_in_beam
-    #print "Sample density (corrected) in form unit / A^3: ", mass_density_in_beam/ ws.sample().getMaterial().relativeMolecularMass() * avogadro / 10**24.
+    #print("Sample density (corrected) in form unit / A^3: ", mass_density_in_beam/ ws.sample().getMaterial().relativeMolecularMass() * avogadro / 10**24.)
     return natoms_in_beam, self_scat, info
 
 
@@ -641,7 +641,7 @@ def CalculatePlaczekSelfScattering(IncidentWorkspace, ParentWorkspace, OutputWor
     material =  mtd[IncidentWorkspace].sample().getMaterial().chemicalFormula()
     atom_species = collections.OrderedDict()
     for atom, stoich in zip(material[0], material[1]):
-        print atom.neutron()['tot_scatt_length']
+        print(atom.neutron()['tot_scatt_length'])
         b_sqrd_bar = mtd[IncidentWorkspace].sample().getMaterial().totalScatterXSection() / (4.*np.pi) # <b^2> == sigma_s / 4*pi (in barns)
         atom_species[atom.symbol] = {'mass' : atom.mass,
                                     'stoich' : stoich,
@@ -729,8 +729,8 @@ def CalculatePlaczekSelfScattering(IncidentWorkspace, ParentWorkspace, OutputWor
 
     CreateWorkspace(DataX=x_lambdas, DataY=placzek_correction, OutputWorkspace=OutputWorkspace,
                     UnitX='Wavelength',  NSpec=len(Polar), ParentWorkspace=ParentWorkspace, Distribution=True)
-    print "Placzek YUnit:", mtd[OutputWorkspace].YUnit()
-    print "Placzek distribution:", mtd[OutputWorkspace].isDistribution()
+    print("Placzek YUnit:", mtd[OutputWorkspace].YUnit())
+    print("Placzek distribution:", mtd[OutputWorkspace].isDistribution())
 
     return mtd[OutputWorkspace]
 
@@ -739,15 +739,15 @@ def print_unit_info(workspace):
     ws = mtd[workspace]
     for i in range(ws.axes()):
         axis = ws.getAxis(i)
-        print "Axis {0} is a {1}{2}{3}".format(i,
+        print("Axis {0} is a {1}{2}{3}".format(i,
                                            "Spectrum Axis" if axis.isSpectra() else "",
                                            "Text Axis" if axis.isText() else "",
-                                           "Numeric Axis" if axis.isNumeric() else "")
+                                           "Numeric Axis" if axis.isNumeric() else ""))
 
         unit = axis.getUnit()
-        print "\n YUnit:{0}".format(ws.YUnit())
-        print "\t caption:{0}".format(unit.caption())
-        print "\t symbol:{0}".format(unit.symbol())
+        print("\n YUnit:{0}".format(ws.YUnit()))
+        print("\t caption:{0}".format(unit.caption()))
+        print("\t symbol:{0}".format(unit.symbol()))
     return
 
 
@@ -780,11 +780,11 @@ def SetInelasticCorrection(inelastic_dict):
 
 if "__main__" == __name__:
     configfile = sys.argv[1]
-    print "loading config from", configfile
+    print("loading config from", configfile)
     with open(configfile) as handle:
         config = json_loads_byteified(handle.read())
 
-    print config, type(config)
+    print(config, type(config))
     title = config['title']
 
     # Get sample info
@@ -821,18 +821,18 @@ if "__main__" == __name__:
 
 
     # Get absolute scale information from Nexus file
-    print "#-----------------------------------#"
-    print "# Sample"
-    print "#-----------------------------------#"
+    print("#-----------------------------------#")
+    print("# Sample")
+    print("#-----------------------------------#")
     natoms, self_scat, sam_info = getAbsScaleInfoFromNexus(sample['Runs'],
                                                  PackingFraction=sam_packing_fraction,
                                                  SampleMassDensity=sam_mass_density,
                                                  Geometry=sam_geometry,
                                                  ChemicalFormula=sam_material)
 
-    print "#-----------------------------------#"
-    print "# Vanadium"
-    print "#-----------------------------------#"
+    print("#-----------------------------------#")
+    print("# Vanadium")
+    print("#-----------------------------------#")
     nvan_atoms, tmp, van_info = getAbsScaleInfoFromNexus(van['Runs'],
                                                PackingFraction=1.0,
                                                SampleMassDensity=van_mass_density,
@@ -840,10 +840,10 @@ if "__main__" == __name__:
                                                ChemicalFormula="V")
 
     if natoms and nvan_atoms:
-        print "Sample natoms:", natoms
-        print "Vanadium natoms:", nvan_atoms
-        print "Vanadium natoms / Sample natoms:", nvan_atoms/natoms
-        print
+        print("Sample natoms:", natoms)
+        print("Vanadium natoms:", nvan_atoms)
+        print("Vanadium natoms / Sample natoms:", nvan_atoms/natoms)
+        print()
 
     # Get sample corrections
     if sam_info:
@@ -998,7 +998,7 @@ if "__main__" == __name__:
     qmax = 2.*np.pi/propMan['d_min'].value
     qmin = 2.*np.pi/propMan['d_max'].value
     for a,b in zip(qmin, qmax):
-        print 'Qrange:', a, b
+        print('Qrange:', a, b)
     mask_info = generateCropingTable(qmin, qmax)
 
 
@@ -1047,7 +1047,7 @@ if "__main__" == __name__:
                                    OutputWorkspace=van_corrected,
                                    MultipleScattering=False)
     else:
-        print "NO VANADIUM absorption or multiple scattering!"
+        print("NO VANADIUM absorption or multiple scattering!")
 
     ConvertUnits(InputWorkspace=van_corrected,
                  OutputWorkspace=van_corrected,
@@ -1094,7 +1094,7 @@ if "__main__" == __name__:
     save_banks(van_corrected, title=van_title+".dat", binning=binning)
 
     # Inelastic correction
-    print van_inelastic_corr['Type']
+    print(van_inelastic_corr['Type'])
     if van_inelastic_corr['Type'] == "Placzek":
         for van_scan in van['Runs']:
             van_incident_wksp = 'van_incident_wksp'
@@ -1197,26 +1197,26 @@ if "__main__" == __name__:
               Params=binning, PreserveEvents=False)
         if not mtd[name].isDistribution():
             ConvertToDistribution(name)
-    print
-    print "## Sample ##"
-    print "YUnit:", mtd[sam].YUnit(),"|", mtd[van_corrected].YUnit()
-    print "blocksize:", mtd[sam].blocksize(), mtd[van_corrected].blocksize()
-    print "dist:", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution()
-    print "Do bins match?:", myMatchingBins(sam, van_corrected)
-    print "Distributions?", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution()
-    print
+    print()
+    print("## Sample ##")
+    print("YUnit:", mtd[sam].YUnit(),"|", mtd[van_corrected].YUnit())
+    print("blocksize:", mtd[sam].blocksize(), mtd[van_corrected].blocksize())
+    print("dist:", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution())
+    print("Do bins match?:", myMatchingBins(sam, van_corrected))
+    print("Distributions?", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution())
+    print()
 
     Divide(LHSWorkspace=sam_raw, RHSWorkspace=van_corrected, OutputWorkspace=sam_raw)
     Divide(LHSWorkspace=sam, RHSWorkspace=van_corrected, OutputWorkspace=sam)
 
-    print
-    print "## Sample After Divide##"
-    print "YUnit:", mtd[sam].YUnit(),"|", mtd[van_corrected].YUnit()
-    print "blocksize:", mtd[sam].blocksize(), mtd[van_corrected].blocksize()
-    print "dist:", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution()
-    print "Do bins match?:", myMatchingBins(sam, van_corrected)
-    print "Distributions?", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution()
-    print
+    print()
+    print("## Sample After Divide##")
+    print("YUnit:", mtd[sam].YUnit(),"|", mtd[van_corrected].YUnit())
+    print("blocksize:", mtd[sam].blocksize(), mtd[van_corrected].blocksize())
+    print("dist:", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution())
+    print("Do bins match?:", myMatchingBins(sam, van_corrected))
+    print("Distributions?", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution())
+    print()
 
 
     sam_title = "sample_minus_back_normalized"
@@ -1231,25 +1231,25 @@ if "__main__" == __name__:
               Params=binning, PreserveEvents=False)
         if not mtd[name].isDistribution():
             ConvertToDistribution(name)
-    print
-    print "## Container ##"
-    print "YUnit:", mtd[container].YUnit(), "|", mtd[van_corrected].YUnit()
-    print "blocksize:", mtd[container].blocksize(), mtd[van_corrected].blocksize()
-    print "dist:", mtd[container].isDistribution(), mtd[van_corrected].isDistribution()
-    print "Do bins match?:", myMatchingBins(container, van_corrected)
-    print "Distributions?", mtd[container].isDistribution(), mtd[van_corrected].isDistribution()
-    print
+    print()
+    print("## Container ##")
+    print("YUnit:", mtd[container].YUnit(), "|", mtd[van_corrected].YUnit())
+    print("blocksize:", mtd[container].blocksize(), mtd[van_corrected].blocksize())
+    print("dist:", mtd[container].isDistribution(), mtd[van_corrected].isDistribution())
+    print("Do bins match?:", myMatchingBins(container, van_corrected))
+    print("Distributions?", mtd[container].isDistribution(), mtd[van_corrected].isDistribution())
+    print()
 
     Divide(LHSWorkspace=container, RHSWorkspace=van_corrected, OutputWorkspace=container)
 
-    print
-    print "## Container After Divide##"
-    print "YUnit:", mtd[container].YUnit(), "|", mtd[van_corrected].YUnit()
-    print "blocksize:", mtd[container].blocksize(), mtd[van_corrected].blocksize()
-    print "dist:", mtd[container].isDistribution(), mtd[van_corrected].isDistribution()
-    print "Do bins match?:", myMatchingBins(container, van_corrected)
-    print "Distributions?", mtd[container].isDistribution(), mtd[van_corrected].isDistribution()
-    print
+    print()
+    print("## Container After Divide##")
+    print("YUnit:", mtd[container].YUnit(), "|", mtd[van_corrected].YUnit())
+    print("blocksize:", mtd[container].blocksize(), mtd[van_corrected].blocksize())
+    print("dist:", mtd[container].isDistribution(), mtd[van_corrected].isDistribution())
+    print("Do bins match?:", myMatchingBins(container, van_corrected))
+    print("Distributions?", mtd[container].isDistribution(), mtd[van_corrected].isDistribution())
+    print()
 
 
     save_banks(container, title="container_minus_back_normalized.dat", binning=binning)
@@ -1274,7 +1274,7 @@ if "__main__" == __name__:
                                    OutputWorkspace=sam_corrected,
                                    MultipleScattering=False)
     else:
-        print "NO SAMPLE absorption or multiple scattering!"
+        print("NO SAMPLE absorption or multiple scattering!")
         CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_corrected)
 
     ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
@@ -1295,7 +1295,7 @@ if "__main__" == __name__:
     # STEP 6: Divide by total scattering length squared = total scattering cross-section over 4 * pi
     sigma_v = mtd[van_corrected].sample().getMaterial().totalScatterXSection()
     prefactor = ( sigma_v / (4.*np.pi) )
-    print "Total scattering cross-section of Vanadium:", sigma_v, " sigma_v / 4*pi:", prefactor
+    print("Total scattering cross-section of Vanadium:", sigma_v, " sigma_v / 4*pi:", prefactor)
     mtd[sam_corrected] = prefactor*mtd[sam_corrected]
     sam_title += '_multiply_by_vanSelfScat'
     save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
@@ -1415,11 +1415,11 @@ if "__main__" == __name__:
 
     #-----------------------------------------------------------------------------------------#
     # STOP HERE FOR NOW
-    print "<b>^2:", bcoh_avg_sqrd
-    print "<b^2>:", btot_sqrd_avg
-    print "Laue term:", laue_monotonic_diffuse_scat
-    print mtd[sam_corrected].sample().getMaterial().totalScatterXSection()
-    print mtd[van_corrected].sample().getMaterial().totalScatterXSection()
+    print("<b>^2:", bcoh_avg_sqrd)
+    print("<b^2>:", btot_sqrd_avg)
+    print("Laue term:", laue_monotonic_diffuse_scat)
+    print(mtd[sam_corrected].sample().getMaterial().totalScatterXSection())
+    print(mtd[van_corrected].sample().getMaterial().totalScatterXSection())
     exit()
 
     #-----------------------------------------------------------------------------------------#
@@ -1433,7 +1433,7 @@ if "__main__" == __name__:
     fitrange_individual = [(high_q_linear_fit_range*q, q) for q in qmax]
 
     for q in qmax:
-        print 'Linear Fit Qrange:', high_q_linear_fit_range*q, q
+        print('Linear Fit Qrange:', high_q_linear_fit_range*q, q)
 
 
     kwargs = { 'btot_sqrd_avg' : btot_sqrd_avg,

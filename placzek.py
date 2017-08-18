@@ -364,7 +364,7 @@ if '__main__' == __name__:
 
     #-----------------------------------------------------------------------------------------#
     # Get incident spectrum
-    print "Processing Scan: ", sample['Runs']
+    print("Processing Scan: ", sample['Runs'])
 
     incident_ws = 'incident_ws'
     lam_binning = str(sample['InelasticCorrection']['LambdaBinning'])
