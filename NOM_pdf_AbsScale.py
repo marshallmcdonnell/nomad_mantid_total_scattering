@@ -87,8 +87,6 @@ def parseInt(number):
     return 0
 
 def procNumbers(numberList):
-    print "proc"
-    print numberList
     numberList = [ str(scan) for scan in [numberList] ]
     numberList = [ num for num in str(','.join(numberList)).split(',') ]
 
@@ -966,7 +964,6 @@ if "__main__" == __name__:
                                  AbsorptionWorkspace=None,
                                  **alignAndFocusArgs)
     van_wksp = 'vanadium'
-    print van_geometry
     if "Shape" not in van_geometry:
         van_geometry.update( {'Shape' : 'Cylinder'} )
     van_geometry.update( {'Center' : [0.,0.,0.,] } )
