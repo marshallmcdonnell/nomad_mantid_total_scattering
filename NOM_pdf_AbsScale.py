@@ -86,6 +86,9 @@ def parseInt(number):
     return 0
 
 def procNumbers(numberList):
+    print "proc"
+    print numberList
+    numberList = [ str(scan) for scan in [numberList] ]
     numberList = [ num for num in str(','.join(numberList)).split(',') ]
 
     result = []
@@ -125,8 +128,6 @@ class NexusHandler(object):
         return self._props.keys()
 
     def getNxData(self,scans,props):
-        scans = [ str(scan) for scan in scans ]
-        scans = procNumbers(scans)
         
         scansInfo = dict()
         for scan in scans:
@@ -339,7 +340,7 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     if "Height" not in Geometry:
          Geometry['Height'] = info['sample_height']
 
-    if Geometry["Shape"] == 'spherical':
+    if Geometry["Shape"] == 'Sphere':
          Geometry.pop('Height',None)
 
     # get sample volume in container
@@ -810,11 +811,19 @@ if "__main__" == __name__:
     output_dir = config.get("OutputDir", os.path.abspath('.'))
 
     # Create Nexus file basenames
+    sample['Runs'] = procNumbers(sample['Runs'])
+    sample['Background']['Runs'] = procNumbers(sample['Background']['Runs'])
+
     sam_scans = ','.join(['NOM_%d' % num for num in sample['Runs']])
     container = ','.join(['NOM_%d' % num for num in sample['Background']["Runs"]])
     container_bg = None
     if "Background" in sample['Background']:
+        sample['Background']['Background']['Runs'] = procNumbers(sample['Background']['Background']['Runs'])
         container_bg = ','.join(['NOM_%d' % num for num in sample['Background']['Background']['Runs']])
+
+    van['Runs'] = procNumbers(van['Runs'])
+    van['Background']['Runs'] = procNumbers(van['Background']['Runs'])
+
     van_scans = ','.join(['NOM_%d' % num for num in van['Runs']])
     van_bg = ','.join(['NOM_%d' % num for num in van['Background']["Runs"]])
 
@@ -832,10 +841,11 @@ if "__main__" == __name__:
     print "#-----------------------------------#"
     print "# Vanadium"
     print "#-----------------------------------#"
+    van_geo_info = van_geometry.copy()
     nvan_atoms, tmp, van_info = getAbsScaleInfoFromNexus(van['Runs'],
                                                PackingFraction=1.0,
                                                SampleMassDensity=van_mass_density,
-                                               Geometry=van_geometry,
+                                               Geometry=van_geo_info,
                                                ChemicalFormula="V")
 
     if natoms and nvan_atoms:
@@ -956,6 +966,7 @@ if "__main__" == __name__:
                                  AbsorptionWorkspace=None, 
                                  **alignAndFocusArgs)
     van_wksp = 'vanadium'
+    print van_geometry
     if "Shape" not in van_geometry:
         van_geometry.update( {'Shape' : 'Cylinder'} )
     van_geometry.update( {'Center' : [0.,0.,0.,] } )
@@ -1039,21 +1050,24 @@ if "__main__" == __name__:
                  Target="Wavelength", 
                  EMode="Elastic")
 
-    if van_abs_corr['Type'] == 'Carpenter' or van_ms_corr['Type'] == 'Carpenter':
-        MultipleScatteringCylinderAbsorption(InputWorkspace=van_corrected, 
-                                             OutputWorkspace=van_corrected, 
-                                             CylinderSampleRadius=van['Geometry']['Radius'])
-    elif van_abs_corr['Type'] == 'Mayers' or van_ms_corr['Type'] == 'Mayers':
-        if van_ms_corr['Type'] == 'Mayers':
-            MayersSampleCorrection(InputWorkspace=van_corrected, 
-                                   OutputWorkspace=van_corrected, 
-                                   MultipleScattering=True) 
-        else:
-            MayersSampleCorrection(InputWorkspace=van_corrected, 
-                                   OutputWorkspace=van_corrected, 
+    if sam_abs_corr:
+        if van_abs_corr['Type'] == 'Carpenter' or van_ms_corr['Type'] == 'Carpenter':
+            MultipleScatteringCylinderAbsorption(InputWorkspace=van_corrected, 
+                                                 OutputWorkspace=van_corrected, 
+                                                 CylinderSampleRadius=van['Geometry']['Radius'])
+        elif van_abs_corr['Type'] == 'Mayers' or van_ms_corr['Type'] == 'Mayers':
+            if van_ms_corr['Type'] == 'Mayers':
+                MayersSampleCorrection(InputWorkspace=van_corrected, 
+                                       OutputWorkspace=van_corrected, 
+                                       MultipleScattering=True) 
+            else:
+                MayersSampleCorrection(InputWorkspace=van_corrected, 
+                                       OutputWorkspace=van_corrected, 
                                    MultipleScattering=False) 
+        else:
+            print "NO VANADIUM absorption or multiple scattering!"
     else:
-        print "NO VANADIUM absorption or multiple scattering!"
+        CloneWorkspace(InputWorkspace=van_corrected, OutputWorkspace=van_corrected)
 
     ConvertUnits(InputWorkspace=van_corrected, 
                  OutputWorkspace=van_corrected,
