@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+from __future__ import (absolute_import, division, print_function)
 import sys
 import json
 from mantid.simpleapi import *
@@ -8,7 +8,7 @@ from mantid.simpleapi import *
 # Load file
 
 configfile = sys.argv[1]
-print "loading config from", configfile
+print("loading config from", configfile)
 with open(configfile) as handle:
     config = json.loads(handle.read())
 
@@ -30,19 +30,19 @@ alignArgs = dict(PrimaryFlightPath = results[2],
 
 alignArgs['CalFilename'] = calib
 #alignArgs['ResampleX'] = -6000
-alignArgs['RemovePromptPulseWidth'] = 50 
+alignArgs['RemovePromptPulseWidth'] = 50
 alignArgs['Characterizations'] = 'characterizations'
 alignArgs['ReductionProperties'] = '__snspowderreduction'
 
 
 for x, y in alignArgs.iteritems():
-    print x, y
+    print(x, y)
 
 #-----------------------------------------------------------------------------------
 # Load and Align
 wksp='wksp'
 Load(Filename=sam_scans, OutputWorkspace=wksp)
-PDDetermineCharacterizations(InputWorkspace=wksp, 
+PDDetermineCharacterizations(InputWorkspace=wksp,
                              Characterizations=alignArgs['Characterizations'],
                              ReductionProperties=alignArgs['ReductionProperties'])
 Load(Filename=sam_scans, OutputWorkspace=wksp)
