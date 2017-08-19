@@ -871,8 +871,8 @@ if "__main__" == __name__:
     van_mass_density = van.get('MassDensity', van_info['mass_density'])
     van_packing_fraction = van.get('PackingFraction', van_info['packing_fraction'])
     van_geometry = van.get('Geometry', None)
-    van_abs_corr = van.get("AbsorptionCorrection", "Carpenter")
-    van_ms_corr = van.get("MultipleScatteringCorrection", "Carpenter")
+    van_abs_corr = van.get("AbsorptionCorrection", { "Type" : "Carpenter"} )
+    van_ms_corr = van.get("MultipleScatteringCorrection", { "Type" : "Carpenter"} )
     van_inelastic_corr = SetInelasticCorrection(van.get('InelasticCorrection', None))
 
     results = PDLoadCharacterizations(Filename=charac, OutputWorkspace='characterizations')
@@ -1047,7 +1047,7 @@ if "__main__" == __name__:
                  Target="Wavelength",
                  EMode="Elastic")
 
-    if van_abs_corr:
+    if "Type" in van_abs_corr:
         if van_abs_corr['Type'] == 'Carpenter' or van_ms_corr['Type'] == 'Carpenter':
             MultipleScatteringCylinderAbsorption(InputWorkspace=van_corrected, 
                                                  OutputWorkspace=van_corrected, 
