@@ -496,25 +496,24 @@ def GetIncidentSpectrumFromMonitor(Filename, OutputWorkspace="IncidentWorkspace"
     # Loop workspaces to get each incident spectrum
     monitor_raw ='monitor_raw'
     LoadNexusMonitors(Filename=Filename, OutputWorkspace=monitor_raw)
-    CropWorkspace(InputWorkspace=monitor_raw, OutputWorkspace=monitor_raw,
-                  XMin=10) # microseconds
     monitor = 'monitor'
     NormaliseByCurrent(InputWorkspace=monitor_raw, OutputWorkspace=monitor)
     ConvertUnits(InputWorkspace=monitor, OutputWorkspace=monitor,
                  Target='Wavelength', EMode='Elastic')
+    lambdaMin, lambdaMax = .1, 2.9
     if BinType == 'ResampleX':
         LambdaBinning = int(LambdaBinning)
         ResampleX(InputWorkspace=monitor,
                   OutputWorkspace=monitor,
-                  XMin=0.1,
-                  XMax=2.9,
+                  XMin=[lambdaMin, lambdaMin], # TODO change ResampleX
+                  XMax=[lambdaMax, lambdaMax],
                   NumberBins=abs(LambdaBinning),
                   LogBinning=(LambdaBinning < 0),
                   PreserveEvents=True)
     elif BinType == 'Rebin':
         Rebin(InputWorkspace=monitor,
               OutputWorkspace=monitor,
-              Params=LambdaBinning,
+              Params=[lambdamin, LambdaBinning, lambdaMax],
               PreserveEvents=True)
 
     lam = mtd[monitor].readX(IncidentIndex)[:-1] # wavelength in A
@@ -1112,11 +1111,10 @@ if __name__ == "__main__":
     print(van_inelastic_corr['Type'])
     if van_inelastic_corr['Type'] == "Placzek":
         for van_scan in van['Runs']:
-            van_scan = '%s_%s' % (options.instr, van_scan)
             van_incident_wksp = 'van_incident_wksp'
             lambda_binning_fit  = van['InelasticCorrection']['LambdaBinningForFit']
             lambda_binning_calc = van['InelasticCorrection']['LambdaBinningForCalc']
-            GetIncidentSpectrumFromMonitor(van_scan, OutputWorkspace=van_incident_wksp)
+            GetIncidentSpectrumFromMonitor('%s_%s' % (options.instr, str(van_scan)), OutputWorkspace=van_incident_wksp)
 
             fit_type = van['InelasticCorrection']['FitSpectrumWith']
             FitIncidentSpectrum(InputWorkspace=van_incident_wksp,
@@ -1330,7 +1328,7 @@ if __name__ == "__main__":
             sam_incident_wksp = 'sam_incident_wksp'
             lambda_binning_fit  = sample['InelasticCorrection']['LambdaBinningForFit']
             lambda_binning_calc = sample['InelasticCorrection']['LambdaBinningForCalc']
-            GetIncidentSpectrumFromMonitor(sam_scan, OutputWorkspace=sam_incident_wksp)
+            GetIncidentSpectrumFromMonitor('%s_%s' % (options.instr, str(sam_scan)), OutputWorkspace=sam_incident_wksp)
 
             fit_type = sample['InelasticCorrection']['FitSpectrumWith']
             FitIncidentSpectrum(InputWorkspace=sam_incident_wksp,
