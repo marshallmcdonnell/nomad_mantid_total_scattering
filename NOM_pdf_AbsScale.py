@@ -9,6 +9,7 @@ import json
 import collections
 import configparser
 from h5py import File
+import mantid
 from mantid import mtd
 from mantid.simpleapi import *
 import numpy as np
@@ -121,7 +122,6 @@ class NexusHandler(object):
     def __init__(self, instrument, cfg_filename='nomad_config.cfg'):
         self.instrument = instrument
         self._scanDict = {}
-        self._makeScanDict('SNS')
 
         config_path = os.path.join('/SNS', instrument, 'shared', cfg_filename)
         config = configparser.ConfigParser()
@@ -135,42 +135,19 @@ class NexusHandler(object):
     def getNxData(self,scans,props):
         scansInfo = dict()
         for scan in scans:
-            scanInfo=self._scanDict[str(scan)]
-            with File(scanInfo['path'],'r') as nf:
+            # convert to format for mantid's file finder
+            filename = '%s_%s' % (self.instrument, scan)
+            # let mantid find the file
+            filename = mantid.api.FileFinder.findRuns(filename)[0]
+            # get properties specified in the config file
+            with File(filename, 'r') as nf:
                 prop_dict = { prop : self._props[prop] for prop in props }
                 for key, path in prop_dict.items(): # inefficient in py2, but works with py3
                     try:
-                        scanInfo.update( { key : nf[path][0] } )
+                        scansInfo.update( { key : nf[path][0] } )
                     except KeyError:
                         pass
-            scansInfo.update(scanInfo)
         return scansInfo
-
-
-    def _makeScanDict(self, facility):
-        scanDict = {}
-        instrument_path = os.path.join('/', facility, self.instrument)
-        olddas_regex = re.compile(r'\/0\/(\d+)')
-        adara_regex = re.compile(self.instrument + r'_(\d+)\.nxs')
-
-        for ipts in os.listdir(instrument_path):
-            if ipts.startswith('IPTS'):
-                num = ipts.split('-')[1]
-                ipts_path = os.path.join(instrument_path, ipts)
-                if os.path.isdir(os.path.join(ipts_path,'nexus')):
-                    direc = os.path.join(ipts_path, 'nexus', self.instrument+'_*')
-                    for scanpath in sorted(glob.glob(direc)):
-                        scan = str(adara_regex.search(scanpath).group(1))
-                        scanDict[scan] = {'ipts' : num, 'path' : scanpath, 'format' : 'nexus' }
-
-                elif os.path.isdir(os.path.join(ipts_path,'0')):
-                    direc = os.path.join(ipts_path, '0', '*')
-                    for scanDir in glob.glob(direc):
-                        scan = str(olddas_regex.search(scanDir).group(1))
-                        scanpath = os.path.join(scanDir,'NeXus', '%s_%s_event.nxs'  % (self.instrument, scan))
-                        scanDict[scan] = {'ipts' : num, 'path' : scanpath, 'format' : 'prenexus' }
-        self._scanDict.update(scanDict)
-
 
 
 def save_file(ws, title, header=list()):
