@@ -490,33 +490,35 @@ def GetIncidentSpectrumFromMonitor(Filename, OutputWorkspace="IncidentWorkspace"
                                    LambdaBinning="-6000",
                                    BinType="ResampleX"):
 
-    Filename = str(Filename)
-
     #-------------------------------------------------
     # Joerg's read_bm.pro code
 
     # Loop workspaces to get each incident spectrum
-    monitor_raw = LoadNexusMonitors(Filename)
+    monitor_raw ='monitor_raw'
+    LoadNexusMonitors(Filename=Filename, OutputWorkspace=monitor_raw)
+    CropWorkspace(InputWorkspace=monitor_raw, OutputWorkspace=monitor_raw,
+                  XMin=10) # microseconds
     monitor = 'monitor'
-    NormaliseByCurrent(InputWorkspace=monitor_raw, OutputWorkspace=monitor,
-                       RecalculatePCharge=True)
+    NormaliseByCurrent(InputWorkspace=monitor_raw, OutputWorkspace=monitor)
     ConvertUnits(InputWorkspace=monitor, OutputWorkspace=monitor,
                  Target='Wavelength', EMode='Elastic')
     if BinType == 'ResampleX':
         LambdaBinning = int(LambdaBinning)
-        monitor = ResampleX(InputWorkspace=monitor,
-                            XMin=0.1,
-                            XMax=2.9,
-                            NumberBins=abs(LambdaBinning),
-                            LogBinning=(LambdaBinning < 0),
-                            PreserveEvents=True)
+        ResampleX(InputWorkspace=monitor,
+                  OutputWorkspace=monitor,
+                  XMin=0.1,
+                  XMax=2.9,
+                  NumberBins=abs(LambdaBinning),
+                  LogBinning=(LambdaBinning < 0),
+                  PreserveEvents=True)
     elif BinType == 'Rebin':
-        monitor = Rebin(InputWorkspace=monitor,
-                        Params=LambdaBinning,
-                        PreserveEvents=True)
+        Rebin(InputWorkspace=monitor,
+              OutputWorkspace=monitor,
+              Params=LambdaBinning,
+              PreserveEvents=True)
 
-    lam = monitor.readX(IncidentIndex)[:-1] # wavelength in A
-    bm  = monitor.readY(IncidentIndex)     # neutron counts / microsecond
+    lam = mtd[monitor].readX(IncidentIndex)[:-1] # wavelength in A
+    bm  = mtd[monitor].readY(IncidentIndex)     # neutron counts / microsecond
     p = 0.0000794807
     abs_xs_3He = 5333.0                   # barns for lambda == 1.8 A
     e0 = abs_xs_3He * lam / 1.8 * 2.43e-5 * p # p is set to give efficiency of 1.03 10^-5 at 1.8 A
@@ -1110,6 +1112,7 @@ if __name__ == "__main__":
     print(van_inelastic_corr['Type'])
     if van_inelastic_corr['Type'] == "Placzek":
         for van_scan in van['Runs']:
+            van_scan = '%s_%s' % (options.instr, van_scan)
             van_incident_wksp = 'van_incident_wksp'
             lambda_binning_fit  = van['InelasticCorrection']['LambdaBinningForFit']
             lambda_binning_calc = van['InelasticCorrection']['LambdaBinningForCalc']
