@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import (absolute_import, division, print_function)
 import os
+import six
 import sys
 import glob
 import re
@@ -15,6 +16,9 @@ import matplotlib.pyplot as plt
 from scipy.constants import m_n, micro
 from scipy.constants import physical_constants
 from scipy import interpolate, signal, ndimage, optimize
+
+if six.PY3:
+    unicode = str
 
 #import ipdb
 #-----------------------------------------------------------------------------------------#
@@ -44,7 +48,7 @@ def _byteify(data, ignore_dicts = False):
     if isinstance(data, dict) and not ignore_dicts:
         return {
             _byteify(key, ignore_dicts=True): _byteify(value, ignore_dicts=True)
-            for key, value in data.iteritems()
+            for key, value in data.items() # inefficient in py2, but works with py3
         }
     # if it's anything else, return it in its original form
     return data
@@ -114,10 +118,12 @@ def procNumbers(numberList):
     return result
 
 class NexusHandler(object):
-    def __init__(self, instrument='NOM', cfg_filename='nomad_config.cfg'):
-        self._makeScanDict()
+    def __init__(self, instrument, cfg_filename='nomad_config.cfg'):
+        self.instrument = instrument
+        self._scanDict = {}
+        self._makeScanDict('SNS')
 
-        config_path = '/SNS/' + instrument + '/shared/' + cfg_filename
+        config_path = os.path.join('/SNS', instrument, 'shared', cfg_filename)
         config = configparser.ConfigParser()
         config.read(config_path)
         self._props = { name : path for name, path in config.items('meta') }
@@ -132,7 +138,7 @@ class NexusHandler(object):
             scanInfo=self._scanDict[str(scan)]
             with File(scanInfo['path'],'r') as nf:
                 prop_dict = { prop : self._props[prop] for prop in props }
-                for key, path in prop_dict.iteritems():
+                for key, path in prop_dict.items(): # inefficient in py2, but works with py3
                     try:
                         scanInfo.update( { key : nf[path][0] } )
                     except KeyError:
@@ -141,25 +147,29 @@ class NexusHandler(object):
         return scansInfo
 
 
-    def _makeScanDict(self, facility='SNS', instrument='NOM'):
+    def _makeScanDict(self, facility):
         scanDict = {}
-        instrument_path = '/'+facility+'/'+instrument+'/'
+        instrument_path = os.path.join('/', facility, self.instrument)
+        olddas_regex = re.compile(r'\/0\/(\d+)')
+        adara_regex = re.compile(self.instrument + r'_(\d+)\.nxs')
+
         for ipts in os.listdir(instrument_path):
             if ipts.startswith('IPTS'):
                 num = ipts.split('-')[1]
-                ipts_path = instrument_path+ipts+'/'
-                if os.path.isdir(ipts_path+'nexus'):
-                    for scanpath in sorted(glob.glob(ipts_path+'nexus/NOM_*')):
-                        scan = str(re.search(r'NOM_(\d+)\.nxs', scanpath).group(1))
+                ipts_path = os.path.join(instrument_path, ipts)
+                if os.path.isdir(os.path.join(ipts_path,'nexus')):
+                    direc = os.path.join(ipts_path, 'nexus', self.instrument+'_*')
+                    for scanpath in sorted(glob.glob(direc)):
+                        scan = str(adara_regex.search(scanpath).group(1))
                         scanDict[scan] = {'ipts' : num, 'path' : scanpath, 'format' : 'nexus' }
 
-                elif os.path.isdir(ipts_path+'0'):
-                    for scanDir in glob.glob(ipts_path+'0/*'):
-                        scan = str(re.search(r'\/0\/(\d+)', scanDir).group(1))
-                        scanpath = scanDir+'/NeXus/NOM_'+scan+'_event.nxs'
+                elif os.path.isdir(os.path.join(ipts_path,'0')):
+                    direc = os.path.join(ipts_path, '0', '*')
+                    for scanDir in glob.glob(direc):
+                        scan = str(olddas_regex.search(scanDir).group(1))
+                        scanpath = os.path.join(scanDir,'NeXus', '%s_%s_event.nxs'  % (self.instrument, scan))
                         scanDict[scan] = {'ipts' : num, 'path' : scanpath, 'format' : 'prenexus' }
-        self._scanDict = scanDict
-
+        self._scanDict.update(scanDict)
 
 
 
@@ -280,7 +290,7 @@ def GenerateEventsFilterFromFiles(filenames, OutputWorkspace, InformationWorkspa
 
 def combine_dictionaries( dic1, dic2 ):
     result = dict()
-    for key in (dic1.viewkeys() | dic2.keys()):
+    for key in (dic1.keys() | dic2.keys()):
         print(key, dic1[key])
         if key in dic1: result.setdefault(key, {}).update(dic1[key])
         if key in dic2: result.setdefault(key, {}).update(dic2[key])
@@ -645,17 +655,17 @@ def CalculatePlaczekSelfScattering(IncidentWorkspace, ParentWorkspace, OutputWor
                                     'b_sqrd_bar' : b_sqrd_bar }
         total_stoich += stoich
 
-    for atom, props in atom_species.iteritems():
+    for atom, props in atom_species.items(): # inefficient in py2, but works with py3
         props['concentration'] = props['stoich'] / total_stoich
 
     # calculate summation term w/ neutron mass over molecular mass ratio
     summation_term = 0.0
-    for species, props in atom_species.iteritems():
+    for species, props in atom_species.items(): # inefficient in py2, but works with py3
         summation_term += props['concentration'] * props['b_sqrd_bar'] * neutron_mass / props['mass']
 
     # calculate elastic self-scattering term
     elastic_term = 0.0
-    for species, props in atom_species.iteritems():
+    for species, props in atom_species.items(): # inefficient in py2, but works with py3
         elastic_term += props['concentration'] * props['b_sqrd_bar']
 
     # get incident spectrum and 1st derivative
@@ -774,18 +784,25 @@ def SetInelasticCorrection(inelastic_dict):
 #-----------------------------------------------------------------------------------
 # MAIN - NOM_pdf
 
-#nf = NexusHandler()
-if "__main__" == __name__:
-    if len(sys.argv) < 2:
-        print("Need to supply a config file")
-        sys.exit(-1)
-    configfile = sys.argv[1]
-    print("loading config from", configfile)
-    with open(configfile) as handle:
-        config = json_loads_byteified(handle.read())
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Absolute normalization PDF generation")
+    parser.add_argument('json', help='Input json file')
+    parser.add_argument('--instr', nargs='?', help='Specify the instrument (default="NOM")', default='NOM')
 
-    print(config, type(config))
+    options = parser.parse_args()
+
+    configfile = options.json
+    print("loading config from '%s'" % configfile)
+    with open(configfile, 'r') as handle:
+        if six.PY3:
+            config = json.load(handle)
+        else:
+            config = json_loads_byteified(handle.read())
     title = config['title']
+
+    print("create index of runs")
+    nf = NexusHandler(options.instr)
 
     # Get sample info
     sample = config['sam']
