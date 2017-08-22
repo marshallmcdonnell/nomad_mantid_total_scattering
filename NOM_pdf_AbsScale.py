@@ -130,13 +130,13 @@ class NexusHandler(object):
         scansInfo = dict()
         for scan in scans:
             scanInfo=self._scanDict[str(scan)]
-            nf=File(scanInfo['path'],'r')
-            prop_dict = { prop : self._props[prop] for prop in props }
-            for key, path in prop_dict.iteritems():
-                try:
-                    scanInfo.update( { key : nf[path][0] } )
-                except KeyError:
-                    pass
+            with File(scanInfo['path'],'r') as nf:
+                prop_dict = { prop : self._props[prop] for prop in props }
+                for key, path in prop_dict.iteritems():
+                    try:
+                        scanInfo.update( { key : nf[path][0] } )
+                    except KeyError:
+                        pass
             scansInfo.update(scanInfo)
         return scansInfo
 
@@ -313,7 +313,6 @@ class GeometryFactory(object):
         return factory[Geometry["Shape"]]
 
 
-nf = NexusHandler()
 def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFraction=None,BeamWidth=1.8,SampleMassDensity=None):
     # get necessary properties from Nexus file
     props = ["formula", "mass", "mass_density", "sample_diameter", "sample_height", "items_id"]
@@ -775,7 +774,7 @@ def SetInelasticCorrection(inelastic_dict):
 #-----------------------------------------------------------------------------------
 # MAIN - NOM_pdf
 
-
+#nf = NexusHandler()
 if "__main__" == __name__:
     configfile = sys.argv[1]
     print("loading config from", configfile)
@@ -1049,18 +1048,18 @@ if "__main__" == __name__:
 
     if "Type" in van_abs_corr:
         if van_abs_corr['Type'] == 'Carpenter' or van_ms_corr['Type'] == 'Carpenter':
-            MultipleScatteringCylinderAbsorption(InputWorkspace=van_corrected, 
-                                                 OutputWorkspace=van_corrected, 
+            MultipleScatteringCylinderAbsorption(InputWorkspace=van_corrected,
+                                                 OutputWorkspace=van_corrected,
                                                  CylinderSampleRadius=van['Geometry']['Radius'])
         elif van_abs_corr['Type'] == 'Mayers' or van_ms_corr['Type'] == 'Mayers':
             if van_ms_corr['Type'] == 'Mayers':
-                MayersSampleCorrection(InputWorkspace=van_corrected, 
-                                       OutputWorkspace=van_corrected, 
-                                       MultipleScattering=True) 
+                MayersSampleCorrection(InputWorkspace=van_corrected,
+                                       OutputWorkspace=van_corrected,
+                                       MultipleScattering=True)
             else:
-                MayersSampleCorrection(InputWorkspace=van_corrected, 
-                                       OutputWorkspace=van_corrected, 
-                                   MultipleScattering=False) 
+                MayersSampleCorrection(InputWorkspace=van_corrected,
+                                       OutputWorkspace=van_corrected,
+                                   MultipleScattering=False)
         else:
             print("NO VANADIUM absorption or multiple scattering!")
     else:
@@ -1281,18 +1280,18 @@ if "__main__" == __name__:
     sam_corrected = 'sam_corrected'
     if sam_abs_corr:
         if sam_abs_corr['Type'] == 'Carpenter' or sam_ms_corr['Type'] == 'Carpenter':
-            MultipleScatteringCylinderAbsorption(InputWorkspace=sam, 
-                                                 OutputWorkspace=sam_corrected, 
+            MultipleScatteringCylinderAbsorption(InputWorkspace=sam,
+                                                 OutputWorkspace=sam_corrected,
                                                  CylinderSampleRadius=sample['Geometry']['Radius'])
         elif sam_abs_corr['Type'] == 'Mayers' or sam_ms_corr['Type'] == 'Mayers':
             if sam_ms_corr['Type'] == 'Mayers':
-                MayersSampleCorrection(InputWorkspace=sam, 
-                                       OutputWorkspace=sam_corrected, 
-                                       MultipleScattering=True) 
+                MayersSampleCorrection(InputWorkspace=sam,
+                                       OutputWorkspace=sam_corrected,
+                                       MultipleScattering=True)
             else:
-                MayersSampleCorrection(InputWorkspace=sam, 
-                                       OutputWorkspace=sam_corrected, 
-                                       MultipleScattering=False) 
+                MayersSampleCorrection(InputWorkspace=sam,
+                                       OutputWorkspace=sam_corrected,
+                                       MultipleScattering=False)
         else:
             print("NO SAMPLE absorption or multiple scattering!")
             CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_corrected)
