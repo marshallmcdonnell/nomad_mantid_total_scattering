@@ -6,7 +6,7 @@ import glob
 import re
 import json
 import collections
-import ConfigParser
+import configparser
 from h5py import File
 from mantid import mtd
 from mantid.simpleapi import *
@@ -118,7 +118,7 @@ class NexusHandler(object):
         self._makeScanDict()
 
         config_path = '/SNS/' + instrument + '/shared/' + cfg_filename
-        config = ConfigParser.SafeConfigParser()
+        config = configparser.ConfigParser()
         config.read(config_path)
         self._props = { name : path for name, path in config.items('meta') }
         self._props.update({ name : path for name, path in config.items('nexus') })
@@ -871,8 +871,8 @@ if "__main__" == __name__:
     van_mass_density = van.get('MassDensity', van_info['mass_density'])
     van_packing_fraction = van.get('PackingFraction', van_info['packing_fraction'])
     van_geometry = van.get('Geometry', None)
-    van_abs_corr = van.get("AbsorptionCorrection", { "Type" : "Carpenter"} )
-    van_ms_corr = van.get("MultipleScatteringCorrection", { "Type" : "Carpenter"} )
+    van_abs_corr = van.get("AbsorptionCorrection", { "Type" : None} )
+    van_ms_corr = van.get("MultipleScatteringCorrection", { "Type" : None} )
     van_inelastic_corr = SetInelasticCorrection(van.get('InelasticCorrection', None))
 
     results = PDLoadCharacterizations(Filename=charac, OutputWorkspace='characterizations')
