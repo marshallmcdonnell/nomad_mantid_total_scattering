@@ -776,6 +776,9 @@ def SetInelasticCorrection(inelastic_dict):
 
 #nf = NexusHandler()
 if "__main__" == __name__:
+    if len(sys.argv) < 2:
+        print("Need to supply a config file")
+        sys.exit(-1)
     configfile = sys.argv[1]
     print("loading config from", configfile)
     with open(configfile) as handle:
