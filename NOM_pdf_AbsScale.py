@@ -763,6 +763,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Absolute normalization PDF generation")
     parser.add_argument('json', help='Input json file')
     parser.add_argument('--instr', nargs='?', help='Specify the instrument (default="NOM")', default='NOM')
+    parser.add_argument('--config', nargs'?', help='Specify the configuration file (default="nomad_config.cfg")',
+                        default='nomad_config.cfg')
 
     options = parser.parse_args()
 
@@ -775,7 +777,7 @@ if __name__ == "__main__":
     title = config['title']
 
     print("create index of runs")
-    nf = NexusHandler(options.instr, 'nomad_config.cfg')
+    nf = NexusHandler(options.instr, options.config)
 
     # Get sample info
     sample = config['sam']
