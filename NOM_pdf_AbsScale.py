@@ -79,10 +79,6 @@ def myMatchingBins(leftWorkspace, rightWorkspace):
 #-----------------------------------------------------------------------------------
 # . NexusHandler
 
-def findacipts(NOMhome):
-    # find all accessible IPTS
-    return alliptsnr
-
 def parseInt(number):
     try:
         return int(number)
@@ -119,7 +115,7 @@ def procNumbers(numberList):
     return result
 
 class NexusHandler(object):
-    def __init__(self, instrument, cfg_filename='nomad_config.cfg'):
+    def __init__(self, instrument, cfg_filename):
         self.instrument = instrument
         self._scanDict = {}
 
@@ -770,9 +766,8 @@ if __name__ == "__main__":
 
     options = parser.parse_args()
 
-    configfile = options.json
-    print("loading config from '%s'" % configfile)
-    with open(configfile, 'r') as handle:
+    print("loading config from '%s'" % options.json)
+    with open(options.json, 'r') as handle:
         if six.PY3:
             config = json.load(handle)
         else:
@@ -780,7 +775,7 @@ if __name__ == "__main__":
     title = config['title']
 
     print("create index of runs")
-    nf = NexusHandler(options.instr)
+    nf = NexusHandler(options.instr, 'nomad_config.cfg')
 
     # Get sample info
     sample = config['sam']
@@ -809,18 +804,18 @@ if __name__ == "__main__":
     sample['Runs'] = procNumbers(sample['Runs'])
     sample['Background']['Runs'] = procNumbers(sample['Background']['Runs'])
 
-    sam_scans = ','.join(['NOM_%d' % num for num in sample['Runs']])
-    container = ','.join(['NOM_%d' % num for num in sample['Background']["Runs"]])
+    sam_scans = ','.join(['%s_%d' % (options.instr, num) for num in sample['Runs']])
+    container = ','.join(['%s_%d' % (options.instr, num) for num in sample['Background']["Runs"]])
     container_bg = None
     if "Background" in sample['Background']:
         sample['Background']['Background']['Runs'] = procNumbers(sample['Background']['Background']['Runs'])
-        container_bg = ','.join(['NOM_%d' % num for num in sample['Background']['Background']['Runs']])
+        container_bg = ','.join(['%s_%d' % (options.instr, num) for num in sample['Background']['Background']['Runs']])
 
     van['Runs'] = procNumbers(van['Runs'])
     van['Background']['Runs'] = procNumbers(van['Background']['Runs'])
 
-    van_scans = ','.join(['NOM_%d' % num for num in van['Runs']])
-    van_bg = ','.join(['NOM_%d' % num for num in van['Background']["Runs"]])
+    van_scans = ','.join(['%s_%d' % (options.instr, num) for num in van['Runs']])
+    van_bg = ','.join(['%s_%d' % (options.instr, num) for num in van['Background']["Runs"]])
 
 
     # Get absolute scale information from Nexus file
