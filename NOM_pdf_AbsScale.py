@@ -913,8 +913,8 @@ if __name__ == "__main__":
                  OutputWorkspace=sam,
                  Target="MomentumTransfer",
                   EMode="Elastic")
-
-    save_banks(sam, title="sample_and_container.dat", binning=binning)
+    sample_title="sample_and_container"
+    save_banks(sam, title=os.path.join(output_dir,sample_title+'.dat'), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # Load Sample Container
@@ -931,7 +931,8 @@ if __name__ == "__main__":
                  OutputWorkspace=container,
                  Target="MomentumTransfer",
                  EMode="Elastic")
-    save_banks(container, title="container.dat", binning=binning)
+    container_title="container"
+    save_banks(container, title=os.path.join(output_dir,container_title+'.dat'), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # Load Sample Container Background
@@ -949,7 +950,8 @@ if __name__ == "__main__":
                  OutputWorkspace=container_bg,
                  Target="MomentumTransfer",
                  EMode="Elastic")
-        save_banks(container_bg, title="container_background.dat", binning=binning)
+        container_bg_title="container_background"
+        save_banks(container_bg, title=os.path.join(output_dir,container_bg_title+'.dat'), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # Load Vanadium
@@ -973,7 +975,8 @@ if __name__ == "__main__":
                  OutputWorkspace=van_wksp,
                  Target="MomentumTransfer",
                  EMode="Elastic")
-    save_banks(van_wksp, title="vanadium_and_background.dat", binning=binning)
+    vanadium_title="vanadium_and_background"
+    save_banks(van_wksp, title=os.path.join(output_dir,vanadium_title+".dat"), binning=binning)
 
 
     #-----------------------------------------------------------------------------------------#
@@ -992,7 +995,8 @@ if __name__ == "__main__":
                  OutputWorkspace=van_bg,
                  Target="MomentumTransfer",
                  EMode="Elastic")
-    save_banks(van_bg, title="vanadium_background.dat", binning=binning)
+    vanadium_bg_title="vanadium_background"
+    save_banks(van_bg, title=os.path.join(output_dir,vanadium_bg_title+".dat"), binning=binning)
 
 
     #-----------------------------------------------------------------------------------------#
@@ -1027,9 +1031,12 @@ if __name__ == "__main__":
                      OutputWorkspace=wksp,
                      Target="MomentumTransfer",
                      EMode="Elastic")
-    save_banks(container, title="container_minus_back.dat", binning=binning)
-    save_banks(van_wksp, title="vanadium_minus_back.dat", binning=binning)
-    save_banks(sam, title="sample_minus_back.dat", binning=binning)
+    container_title="container_minus_back"
+    vanadium_title="vanadium_minus_back"
+    sample_title="sample_minus_back"
+    save_banks(container, title=os.path.join(output_dir,container_title+".dat"), binning=binning)
+    save_banks(van_wksp, title=os.path.join(output_dir,vanadium_title+".dat"), binning=binning)
+    save_banks(sam, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 2.0: Prepare vanadium as normalization calibrant
@@ -1065,10 +1072,10 @@ if __name__ == "__main__":
                  OutputWorkspace=van_corrected,
                  Target='MomentumTransfer',
                  EMode='Elastic')
-    van_title = "vanadium_minus_back_ms_abs_corrected"
-    save_banks(van_corrected, title=van_title+'.dat', binning=binning)
+    vanadium_title += "_ms_abs_corrected"
+    save_banks(van_corrected, title=os.path.join(output_dir,vanadium_title+'.dat'), binning=binning)
 
-    save_banks(van_corrected, title=van_title+"_with_peaks.dat", binning=binning)
+    save_banks(van_corrected, title=os.path.join(output_dir,vanadium_title+"_with_peaks.dat"), binning=binning)
 
     # TODO subtract self-scattering of vanadium (According to Eq. 7 of Howe, McGreevey, and Howells, JPCM, 1989)
 
@@ -1085,8 +1092,8 @@ if __name__ == "__main__":
                  OutputWorkspace=van_corrected,
                  Target='MomentumTransfer',
                  EMode='Elastic')
-    van_title += '_peaks_stripped'
-    save_banks(van_corrected, title=van_title+".dat", binning=binning)
+    vanadium_title += '_peaks_stripped'
+    save_banks(van_corrected, title=os.path.join(output_dir,vanadium_title+".dat"), binning=binning)
 
     ConvertUnits(InputWorkspace=van_corrected,
                  OutputWorkspace=van_corrected,
@@ -1102,8 +1109,8 @@ if __name__ == "__main__":
                  OutputWorkspace=van_corrected,
                  Target='MomentumTransfer',
                  EMode='Elastic')
-    van_title += '_smoothed'
-    save_banks(van_corrected, title=van_title+".dat", binning=binning)
+    vanadium_title += '_smoothed'
+    save_banks(van_corrected, title=os.path.join(vanadium_title+".dat"), binning=binning)
 
     # Inelastic correction
     print(van_inelastic_corr['Type'])
@@ -1133,7 +1140,6 @@ if __name__ == "__main__":
                                            L1=19.5,
                                            L2=alignAndFocusArgs['L2'],
                                            Polar=alignAndFocusArgs['Polar'])
-            save_banks(van_placzek, title="vanadium_placzek.dat")
             ConvertToHistogram(InputWorkspace=van_placzek,
                                OutputWorkspace=van_placzek)
 
@@ -1145,8 +1151,8 @@ if __name__ == "__main__":
                          EMode='Elastic')
             Rebin(InputWorkspace=wksp, OutputWorkspace=wksp,
                   Params=binning, PreserveEvents=True)
-        save_banks(van_placzek, title="vanadium_placzek_before_Rebin.dat",binning=binning)
-        save_banks(van_corrected, title="vanadium_before_Rebin.dat",binning=binning)
+
+        save_banks(van_placzek, title=os.path.join(output_dir,"vanadium_placzek.dat"), binning=binning)
 
         # Rebin in Wavelength
         for wksp in [van_placzek, van_corrected]:
@@ -1163,8 +1169,6 @@ if __name__ == "__main__":
                          OutputWorkspace=wksp,
                          Target='MomentumTransfer',
                          EMode='Elastic')
-        save_banks(van_placzek, title="vanadium_placzek_after_Rebin.dat",binning=binning)
-        save_banks(van_corrected, title="vanadium_after_Rebin.dat",binning=binning)
 
         # Subtract correction in Wavelength
         for wksp in [van_placzek, van_corrected]:
@@ -1185,8 +1189,8 @@ if __name__ == "__main__":
                          OutputWorkspace=wksp,
                          Target='MomentumTransfer',
                          EMode='Elastic')
-        van_title += '_placzek_corrected'
-        save_banks(van_corrected, title=van_title+".dat", binning=binning)
+        vanadium_title += '_placzek_corrected'
+        save_banks(van_corrected, title=os.path.join(vanadium_title+".dat"), binning=binning)
 
 
     ConvertUnits(InputWorkspace=van_corrected,
@@ -1231,10 +1235,10 @@ if __name__ == "__main__":
     print()
 
 
-    sam_title = "sample_minus_back_normalized"
-    save_banks(sam, title=sam_title+".dat", binning=binning)
+    sample_title += "_normalized"
+    save_banks(sam, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
 
-    save_banks(sam_raw, title="sample_normalized.dat", binning=binning)
+    save_banks(sam_raw, title=os.path.join(output_dir,"sample_normalized.dat"), binning=binning)
 
     for name in [container, van_corrected]:
         ConvertUnits(InputWorkspace=name, OutputWorkspace=name,
@@ -1265,8 +1269,9 @@ if __name__ == "__main__":
     print()
 
 
-    save_banks(container, title="container_minus_back_normalized.dat", binning=binning)
-    save_banks(container_raw, title="container_normalized.dat", binning=binning)
+    container_title+='_normalized'
+    save_banks(container, title=os.path.join(output_dir,container_title+".dat"), binning=binning)
+    save_banks(container_raw, title=os.path.join(output_dir,"container_normalized.dat"), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 3 & 4: Subtract multiple scattering and apply absorption correction
@@ -1294,8 +1299,8 @@ if __name__ == "__main__":
 
         ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
                      Target='MomentumTransfer', EMode='Elastic')
-        sam_title += "_ms_abs_corrected"
-        save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
+        sample_title += "_ms_abs_corrected"
+        save_banks(sam_corrected, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
     else:
         CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_corrected)
 
@@ -1305,8 +1310,8 @@ if __name__ == "__main__":
     mtd[sam_corrected] = (nvan_atoms/natoms) * mtd[sam_corrected]
     ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
                  Target='MomentumTransfer', EMode='Elastic')
-    sam_title += "_norm_by_atoms"
-    save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
+    sample_title += "_norm_by_atoms"
+    save_banks(sam_corrected, title=os.path.join(sample_title+".dat"), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 6: Divide by total scattering length squared = total scattering cross-section over 4 * pi
@@ -1314,8 +1319,8 @@ if __name__ == "__main__":
     prefactor = ( sigma_v / (4.*np.pi) )
     print("Total scattering cross-section of Vanadium:", sigma_v, " sigma_v / 4*pi:", prefactor)
     mtd[sam_corrected] = prefactor*mtd[sam_corrected]
-    sam_title += '_multiply_by_vanSelfScat'
-    save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
+    sample_title += '_multiply_by_vanSelfScat'
+    save_banks(sam_corrected, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 7: Inelastic correction
@@ -1359,19 +1364,8 @@ if __name__ == "__main__":
                          EMode='Elastic')
             Rebin(InputWorkspace=wksp, OutputWorkspace=wksp,
                   Params=binning, PreserveEvents=True)
-        save_banks(sam_placzek, title="sample_placzek_before_Rebin.dat",binning=binning)
-        save_banks(sam_corrected, title="sample_before_Rebin.dat",binning=binning)
 
-        '''
-        # Rebin in Wavelength
-        for wksp in [sam_placzek, sam_corrected]:
-            ConvertUnits(InputWorkspace=wksp,
-                         OutputWorkspace=wksp,
-                         Target='Wavelength',
-                         EMode='Elastic')
-            Rebin(InputWorkspace=wksp, OutputWorkspace=wksp,
-                  Params=lambda_binning_calc, PreserveEvents=False)
-        '''
+        save_banks(sam_placzek, title=os.path.join(output_dir,"sample_placzek.dat"),binning=binning)
 
         # Save after rebin in Q
         for wksp in [sam_placzek, sam_corrected]:
@@ -1379,17 +1373,6 @@ if __name__ == "__main__":
                          OutputWorkspace=wksp,
                          Target='MomentumTransfer',
                          EMode='Elastic')
-        save_banks(sam_placzek, title="sample_placzek_after_Rebin.dat",binning=binning)
-        save_banks(sam_corrected, title="sample_after_Rebin.dat",binning=binning)
-
-        '''
-        # Subtract correction in Wavelength
-        for wksp in [sam_placzek, sam_corrected]:
-            ConvertUnits(InputWorkspace=wksp,
-                         OutputWorkspace=wksp,
-                         Target='Wavelength',
-                         EMode='Elastic')
-        '''
 
         Minus(LHSWorkspace=sam_corrected,
               RHSWorkspace=sam_placzek,
@@ -1401,8 +1384,8 @@ if __name__ == "__main__":
                          OutputWorkspace=wksp,
                          Target='MomentumTransfer',
                          EMode='Elastic')
-        sam_title += '_placzek_corrected'
-        save_banks(sam_corrected, title=sam_title+".dat", binning=binning)
+        sample_title += '_placzek_corrected'
+        save_banks(sam_corrected, title=os.path.join(outptu_dir,sample_title+".dat"), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 7: Output spectrum
@@ -1427,8 +1410,8 @@ if __name__ == "__main__":
     CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='SQ_banks_ws')
     SQ_banks =  (1./bcoh_avg_sqrd)*mtd['SQ_banks_ws'] - laue_monotonic_diffuse_scat + 1.
 
-    save_banks('FQ_banks_ws', title='FQ_banks.dat', binning=binning)
-    save_banks('SQ_banks_ws', title='SQ_banks.dat', binning=binning)
+    save_banks('FQ_banks_ws', title=os.path.join(output_dir,'FQ_banks.dat'), binning=binning)
+    save_banks('SQ_banks_ws', title=os.path.join(output_dir,'SQ_banks.dat'), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STOP HERE FOR NOW
@@ -1462,9 +1445,9 @@ if __name__ == "__main__":
     save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks', **kwargs)
     save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks_raw', **kwargs)
     '''
-    save_banks('SQ_banks',         title=title+"_SQ_banks.dat",     binning=binning)
-    save_banks('FQ_banks',         title=title+"_FQ_banks.dat",     binning=binning)
-    save_banks('FQ_banks_raw', title=title+"_FQ_banks_raw.dat", binning=binning)
+    save_banks('SQ_banks',     title=os.path.join(output_dir,title+"_SQ_banks.dat"),     binning=binning)
+    save_banks('FQ_banks',     title=os.path.join(output_dir,title+"_FQ_banks.dat"),     binning=binning)
+    save_banks('FQ_banks_raw', title=os.path.join(output_dir,title+"_FQ_banks_raw.dat"), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # Event workspace -> Histograms
