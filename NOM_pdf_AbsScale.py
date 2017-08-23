@@ -261,12 +261,14 @@ def GenerateEventsFilterFromFiles(filenames, OutputWorkspace, InformationWorkspa
 #-----------------------------------------------------------------------------------------
 # Absolute Scale stuff
 
-def combine_dictionaries( dic1, dic2 ):
+def combine_dictionaries( *dictionaries ):
     result = dict()
-    for key in (dic1.keys() | dic2.keys()):
-        print(key, dic1[key])
-        if key in dic1: result.setdefault(key, {}).update(dic1[key])
-        if key in dic2: result.setdefault(key, {}).update(dic2[key])
+    for dictionary in dictionaries:
+        for key, values in dictionary.items():
+            if key in result:
+                result[key].update(values)
+            else:
+                result[key] = values
     return result
 
 class Shape(object):
