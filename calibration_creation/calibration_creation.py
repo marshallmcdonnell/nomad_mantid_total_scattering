@@ -54,7 +54,8 @@ for calibrant in calibrants:
                   PeakPositions=dvalues,
                   StartFromObservedPeakCentre=True,
                   OutputCalibrationTable='new_cal',
-                  CalibrationParameters='DIFC')
+                  CalibrationParameters='DIFC',
+                  DiagnosticWorkspaces='diagnostics')
 
     dbinning=(.01,-.001,3.)
     AlignDetectors(InputWorkspace=wkspName, OutputWorkspace=wkspName, CalibrationWorkspace='new_cal')
