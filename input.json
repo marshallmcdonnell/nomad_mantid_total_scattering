@@ -43,6 +43,6 @@
     "binning": [0.0, 0.02, 40.0],
     "sumbanks": [3],
     "CacheDir" : "/SNS/NOM/shared/cache_files",
-    "OutputDir" : "./"
+    "OutputDir" : "./test"
 }
 

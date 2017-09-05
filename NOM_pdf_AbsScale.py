@@ -7,7 +7,6 @@ import glob
 import re
 import json
 import collections
-import configparser
 from h5py import File
 import mantid
 from mantid import mtd
@@ -20,6 +19,10 @@ from scipy import interpolate, signal, ndimage, optimize
 
 if six.PY3:
     unicode = str
+    import configparser
+else:
+    import ConfigParser as configparser
+
 
 #import ipdb
 #-----------------------------------------------------------------------------------------#
@@ -167,8 +170,10 @@ def save_banks(ws,title,binning=None):
             ConvertToDistribution("tmp")
         except:
             pass
+    filename = os.path.join(os.getcwd(),title)
+    print(filename)
     SaveAscii(InputWorkspace="tmp",
-              Filename=title,
+              Filename=filename,
               Separator='Space',
               ColumnHeader=False,
               AppendToFile=False,
@@ -916,6 +921,7 @@ if __name__ == "__main__":
                  Target="MomentumTransfer",
                   EMode="Elastic")
     sample_title="sample_and_container"
+    print(os.path.join(output_dir,sample_title+".dat"))
     save_banks(sam, title=os.path.join(output_dir,sample_title+'.dat'), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
@@ -1112,7 +1118,7 @@ if __name__ == "__main__":
                  Target='MomentumTransfer',
                  EMode='Elastic')
     vanadium_title += '_smoothed'
-    save_banks(van_corrected, title=os.path.join(vanadium_title+".dat"), binning=binning)
+    save_banks(van_corrected, title=os.path.join(output_dir, vanadium_title+".dat"), binning=binning)
 
     # Inelastic correction
     print(van_inelastic_corr['Type'])
@@ -1192,7 +1198,7 @@ if __name__ == "__main__":
                          Target='MomentumTransfer',
                          EMode='Elastic')
         vanadium_title += '_placzek_corrected'
-        save_banks(van_corrected, title=os.path.join(vanadium_title+".dat"), binning=binning)
+        save_banks(van_corrected, title=os.path.join(output_dir,vanadium_title+".dat"), binning=binning)
 
 
     ConvertUnits(InputWorkspace=van_corrected,
@@ -1260,6 +1266,9 @@ if __name__ == "__main__":
 
     Divide(LHSWorkspace=container, RHSWorkspace=van_corrected, OutputWorkspace=container)
     Divide(LHSWorkspace=container_raw, RHSWorkspace=van_corrected, OutputWorkspace=container_raw)
+    Divide(LHSWorkspace=van_bg, RHSWorkspace=van_corrected, OutputWorkspace=van_bg)
+    if container_bg is not None:
+        Divide(LHSWorkspace=container_bg, RHSWorkspace=van_corrected, OutputWorkspace=container_bg)
 
     print()
     print("## Container After Divide##")
@@ -1275,6 +1284,12 @@ if __name__ == "__main__":
     save_banks(container, title=os.path.join(output_dir,container_title+".dat"), binning=binning)
     save_banks(container_raw, title=os.path.join(output_dir,"container_normalized.dat"), binning=binning)
 
+    if container_bg is not None:
+        container_bg_title += "_normalised"
+        save_banks(container_bg, title=os.path.join(output_dir,container_bg_title+'.dat'), binning=binning)
+
+    vanadium_bg_title += "_normalized"
+    save_banks(van_bg, title=os.path.join(output_dir,vanadium_bg_title+".dat"), binning=binning)
     #-----------------------------------------------------------------------------------------#
     # STEP 3 & 4: Subtract multiple scattering and apply absorption correction
 
@@ -1313,7 +1328,7 @@ if __name__ == "__main__":
     ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
                  Target='MomentumTransfer', EMode='Elastic')
     sample_title += "_norm_by_atoms"
-    save_banks(sam_corrected, title=os.path.join(sample_title+".dat"), binning=binning)
+    save_banks(sam_corrected, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 6: Divide by total scattering length squared = total scattering cross-section over 4 * pi
@@ -1387,7 +1402,7 @@ if __name__ == "__main__":
                          Target='MomentumTransfer',
                          EMode='Elastic')
         sample_title += '_placzek_corrected'
-        save_banks(sam_corrected, title=os.path.join(outptu_dir,sample_title+".dat"), binning=binning)
+        save_banks(sam_corrected, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 7: Output spectrum
