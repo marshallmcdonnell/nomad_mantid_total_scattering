@@ -155,7 +155,7 @@ def save_file(ws, title, header=list()):
             f.write('# %s \n' % line)
     SaveAscii(InputWorkspace=ws,Filename=title,Separator='Space',ColumnHeader=False,AppendToFile=True)
 
-def save_banks(ws,title,binning=None):
+def save_banks_old(ws,title,binning=None):
     CloneWorkspace(InputWorkspace=ws, OutputWorkspace="tmp")
     #if mtd["tmp"].isDistribution():
     #    ConvertFromDistribution(mtd["tmp"])
@@ -178,6 +178,31 @@ def save_banks(ws,title,binning=None):
               ColumnHeader=False,
               AppendToFile=False,
               SpectrumList=range(mtd["tmp"].getNumberHistograms()) )
+    return
+
+def save_banks(InputWorkspace, Filename, Title, OutputDir='./', Binning=None):
+    CloneWorkspace(InputWorkspace=InputWorkspace, OutputWorkspace="tmp")
+    #if mtd["tmp"].isDistribution():
+    #    ConvertFromDistribution(mtd["tmp"])
+    if Binning:
+        Rebin(InputWorkspace="tmp",
+              OutputWorkspace="tmp",
+              Params=Binning,
+              PreserveEvents=False)
+    if mtd["tmp"].YUnit() == "Counts":
+        try:
+            print("Unit:", mtd["tmp"].YUnit(), "Distribution:", mtd["tmp"].isDistribution())
+            ConvertToDistribution("tmp")
+        except:
+            pass
+    filename = os.path.join(OutputDir,Filename)
+    print(filename)
+    SaveNexusProcessed(InputWorkspace="tmp",
+              Filename=Filename,
+              Title=Title, 
+              Append=True,
+              PreserveEvents=False,
+              WorkspaceIndexList=range(mtd["tmp"].getNumberHistograms()) )
     return
 
 def save_banks_with_fit( title, fitrange_individual, InputWorkspace=None, **kwargs ):
@@ -827,6 +852,11 @@ if __name__ == "__main__":
     van_scans = ','.join(['%s_%d' % (options.instr, num) for num in van['Runs']])
     van_bg = ','.join(['%s_%d' % (options.instr, num) for num in van['Background']["Runs"]])
 
+    nexus_filename = title+'.nxs'
+    try:
+        os.remove(nexus_filename)
+    except OSError:
+        pass
 
     # Get absolute scale information from Nexus file
     print("#-----------------------------------#")
@@ -910,19 +940,22 @@ if __name__ == "__main__":
                                  Filename=sam_scans,
                                  Absorption=None,
                                  **alignAndFocusArgs)
-    sam = 'sample'
-    NormaliseByCurrent(InputWorkspace=sam,
-                       OutputWorkspace=sam,
+    sam_wksp = 'sample'
+    NormaliseByCurrent(InputWorkspace=sam_wksp,
+                       OutputWorkspace=sam_wksp,
                        RecalculatePCharge=True)
 
-    #SaveNexusProcessed(mtd[sam], os.path.abspath('.') + '/sample_nexus.nxs')
-    ConvertUnits(InputWorkspace=sam,
-                 OutputWorkspace=sam,
+    ConvertUnits(InputWorkspace=sam_wksp,
+                 OutputWorkspace=sam_wksp,
                  Target="MomentumTransfer",
                   EMode="Elastic")
     sample_title="sample_and_container"
     print(os.path.join(output_dir,sample_title+".dat"))
-    save_banks(sam, title=os.path.join(output_dir,sample_title+'.dat'), binning=binning)
+    save_banks(InputWorkspace=sam_wksp, 
+               Filename=nexus_filename, 
+               Title=sample_title,
+               OutputDir=output_dir,
+               Binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # Load Sample Container
@@ -940,7 +973,11 @@ if __name__ == "__main__":
                  Target="MomentumTransfer",
                  EMode="Elastic")
     container_title="container"
-    save_banks(container, title=os.path.join(output_dir,container_title+'.dat'), binning=binning)
+    save_banks(InputWorkspace=container, 
+               Filename=nexus_filename, 
+               Title=container_title,
+               OutputDir=output_dir,
+               Binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # Load Sample Container Background
@@ -959,7 +996,11 @@ if __name__ == "__main__":
                  Target="MomentumTransfer",
                  EMode="Elastic")
         container_bg_title="container_background"
-        save_banks(container_bg, title=os.path.join(output_dir,container_bg_title+'.dat'), binning=binning)
+        save_banks(InputWorkspace=container_bg, 
+                   Filename=nexus_filename, 
+                   Title=container_bg_title,
+                   OutputDir=output_dir,
+                   Binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # Load Vanadium
@@ -984,7 +1025,12 @@ if __name__ == "__main__":
                  Target="MomentumTransfer",
                  EMode="Elastic")
     vanadium_title="vanadium_and_background"
-    save_banks(van_wksp, title=os.path.join(output_dir,vanadium_title+".dat"), binning=binning)
+
+    save_banks(InputWorkspace=van_wksp, 
+               Filename=nexus_filename, 
+               Title=vanadium_title,
+               OutputDir=output_dir,
+               Binning=binning)
 
 
     #-----------------------------------------------------------------------------------------#
@@ -1004,12 +1050,16 @@ if __name__ == "__main__":
                  Target="MomentumTransfer",
                  EMode="Elastic")
     vanadium_bg_title="vanadium_background"
-    save_banks(van_bg, title=os.path.join(output_dir,vanadium_bg_title+".dat"), binning=binning)
+    save_banks(InputWorkspace=van_bg, 
+               Filename=nexus_filename, 
+               Title=vanadium_bg_title,
+               OutputDir=output_dir,
+               Binning=binning)
 
 
     #-----------------------------------------------------------------------------------------#
     # Load Instrument Characterizations
-    PDDetermineCharacterizations(InputWorkspace=sam,
+    PDDetermineCharacterizations(InputWorkspace=sam_wksp,
                                  Characterizations='characterizations',
                                  ReductionProperties='__snspowderreduction')
     propMan = PropertyManagerDataService.retrieve('__snspowderreduction')
@@ -1024,17 +1074,17 @@ if __name__ == "__main__":
     # STEP 1: Subtract Backgrounds
 
     sam_raw='sam_raw'
-    CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_raw) # for later
+    CloneWorkspace(InputWorkspace=sam_wksp, OutputWorkspace=sam_raw) # for later
 
     container_raw='container_raw'
     CloneWorkspace(InputWorkspace=container, OutputWorkspace=container_raw) # for later
 
     Minus(LHSWorkspace=van_wksp, RHSWorkspace=van_bg, OutputWorkspace=van_wksp)
-    Minus(LHSWorkspace=sam, RHSWorkspace=container, OutputWorkspace=sam)
+    Minus(LHSWorkspace=sam_wksp, RHSWorkspace=container, OutputWorkspace=sam_wksp)
     if container_bg is not None:
         Minus(LHSWorkspace=container, RHSWorkspace=container_bg, OutputWorkspace=container)
 
-    for wksp in [container, van_wksp, sam]:
+    for wksp in [container, van_wksp, sam_wksp]:
         ConvertUnits(InputWorkspace=wksp,
                      OutputWorkspace=wksp,
                      Target="MomentumTransfer",
@@ -1042,9 +1092,21 @@ if __name__ == "__main__":
     container_title="container_minus_back"
     vanadium_title="vanadium_minus_back"
     sample_title="sample_minus_back"
-    save_banks(container, title=os.path.join(output_dir,container_title+".dat"), binning=binning)
-    save_banks(van_wksp, title=os.path.join(output_dir,vanadium_title+".dat"), binning=binning)
-    save_banks(sam, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
+    save_banks(InputWorkspace=container, 
+               Filename=nexus_filename, 
+               Title=container_title,
+               OutputDir=output_dir,
+               Binning=binning)
+    save_banks(InputWorkspace=van_wksp, 
+               Filename=nexus_filename, 
+               Title=vanadium_title,
+               OutputDir=output_dir,
+               Binning=binning)
+    save_banks(InputWorkspace=sam_wksp, 
+               Filename=nexus_filename, 
+               Title=sample_title,
+               OutputDir=output_dir,
+               Binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 2.0: Prepare vanadium as normalization calibrant
@@ -1081,9 +1143,17 @@ if __name__ == "__main__":
                  Target='MomentumTransfer',
                  EMode='Elastic')
     vanadium_title += "_ms_abs_corrected"
-    save_banks(van_corrected, title=os.path.join(output_dir,vanadium_title+'.dat'), binning=binning)
+    save_banks(InputWorkspace=van_corrected, 
+               Filename=nexus_filename, 
+               Title=vanadium_title,
+               OutputDir=output_dir,
+               Binning=binning)
+    save_banks(InputWorkspace=van_corrected, 
+               Filename=nexus_filename, 
+               Title=vanadium_title+"_with_peaks",
+               OutputDir=output_dir,
+               Binning=binning)
 
-    save_banks(van_corrected, title=os.path.join(output_dir,vanadium_title+"_with_peaks.dat"), binning=binning)
 
     # TODO subtract self-scattering of vanadium (According to Eq. 7 of Howe, McGreevey, and Howells, JPCM, 1989)
 
@@ -1101,7 +1171,11 @@ if __name__ == "__main__":
                  Target='MomentumTransfer',
                  EMode='Elastic')
     vanadium_title += '_peaks_stripped'
-    save_banks(van_corrected, title=os.path.join(output_dir,vanadium_title+".dat"), binning=binning)
+    save_banks(InputWorkspace=van_corrected, 
+               Filename=nexus_filename, 
+               Title=vanadium_title,
+               OutputDir=output_dir,
+               Binning=binning)
 
     ConvertUnits(InputWorkspace=van_corrected,
                  OutputWorkspace=van_corrected,
@@ -1118,7 +1192,11 @@ if __name__ == "__main__":
                  Target='MomentumTransfer',
                  EMode='Elastic')
     vanadium_title += '_smoothed'
-    save_banks(van_corrected, title=os.path.join(output_dir, vanadium_title+".dat"), binning=binning)
+    save_banks(InputWorkspace=van_corrected, 
+               Filename=nexus_filename, 
+               Title=vanadium_title,
+               OutputDir=output_dir,
+               Binning=binning)
 
     # Inelastic correction
     print(van_inelastic_corr['Type'])
@@ -1160,7 +1238,11 @@ if __name__ == "__main__":
             Rebin(InputWorkspace=wksp, OutputWorkspace=wksp,
                   Params=binning, PreserveEvents=True)
 
-        save_banks(van_placzek, title=os.path.join(output_dir,"vanadium_placzek.dat"), binning=binning)
+        save_banks(InputWorkspace=van_placzek, 
+                   Filename=nexus_filename, 
+                   Title="vanadium_placzek",
+                   OutputDir=output_dir,
+                   Binning=binning)
 
         # Rebin in Wavelength
         for wksp in [van_placzek, van_corrected]:
@@ -1198,7 +1280,11 @@ if __name__ == "__main__":
                          Target='MomentumTransfer',
                          EMode='Elastic')
         vanadium_title += '_placzek_corrected'
-        save_banks(van_corrected, title=os.path.join(output_dir,vanadium_title+".dat"), binning=binning)
+        save_banks(InputWorkspace=van_corrected, 
+                   Filename=nexus_filename, 
+                   Title=vanadium_title,
+                   OutputDir=output_dir,
+                   Binning=binning)
 
 
     ConvertUnits(InputWorkspace=van_corrected,
@@ -1214,39 +1300,28 @@ if __name__ == "__main__":
     # STEP 2.1: Normalize by Vanadium
 
 
-    for name in [sam, van_corrected]:
+    for name in [sam_wksp, van_corrected]:
         ConvertUnits(InputWorkspace=name, OutputWorkspace=name,
                      Target='MomentumTransfer', EMode='Elastic',ConvertFromPointData=False)
         Rebin(InputWorkspace=name, OutputWorkspace=name,
               Params=binning, PreserveEvents=False)
         if not mtd[name].isDistribution():
             ConvertToDistribution(name)
-    print()
-    print("## Sample ##")
-    print("YUnit:", mtd[sam].YUnit(),"|", mtd[van_corrected].YUnit())
-    print("blocksize:", mtd[sam].blocksize(), mtd[van_corrected].blocksize())
-    print("dist:", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution())
-    print("Do bins match?:", myMatchingBins(sam, van_corrected))
-    print("Distributions?", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution())
-    print()
 
-    Divide(LHSWorkspace=sam, RHSWorkspace=van_corrected, OutputWorkspace=sam)
+    Divide(LHSWorkspace=sam_wksp, RHSWorkspace=van_corrected, OutputWorkspace=sam_wksp)
     Divide(LHSWorkspace=sam_raw, RHSWorkspace=van_corrected, OutputWorkspace=sam_raw)
 
-    print()
-    print("## Sample After Divide##")
-    print("YUnit:", mtd[sam].YUnit(),"|", mtd[van_corrected].YUnit())
-    print("blocksize:", mtd[sam].blocksize(), mtd[van_corrected].blocksize())
-    print("dist:", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution())
-    print("Do bins match?:", myMatchingBins(sam, van_corrected))
-    print("Distributions?", mtd[sam].isDistribution(), mtd[van_corrected].isDistribution())
-    print()
-
-
     sample_title += "_normalized"
-    save_banks(sam, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
-
-    save_banks(sam_raw, title=os.path.join(output_dir,"sample_normalized.dat"), binning=binning)
+    save_banks(InputWorkspace=sam_wksp, 
+               Filename=nexus_filename, 
+               Title=sample_title,
+               OutputDir=output_dir,
+               Binning=binning)
+    save_banks(InputWorkspace=sam_raw, 
+               Filename=nexus_filename, 
+               Title="sample_normalized",
+               OutputDir=output_dir,
+               Binning=binning)
 
     for name in [container, van_corrected]:
         ConvertUnits(InputWorkspace=name, OutputWorkspace=name,
@@ -1281,45 +1356,65 @@ if __name__ == "__main__":
 
 
     container_title+='_normalized'
-    save_banks(container, title=os.path.join(output_dir,container_title+".dat"), binning=binning)
-    save_banks(container_raw, title=os.path.join(output_dir,"container_normalized.dat"), binning=binning)
+    save_banks(InputWorkspace=container, 
+               Filename=nexus_filename, 
+               Title=container_title,
+               OutputDir=output_dir,
+               Binning=binning)
+    save_banks(InputWorkspace=container_raw, 
+               Filename=nexus_filename, 
+               Title="container_normalized",
+               OutputDir=output_dir,
+               Binning=binning)
 
     if container_bg is not None:
         container_bg_title += "_normalised"
-        save_banks(container_bg, title=os.path.join(output_dir,container_bg_title+'.dat'), binning=binning)
+        save_banks(InputWorkspace=container_bg, 
+                   Filename=nexus_filename, 
+                   Title=container_bg_title,
+                   OutputDir=output_dir,
+                   Binning=binning)
 
     vanadium_bg_title += "_normalized"
-    save_banks(van_bg, title=os.path.join(output_dir,vanadium_bg_title+".dat"), binning=binning)
+    save_banks(InputWorkspace=van_bg, 
+               Filename=nexus_filename, 
+               Title=vanadium_bg_title,
+               OutputDir=output_dir,
+               Binning=binning)
     #-----------------------------------------------------------------------------------------#
     # STEP 3 & 4: Subtract multiple scattering and apply absorption correction
 
-    ConvertUnits(InputWorkspace=sam, OutputWorkspace=sam, Target="Wavelength", EMode="Elastic")
+    ConvertUnits(InputWorkspace=sam_wksp, OutputWorkspace=sam_wksp, Target="Wavelength", EMode="Elastic")
 
     sam_corrected = 'sam_corrected'
     if sam_abs_corr:
         if sam_abs_corr['Type'] == 'Carpenter' or sam_ms_corr['Type'] == 'Carpenter':
-            MultipleScatteringCylinderAbsorption(InputWorkspace=sam,
+            MultipleScatteringCylinderAbsorption(InputWorkspace=sam_wksp,
                                                  OutputWorkspace=sam_corrected,
                                                  CylinderSampleRadius=sample['Geometry']['Radius'])
         elif sam_abs_corr['Type'] == 'Mayers' or sam_ms_corr['Type'] == 'Mayers':
             if sam_ms_corr['Type'] == 'Mayers':
-                MayersSampleCorrection(InputWorkspace=sam,
+                MayersSampleCorrection(InputWorkspace=sam_wksp,
                                        OutputWorkspace=sam_corrected,
                                        MultipleScattering=True)
             else:
-                MayersSampleCorrection(InputWorkspace=sam,
+                MayersSampleCorrection(InputWorkspace=sam_wksp,
                                        OutputWorkspace=sam_corrected,
                                        MultipleScattering=False)
         else:
             print("NO SAMPLE absorption or multiple scattering!")
-            CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_corrected)
+            CloneWorkspace(InputWorkspace=sam_wksp, OutputWorkspace=sam_corrected)
 
         ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
                      Target='MomentumTransfer', EMode='Elastic')
         sample_title += "_ms_abs_corrected"
-        save_banks(sam_corrected, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
+        save_banks(InputWorkspace=sam_corrected, 
+                   Filename=nexus_filename, 
+                   Title=sample_title,
+                   OutputDir=output_dir,
+                   Binning=binning)
     else:
-        CloneWorkspace(InputWorkspace=sam, OutputWorkspace=sam_corrected)
+        CloneWorkspace(InputWorkspace=sam_wksp, OutputWorkspace=sam_corrected)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 5: Divide by number of atoms in sample
@@ -1328,7 +1423,11 @@ if __name__ == "__main__":
     ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
                  Target='MomentumTransfer', EMode='Elastic')
     sample_title += "_norm_by_atoms"
-    save_banks(sam_corrected, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
+    save_banks(InputWorkspace=sam_corrected, 
+               Filename=nexus_filename, 
+               Title=sample_title,
+               OutputDir=output_dir,
+               Binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 6: Divide by total scattering length squared = total scattering cross-section over 4 * pi
@@ -1337,7 +1436,11 @@ if __name__ == "__main__":
     print("Total scattering cross-section of Vanadium:", sigma_v, " sigma_v / 4*pi:", prefactor)
     mtd[sam_corrected] = prefactor*mtd[sam_corrected]
     sample_title += '_multiply_by_vanSelfScat'
-    save_banks(sam_corrected, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
+    save_banks(InputWorkspace=sam_corrected, 
+               Filename=nexus_filename, 
+               Title=sample_title,
+               OutputDir=output_dir,
+               Binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 7: Inelastic correction
@@ -1382,7 +1485,11 @@ if __name__ == "__main__":
             Rebin(InputWorkspace=wksp, OutputWorkspace=wksp,
                   Params=binning, PreserveEvents=True)
 
-        save_banks(sam_placzek, title=os.path.join(output_dir,"sample_placzek.dat"),binning=binning)
+        save_banks(InputWorkspace=sam_placzek, 
+                   Filename=nexus_filename, 
+                   Title="sample_placzek",
+                   OutputDir=output_dir,
+                   Binning=binning)
 
         # Save after rebin in Q
         for wksp in [sam_placzek, sam_corrected]:
@@ -1402,7 +1509,11 @@ if __name__ == "__main__":
                          Target='MomentumTransfer',
                          EMode='Elastic')
         sample_title += '_placzek_corrected'
-        save_banks(sam_corrected, title=os.path.join(output_dir,sample_title+".dat"), binning=binning)
+        save_banks(InputWorkspace=sam_corrected, 
+                   Filename=nexus_filename, 
+                   Title=sample_title,
+                   OutputDir=output_dir,
+                   Binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STEP 7: Output spectrum
@@ -1427,8 +1538,16 @@ if __name__ == "__main__":
     CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='SQ_banks_ws')
     SQ_banks =  (1./bcoh_avg_sqrd)*mtd['SQ_banks_ws'] - laue_monotonic_diffuse_scat + 1.
 
-    save_banks('FQ_banks_ws', title=os.path.join(output_dir,'FQ_banks.dat'), binning=binning)
-    save_banks('SQ_banks_ws', title=os.path.join(output_dir,'SQ_banks.dat'), binning=binning)
+    save_banks(InputWorkspace="FQ_banks_ws", 
+               Filename=nexus_filename, 
+               Title="FQ_banks",
+               OutputDir=output_dir,
+               Binning=binning)
+    save_banks(InputWorkspace="SQ_banks_ws", 
+               Filename=nexus_filename, 
+               Title="SQ_banks",
+               OutputDir=output_dir,
+               Binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # STOP HERE FOR NOW
@@ -1456,15 +1575,6 @@ if __name__ == "__main__":
     kwargs = { 'btot_sqrd_avg' : btot_sqrd_avg,
                'bcoh_avg_sqrd' : bcoh_avg_sqrd,
                'self_scat' : self_scat }
-
-    '''
-    save_banks_with_fit( title, fitrange_individual, InputWorkspace='SQ_banks', **kwargs)
-    save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks', **kwargs)
-    save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks_raw', **kwargs)
-    '''
-    save_banks('SQ_banks',     title=os.path.join(output_dir,title+"_SQ_banks.dat"),     binning=binning)
-    save_banks('FQ_banks',     title=os.path.join(output_dir,title+"_FQ_banks.dat"),     binning=binning)
-    save_banks('FQ_banks_raw', title=os.path.join(output_dir,title+"_FQ_banks_raw.dat"), binning=binning)
 
     #-----------------------------------------------------------------------------------------#
     # Event workspace -> Histograms
@@ -1507,6 +1617,18 @@ if __name__ == "__main__":
     #-----------------------------------------------------------------------------------------#
     # Merged S(Q) and F(Q)
 
+    save_banks(InputWorkspace="FQ_banks_ws", 
+               Filename=nexus_filename, 
+               Title="FQ_banks",
+               OutputDir=output_dir,
+               Binning=binning)
+    save_banks(InputWorkspace="SQ_banks_ws", 
+               Filename=nexus_filename, 
+               Title="SQ_banks",
+               OutputDir=output_dir,
+               Binning=binning)
+
+
     # do the division correctly and subtract off the material specific term
     CloneWorkspace(InputWorkspace='sam_single', OutputWorkspace='SQ_ws')
     SQ = (1./bcoh_avg_sqrd)*mtd['SQ_ws'] - (term_to_subtract-1.)  # +1 to get back to S(Q)
@@ -1541,13 +1663,3 @@ if __name__ == "__main__":
                     'for merged banks %s: %f + %f * Q' % (','.join([ str(i) for i in wkspIndices]), \
                                                        fitParams.cell('Value', 0), fitParams.cell('Value', 1)) ]
 
-
-    save_file(mtd['sample_raw_single'], title+'_merged_sample_raw.dat',        header=header_lines)
-    save_file(mtd['container_single'],  title+'_merged_container.dat',         header=header_lines)
-    save_file(mtd['sam_single'],        title+'_merged_sample_minus_background.dat', header=header_lines)
-    save_file(mtd['van_single'],        title+'_merged_vanadium.dat',          header=header_lines)
-    save_file(mtd['background_single'], title+'_merged_background.dat',          header=header_lines)
-    save_file(SQ,                       title+'_merged_sample_normalized.dat', header=header_lines)
-
-    save_file(FQ,                       title+'_FQ.dat', header=header_lines)
-    save_file(FQ_raw,                   title+'_FQ_raw.dat', header=header_lines)

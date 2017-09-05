@@ -1,6 +1,6 @@
 {
     "high_q_linear_fit_range" : 0.60,
-    "title" : "Si_SRM_e_d91772_no_mask", 
+    "title" : "Si_SRM_e_d91772", 
     "sam": { "Runs" : "91796",
              "Background" : { "Runs" : "91766",
                               "Background" : { "Runs" : "91607" }
