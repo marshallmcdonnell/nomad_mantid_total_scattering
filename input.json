@@ -10,7 +10,7 @@
              "Geometry" : {"Radius" : 0.15,
                            "Height" : 1.8 },
              "AbsorptionCorrection" : { "Type" : "Carpenter" },
-             "MultipleScatteringCorrection" : { "Type" : "Carpenter" },
+             "MultipleScatteringCorrection" : { "Type" : "None" },
              "InelasticCorrection" : { "Type" : "Placzek", 
                                        "Order" : "1st",
                                        "Self" : "True",
@@ -39,7 +39,8 @@
             },
 
     "calib": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_d91621_2017_04_12_shifter.h5",
-    "charac": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt",
+    "charac": { "pdf" : "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt",
+                "rietveld" : "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt"},
     "binning": [0.0, 0.02, 40.0],
     "sumbanks": [3],
     "CacheDir" : "/SNS/NOM/shared/cache_files",

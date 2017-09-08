@@ -915,7 +915,6 @@ if __name__ == "__main__":
                        OutputWorkspace=sam,
                        RecalculatePCharge=True)
 
-    #SaveNexusProcessed(mtd[sam], os.path.abspath('.') + '/sample_nexus.nxs')
     ConvertUnits(InputWorkspace=sam,
                  OutputWorkspace=sam,
                  Target="MomentumTransfer",
@@ -934,7 +933,6 @@ if __name__ == "__main__":
     NormaliseByCurrent(InputWorkspace=container,
                        OutputWorkspace=container,
                        RecalculatePCharge=True)
-    #SaveNexusProcessed(mtd['container'], os.path.abspath('.') + '/container_nexus.nxs')
     ConvertUnits(InputWorkspace=container,
                  OutputWorkspace=container,
                  Target="MomentumTransfer",
@@ -978,7 +976,6 @@ if __name__ == "__main__":
     SetSample(InputWorkspace=van_wksp,
               Geometry=van_geometry,
               Material={'ChemicalFormula': van_material, 'SampleMassDensity' : van_mass_density} )
-    #SaveNexusProcessed(mtd['vanadium'], os.path.abspath('.') + '/vanadium_nexus.nxs')
     ConvertUnits(InputWorkspace=van_wksp,
                  OutputWorkspace=van_wksp,
                  Target="MomentumTransfer",
@@ -998,7 +995,6 @@ if __name__ == "__main__":
     NormaliseByCurrent(InputWorkspace=van_bg,
                        OutputWorkspace=van_bg,
                        RecalculatePCharge=True)
-    #SaveNexusProcessed(mtd['vanadium_background'], os.path.abspath('.') + '/vanadium_background_nexus.nxs')
     ConvertUnits(InputWorkspace=van_bg,
                  OutputWorkspace=van_bg,
                  Target="MomentumTransfer",
