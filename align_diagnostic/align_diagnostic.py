@@ -13,7 +13,9 @@ with open(configfile) as handle:
     config = json.loads(handle.read())
 
 sam_scans = config['run']
-calib = str(config['calib'])
+calib = config.get('calib',None)
+if calib:
+    calib = str(calib)
 charac = str(config['charac'])
 
 sam_scans = ','.join(['NOM_%s' % sam for sam in sam_scans])
@@ -28,7 +30,8 @@ alignArgs = dict(PrimaryFlightPath = results[2],
                          Polar             = results[5],
                          Azimuthal         = results[6])
 
-alignArgs['CalFilename'] = calib
+if calib:
+    alignArgs['CalFilename'] = calib
 #alignArgs['ResampleX'] = -6000
 alignArgs['RemovePromptPulseWidth'] = 50
 alignArgs['Characterizations'] = 'characterizations'
@@ -46,15 +49,17 @@ PDDetermineCharacterizations(InputWorkspace=wksp,
                              Characterizations=alignArgs['Characterizations'],
                              ReductionProperties=alignArgs['ReductionProperties'])
 Load(Filename=sam_scans, OutputWorkspace=wksp)
-LoadDiffCal(InputWorkspace=wksp,
-            Filename=alignArgs['CalFilename'],
-            WorkspaceName='NOM',
-            TofMin=300, TofMax=16666)
+if calib:
+    LoadDiffCal(InputWorkspace=wksp,
+                Filename=alignArgs['CalFilename'],
+                WorkspaceName='NOM',
+                TofMin=300, TofMax=16666)
 CompressEvents(InputWorkspace=wksp,OutputWorkspace=wksp, Tolerance=0.01)
 CropWorkspace(InputWorkspace=wksp,OutputWorkspace=wksp, XMin=300, XMax=16666)
 RemovePromptPulse(InputWorkspace=wksp,OutputWorkspace=wksp, Width=alignArgs['RemovePromptPulseWidth'])
-MaskDetectors(Workspace=wksp,MaskedWorkspace='NOM_mask')
-AlignDetectors(InputWorkspace=wksp,OutputWorkspace=wksp, CalibrationWorkspace='NOM_cal')
+if calib:
+    MaskDetectors(Workspace=wksp,MaskedWorkspace='NOM_mask')
+    AlignDetectors(InputWorkspace=wksp,OutputWorkspace=wksp, CalibrationWorkspace='NOM_cal')
 ConvertUnits(InputWorkspace=wksp,OutputWorkspace=wksp,Target='TOF')
 ConvertUnits(InputWorkspace=wksp,OutputWorkspace=wksp,Target='Wavelength')
 CropWorkspace(InputWorkspace=wksp,OutputWorkspace=wksp, XMin=0.1, XMax=2.9)

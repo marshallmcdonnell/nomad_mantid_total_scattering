@@ -1,6 +1,6 @@
 {
-    "high_q_linear_fit_range" : 0.60,
-    "title" : "Si_SRM_e_d91772_no_mask", 
+    "HighQLinearFitRange" : 0.60,
+    "title" : "Si_SRM_e_d91772_no_mask",
     "sam": { "Runs" : "91796",
              "Background" : { "Runs" : "91766",
                               "Background" : { "Runs" : "91607" }
@@ -10,8 +10,8 @@
              "Geometry" : {"Radius" : 0.15,
                            "Height" : 1.8 },
              "AbsorptionCorrection" : { "Type" : "Carpenter" },
-             "MultipleScatteringCorrection" : { "Type" : "None" },
-             "InelasticCorrection" : { "Type" : "Placzek", 
+             "MultipleScatteringCorrection" : { "Type" : "Carpenter" },
+             "InelasticCorrection" : { "Type" : "Placzek",
                                        "Order" : "1st",
                                        "Self" : "True",
                                        "Interference" : "False",
@@ -23,12 +23,12 @@
              "Background" : { "Runs" : "91607" },
              "Material" : "V",
              "MassDensity" : 6.11,
-             "PackingFraction" : 1.0, 
+             "PackingFraction" : 1.0,
              "Geometry" : {"Radius" : 0.2925,
                            "Height" : 1.8 },
              "AbsorptionCorrection" : { "Type" : "Carpenter" },
              "MultipleScatteringCorrection" : { "Type" : "Carpenter" },
-             "InelasticCorrection" : { "Type" : "Placzek", 
+             "InelasticCorrection" : { "Type" : "Placzek",
                                        "Order" : "1st",
                                        "Self" : "True",
                                        "Interference" : "False",
@@ -45,4 +45,3 @@
     "CacheDir" : "/SNS/NOM/shared/cache_files",
     "OutputDir" : "./test"
 }
-
