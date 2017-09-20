@@ -1,15 +1,15 @@
 {
-    "high_q_linear_fit_range" : 0.60,
-    "title" : "Si_open2_18vx6h_minus_MTinst", 
+    "HighQLinearFitRange" : 0.60,
+    "title" : "Si_open2_18vx6h_minus_MTinst",
     "sam": { "Runs" : [94816],
-             "Background" : [94817], 
+             "Background" : [94817],
              "Material" : "Si",
              "PackingFraction" : 0.5,
              "Geometry" : {"Radius" : 0.3,
                            "Height" : 1.8 },
              "AbsorptionCorrection" : { "Type" : "Carpenter" },
              "MultipleScatteringCorrection" : { "Type" : "Carpenter" },
-             "InelasticCorrection" : { "Type" : "Placzek", 
+             "InelasticCorrection" : { "Type" : "Placzek",
                                        "Order" : "1st",
                                        "Self" : "True",
                                        "Interference" : "False",
@@ -17,10 +17,10 @@
                                        "LambdaBinning" : "0.16,0.04,2.8"}
             },
     "van": { "Runs" : [94815],
-             "Background" : [94817], 
+             "Background" : [94817],
              "Material" : "V",
              "MassDensity" : 6.11,
-             "PackingFraction" : 1.0, 
+             "PackingFraction" : 1.0,
              "Geometry" : {"Radius" : 0.2925,
                            "Height" : 1.8 },
              "AbsorptionCorrection" : { "Type" : "Carpenter" },
@@ -34,4 +34,3 @@
     "CacheDir" : "/SNS/NOM/shared/cache_files",
     "OutputDir" : "/SNS/NOM/IPTS-19565/shared/autoreduce_open1/"
 }
-
