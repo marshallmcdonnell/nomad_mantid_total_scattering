@@ -91,6 +91,8 @@ def parseInt(number):
     return 0
 
 def procNumbers(numberList):
+    if len(numberList) == 0 or numberList == '0':
+        return list() # this is what is expected elsewhere
     numberList = [ str(scan) for scan in [numberList] ]
     numberList = [ num for num in str(','.join(numberList)).split(',') ]
 
@@ -547,8 +549,11 @@ def FitIncidentSpectrum(InputWorkspace, OutputWorkspace,
         x = incident_ws.readX(incident_index)
         y = incident_ws.readY(incident_index)
     else:
-        params = BinningForCalc.split(',')
-        xlo, binsize, xhi = [ float(x) for x in params ]
+        if isinstance(BinningForCalc, unicode):
+            params = [float(x) for x in BinningForCalc.split(',')]
+        else:
+            params = BinningForCalc[:]
+        xlo, binsize, xhi = params
         x = np.arange(xlo, xhi, binsize)
 
     Rebin(incident_ws, OutputWorkspace='fit', Params=BinningForFit, PreserveEvents=True)
@@ -805,14 +810,14 @@ if __name__ == "__main__":
     calib = config['calib']
     charac = config['charac']
     binning= config['binning']
-    high_q_linear_fit_range = config['high_q_linear_fit_range']
+    high_q_linear_fit_range = config['HighQLinearFitRange']
     wkspIndices=config['sumbanks'] # workspace indices - zero indexed arrays
     cache_dir = config.get("CacheDir", os.path.abspath('.'))
     output_dir = config.get("OutputDir", os.path.abspath('.'))
 
     # Create Nexus file basenames
     sample['Runs'] = procNumbers(sample['Runs'])
-    sample['Background']['Runs'] = procNumbers(sample['Background']['Runs'])
+    sample['Background']['Runs'] = procNumbers(sample['Background'].get('Runs', None))
 
     sam_scans = ','.join(['%s_%d' % (options.instr, num) for num in sample['Runs']])
     container = ','.join(['%s_%d' % (options.instr, num) for num in sample['Background']["Runs"]])
@@ -820,12 +825,16 @@ if __name__ == "__main__":
     if "Background" in sample['Background']:
         sample['Background']['Background']['Runs'] = procNumbers(sample['Background']['Background']['Runs'])
         container_bg = ','.join(['%s_%d' % (options.instr, num) for num in sample['Background']['Background']['Runs']])
+        if len(container_bg) == 0:
+            container_bg = None
 
     van['Runs'] = procNumbers(van['Runs'])
     van['Background']['Runs'] = procNumbers(van['Background']['Runs'])
 
     van_scans = ','.join(['%s_%d' % (options.instr, num) for num in van['Runs']])
     van_bg = ','.join(['%s_%d' % (options.instr, num) for num in van['Background']["Runs"]])
+    if len(van_bg) == 0:
+        van_bg = None
 
 
     # Get absolute scale information from Nexus file
@@ -989,22 +998,23 @@ if __name__ == "__main__":
 
     #-----------------------------------------------------------------------------------------#
     # Load Vanadium Background
-    AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium_background',
-                                 Filename=van_bg,
-                                 AbsorptionWorkspace=None,
-                                 **alignAndFocusArgs)
+    if van_bg is not None:
+        AlignAndFocusPowderFromFiles(OutputWorkspace='vanadium_background',
+                                     Filename=van_bg,
+                                     AbsorptionWorkspace=None,
+                                     **alignAndFocusArgs)
 
-    van_bg = 'vanadium_background'
-    NormaliseByCurrent(InputWorkspace=van_bg,
-                       OutputWorkspace=van_bg,
-                       RecalculatePCharge=True)
-    #SaveNexusProcessed(mtd['vanadium_background'], os.path.abspath('.') + '/vanadium_background_nexus.nxs')
-    ConvertUnits(InputWorkspace=van_bg,
-                 OutputWorkspace=van_bg,
-                 Target="MomentumTransfer",
-                 EMode="Elastic")
-    vanadium_bg_title="vanadium_background"
-    save_banks(van_bg, title=os.path.join(output_dir,vanadium_bg_title+".dat"), binning=binning)
+        van_bg = 'vanadium_background'
+        NormaliseByCurrent(InputWorkspace=van_bg,
+                           OutputWorkspace=van_bg,
+                           RecalculatePCharge=True)
+        #SaveNexusProcessed(mtd['vanadium_background'], os.path.abspath('.') + '/vanadium_background_nexus.nxs')
+        ConvertUnits(InputWorkspace=van_bg,
+                     OutputWorkspace=van_bg,
+                     Target="MomentumTransfer",
+                     EMode="Elastic")
+        vanadium_bg_title="vanadium_background"
+        save_banks(van_bg, title=os.path.join(output_dir,vanadium_bg_title+".dat"), binning=binning)
 
 
     #-----------------------------------------------------------------------------------------#
@@ -1029,7 +1039,8 @@ if __name__ == "__main__":
     container_raw='container_raw'
     CloneWorkspace(InputWorkspace=container, OutputWorkspace=container_raw) # for later
 
-    Minus(LHSWorkspace=van_wksp, RHSWorkspace=van_bg, OutputWorkspace=van_wksp)
+    if van_bg is not None:
+        Minus(LHSWorkspace=van_wksp, RHSWorkspace=van_bg, OutputWorkspace=van_wksp)
     Minus(LHSWorkspace=sam, RHSWorkspace=container, OutputWorkspace=sam)
     if container_bg is not None:
         Minus(LHSWorkspace=container, RHSWorkspace=container_bg, OutputWorkspace=container)
@@ -1266,7 +1277,8 @@ if __name__ == "__main__":
 
     Divide(LHSWorkspace=container, RHSWorkspace=van_corrected, OutputWorkspace=container)
     Divide(LHSWorkspace=container_raw, RHSWorkspace=van_corrected, OutputWorkspace=container_raw)
-    Divide(LHSWorkspace=van_bg, RHSWorkspace=van_corrected, OutputWorkspace=van_bg)
+    if van_bg is not None:
+        Divide(LHSWorkspace=van_bg, RHSWorkspace=van_corrected, OutputWorkspace=van_bg)
     if container_bg is not None:
         Divide(LHSWorkspace=container_bg, RHSWorkspace=van_corrected, OutputWorkspace=container_bg)
 
@@ -1288,8 +1300,9 @@ if __name__ == "__main__":
         container_bg_title += "_normalised"
         save_banks(container_bg, title=os.path.join(output_dir,container_bg_title+'.dat'), binning=binning)
 
-    vanadium_bg_title += "_normalized"
-    save_banks(van_bg, title=os.path.join(output_dir,vanadium_bg_title+".dat"), binning=binning)
+    if van_bg is not None:
+        vanadium_bg_title += "_normalized"
+        save_banks(van_bg, title=os.path.join(output_dir,vanadium_bg_title+".dat"), binning=binning)
     #-----------------------------------------------------------------------------------------#
     # STEP 3 & 4: Subtract multiple scattering and apply absorption correction
 
@@ -1472,7 +1485,8 @@ if __name__ == "__main__":
     Rebin(InputWorkspace=van_corrected, OutputWorkspace=van_corrected, Params=binning, PreserveEvents=True)
     Rebin(InputWorkspace='container',   OutputWorkspace='container',   Params=binning, PreserveEvents=True)
     Rebin(InputWorkspace='sample',      OutputWorkspace='sample',      Params=binning, PreserveEvents=True)
-    Rebin(InputWorkspace=van_bg,        OutputWorkspace='background',      Params=binning, PreserveEvents=True)
+    if van_bg is not None:
+        Rebin(InputWorkspace=van_bg,        OutputWorkspace='background',      Params=binning, PreserveEvents=True)
 
     #-----------------------------------------------------------------------------------------#
     # Apply Qmin Qmax limits
