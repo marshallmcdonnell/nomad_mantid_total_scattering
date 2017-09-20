@@ -617,6 +617,30 @@ def ConvertQToLambda(q,angle):
     lam = (4.*np.pi / q)*sin_theta_by_2
     return lam
 
+def CalculateElasticSelfScattering(InputWorkspace):
+    # get sample information: mass, total scattering length, and concentration of each species
+    total_stoich = 0.0
+    material =  mtd[InputWorkspace].sample().getMaterial().chemicalFormula()
+    atom_species = collections.OrderedDict()
+    for atom, stoich in zip(material[0], material[1]):
+        print(atom.neutron()['tot_scatt_length'])
+        b_sqrd_bar = mtd[InputWorkspace].sample().getMaterial().totalScatterXSection() / (4.*np.pi) # <b^2> == sigma_s / 4*pi (in barns)
+        atom_species[atom.symbol] = {'mass' : atom.mass,
+                                    'stoich' : stoich,
+                                    'b_sqrd_bar' : b_sqrd_bar }
+        total_stoich += stoich
+
+    for atom, props in atom_species.items(): # inefficient in py2, but works with py3
+        props['concentration'] = props['stoich'] / total_stoich
+
+    # calculate elastic self-scattering term
+    elastic_self_term = 0.0
+    for species, props in atom_species.items(): # inefficient in py2, but works with py3
+        elastic_self_term += props['concentration'] * props['b_sqrd_bar']
+
+    return elastic_self_term
+
+
 
 def CalculatePlaczekSelfScattering(IncidentWorkspace, ParentWorkspace, OutputWorkspace,
                                    L1, L2, Polar, Azimuthal=None, Detector=None):
@@ -643,11 +667,6 @@ def CalculatePlaczekSelfScattering(IncidentWorkspace, ParentWorkspace, OutputWor
     summation_term = 0.0
     for species, props in atom_species.items(): # inefficient in py2, but works with py3
         summation_term += props['concentration'] * props['b_sqrd_bar'] * neutron_mass / props['mass']
-
-    # calculate elastic self-scattering term
-    elastic_term = 0.0
-    for species, props in atom_species.items(): # inefficient in py2, but works with py3
-        elastic_term += props['concentration'] * props['b_sqrd_bar']
 
     # get incident spectrum and 1st derivative
     incident_index = 0
@@ -709,10 +728,9 @@ def CalculatePlaczekSelfScattering(IncidentWorkspace, ParentWorkspace, OutputWor
         term3 = f - 3.
 
         #per_bank_q = ConvertLambdaToQ(x_lambda,theta)
-        inelastic_placzek_term = 2.*(term1 - term2 + term3) * sin_theta_by_2 * sin_theta_by_2 * summation_term # See Eq. (A1.14) of
-        per_bank_correction = elastic_term + inelastic_placzek_term
+        inelastic_placzek_self_correction = 2.*(term1 - term2 + term3) * sin_theta_by_2 * sin_theta_by_2 * summation_term # See Eq. (A1.14) of
         x_lambdas = np.append(x_lambdas, x_lambda)
-        placzek_correction = np.append(placzek_correction, per_bank_correction)
+        placzek_correction = np.append(placzek_correction, inelastic_placzek_self_correction)
 
 
     CreateWorkspace(DataX=x_lambdas, DataY=placzek_correction, OutputWorkspace=OutputWorkspace,
