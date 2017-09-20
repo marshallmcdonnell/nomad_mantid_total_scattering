@@ -39,8 +39,7 @@
             },
 
     "calib": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_d91621_2017_04_12_shifter.h5",
-    "charac": { "pdf" : "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt",
-                "rietveld" : "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt"},
+    "charac": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt",
     "binning": [0.0, 0.02, 40.0],
     "sumbanks": [3],
     "CacheDir" : "/SNS/NOM/shared/cache_files",
