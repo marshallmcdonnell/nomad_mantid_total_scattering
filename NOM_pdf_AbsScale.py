@@ -1442,7 +1442,7 @@ if __name__ == "__main__":
 
     # F(Q) bank-by-bank Section
     CloneWorkspace(InputWorkspace=sam_corrected, OutputWorkspace='FQ_banks_ws')
-    FQ_banks = mtd['FQ_banks_ws']
+    FQ_banks = 'FQ_banks'
 
     # S(Q) bank-by-bank Section
     material = mtd[sam_corrected].sample().getMaterial()
@@ -1462,8 +1462,8 @@ if __name__ == "__main__":
     print("Laue term:", laue_monotonic_diffuse_scat)
     print(mtd[sam_corrected].sample().getMaterial().totalScatterXSection())
     print(mtd[van_corrected].sample().getMaterial().totalScatterXSection())
-    exit()
 
+    '''
     #-----------------------------------------------------------------------------------------#
     # Ouput bank-by-bank with linear fits for high-Q
 
@@ -1482,11 +1482,10 @@ if __name__ == "__main__":
                'bcoh_avg_sqrd' : bcoh_avg_sqrd,
                'self_scat' : self_scat }
 
-    '''
     save_banks_with_fit( title, fitrange_individual, InputWorkspace='SQ_banks', **kwargs)
     save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks', **kwargs)
     save_banks_with_fit( title, fitrange_individual, InputWorkspace='FQ_banks_raw', **kwargs)
-    '''
+
     save_banks('SQ_banks',     title=os.path.join(output_dir,title+"_SQ_banks.dat"),     binning=binning)
     save_banks('FQ_banks',     title=os.path.join(output_dir,title+"_FQ_banks.dat"),     binning=binning)
     save_banks('FQ_banks_raw', title=os.path.join(output_dir,title+"_FQ_banks_raw.dat"), binning=binning)
@@ -1577,3 +1576,4 @@ if __name__ == "__main__":
 
     save_file(FQ,                       title+'_FQ.dat', header=header_lines)
     save_file(FQ_raw,                   title+'_FQ_raw.dat', header=header_lines)
+    '''
