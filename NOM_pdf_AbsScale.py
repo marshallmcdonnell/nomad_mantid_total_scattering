@@ -549,7 +549,10 @@ def FitIncidentSpectrum(InputWorkspace, OutputWorkspace,
         x = incident_ws.readX(incident_index)
         y = incident_ws.readY(incident_index)
     else:
-        params = [float(x) for x in BinningForCalc.split(',')]
+        try:
+            params = [float(x) for x in BinningForCalc.split(',')]
+        except AttributeError:
+            params = [float(x) for x in BinningForCalc]
         xlo, binsize, xhi = params
         x = np.arange(xlo, xhi, binsize)
 
