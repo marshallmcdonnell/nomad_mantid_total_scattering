@@ -771,8 +771,8 @@ def SetInelasticCorrection(inelastic_dict):
 
     if corr_type == "Placzek":
         default_settings = {"Order" : "1st",
-                            "Self" : "True",
-                            "Interference" : "False",
+                            "Self" : True,
+                            "Interference" : False,
                             "FitSpectrumWith" : "GaussConvCubicSpline",
                             "LambdaBinning" : "0.16,0.04,2.8"}
         inelastic_settings = default_settings.copy()
@@ -1147,7 +1147,6 @@ if __name__ == "__main__":
     save_banks(van_corrected, title=os.path.join(output_dir, vanadium_title+".dat"), binning=binning)
 
     # Inelastic correction
-    print(van_inelastic_corr['Type'])
     if van_inelastic_corr['Type'] == "Placzek":
         for van_scan in van['Runs']:
             van_incident_wksp = 'van_incident_wksp'
@@ -1449,6 +1448,8 @@ if __name__ == "__main__":
 
     # S(Q) bank-by-bank Section
     material = mtd[sam_corrected].sample().getMaterial()
+    if material.name() is None or len(material.name().strip()) == 0:
+        raise RuntimeError('Sample material was not set')
     bcoh_avg_sqrd = material.cohScatterLength()*material.cohScatterLength()
     btot_sqrd_avg = material.totalScatterLengthSqrd()
     laue_monotonic_diffuse_scat = btot_sqrd_avg / bcoh_avg_sqrd

@@ -13,8 +13,8 @@
              "MultipleScatteringCorrection" : { "Type" : "Carpenter" },
              "InelasticCorrection" : { "Type" : "Placzek",
                                        "Order" : "1st",
-                                       "Self" : "True",
-                                       "Interference" : "False",
+                                       "Self" : true,
+                                       "Interference" : false,
                                        "FitSpectrumWith" : "GaussConvCubicSpline",
                                        "LambdaBinningForFit"  : "0.16,0.04,2.8",
                                        "LambdaBinningForCalc" : "0.16,0.0001,2.9"}
@@ -30,8 +30,8 @@
              "MultipleScatteringCorrection" : { "Type" : "Carpenter" },
              "InelasticCorrection" : { "Type" : "Placzek",
                                        "Order" : "1st",
-                                       "Self" : "True",
-                                       "Interference" : "False",
+                                       "Self" : true,
+                                       "Interference" : false,
                                        "FitSpectrumWith" : "GaussConvCubicSpline",
                                        "LambdaBinningForFit"  : "0.16,0.04,2.8",
                                        "LambdaBinningForCalc" : "0.1,0.0001,3.0"}
