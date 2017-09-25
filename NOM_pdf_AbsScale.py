@@ -811,14 +811,14 @@ if __name__ == "__main__":
     nf = NexusHandler(instr, options.config)
 
     # Get sample info
-    sample = config['sam']
+    sample = config['Sample']
     sam_mass_density = sample.get('MassDensity', None)
     sam_packing_fraction = sample.get('PackingFraction', None)
     sam_geometry = sample.get('Geometry', None)
     sam_material = sample.get('Material', None)
 
     # Get normalization info
-    van = config['van']
+    van = config['Vanadium']
     van_mass_density = van.get('MassDensity', None)
     van_packing_fraction = van.get('PackingFraction',1.0)
     van_geometry = van.get('Geometry', None)
