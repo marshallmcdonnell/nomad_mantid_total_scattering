@@ -792,7 +792,6 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Absolute normalization PDF generation")
     parser.add_argument('json', help='Input json file')
-    parser.add_argument('--instr', nargs='?', help='Specify the instrument (default="NOM")', default='NOM')
     parser.add_argument('--config', nargs='?',
                         help='Specify the configuration file (default="nomad_config.cfg")',
                         default='nomad_config.cfg')
@@ -806,9 +805,10 @@ if __name__ == "__main__":
         else:
             config = json_loads_byteified(handle.read())
     title = config['title']
+    instr = config['Instrument']
 
     print("create index of runs")
-    nf = NexusHandler(options.instr, options.config)
+    nf = NexusHandler(instr, options.config)
 
     # Get sample info
     sample = config['sam']
@@ -837,20 +837,20 @@ if __name__ == "__main__":
     sample['Runs'] = procNumbers(sample['Runs'])
     sample['Background']['Runs'] = procNumbers(sample['Background'].get('Runs', None))
 
-    sam_scans = ','.join(['%s_%d' % (options.instr, num) for num in sample['Runs']])
-    container = ','.join(['%s_%d' % (options.instr, num) for num in sample['Background']["Runs"]])
+    sam_scans = ','.join(['%s_%d' % (instr, num) for num in sample['Runs']])
+    container = ','.join(['%s_%d' % (instr, num) for num in sample['Background']["Runs"]])
     container_bg = None
     if "Background" in sample['Background']:
         sample['Background']['Background']['Runs'] = procNumbers(sample['Background']['Background']['Runs'])
-        container_bg = ','.join(['%s_%d' % (options.instr, num) for num in sample['Background']['Background']['Runs']])
+        container_bg = ','.join(['%s_%d' % (instr, num) for num in sample['Background']['Background']['Runs']])
         if len(container_bg) == 0:
             container_bg = None
 
     van['Runs'] = procNumbers(van['Runs'])
     van['Background']['Runs'] = procNumbers(van['Background']['Runs'])
 
-    van_scans = ','.join(['%s_%d' % (options.instr, num) for num in van['Runs']])
-    van_bg = ','.join(['%s_%d' % (options.instr, num) for num in van['Background']["Runs"]])
+    van_scans = ','.join(['%s_%d' % (instr, num) for num in van['Runs']])
+    van_bg = ','.join(['%s_%d' % (instr, num) for num in van['Background']["Runs"]])
     if len(van_bg) == 0:
         van_bg = None
 
@@ -1152,7 +1152,7 @@ if __name__ == "__main__":
             van_incident_wksp = 'van_incident_wksp'
             lambda_binning_fit  = van['InelasticCorrection']['LambdaBinningForFit']
             lambda_binning_calc = van['InelasticCorrection']['LambdaBinningForCalc']
-            GetIncidentSpectrumFromMonitor('%s_%s' % (options.instr, str(van_scan)), OutputWorkspace=van_incident_wksp)
+            GetIncidentSpectrumFromMonitor('%s_%s' % (instr, str(van_scan)), OutputWorkspace=van_incident_wksp)
 
             fit_type = van['InelasticCorrection']['FitSpectrumWith']
             FitIncidentSpectrum(InputWorkspace=van_incident_wksp,
@@ -1377,7 +1377,7 @@ if __name__ == "__main__":
             sam_incident_wksp = 'sam_incident_wksp'
             lambda_binning_fit  = sample['InelasticCorrection']['LambdaBinningForFit']
             lambda_binning_calc = sample['InelasticCorrection']['LambdaBinningForCalc']
-            GetIncidentSpectrumFromMonitor('%s_%s' % (options.instr, str(sam_scan)), OutputWorkspace=sam_incident_wksp)
+            GetIncidentSpectrumFromMonitor('%s_%s' % (instr, str(sam_scan)), OutputWorkspace=sam_incident_wksp)
 
             fit_type = sample['InelasticCorrection']['FitSpectrumWith']
             FitIncidentSpectrum(InputWorkspace=sam_incident_wksp,
