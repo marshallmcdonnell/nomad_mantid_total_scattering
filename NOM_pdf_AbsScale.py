@@ -825,8 +825,6 @@ if __name__ == "__main__":
     van_material = van.get('Material', 'V')
 
     # Get calibration, characterization, and other settings
-    calib = config['calib']
-    charac = config['charac']
     binning= config['binning']
     high_q_linear_fit_range = config['HighQLinearFitRange']
     wkspIndices=config['sumbanks'] # workspace indices - zero indexed arrays
@@ -904,14 +902,14 @@ if __name__ == "__main__":
     van_ms_corr = van.get("MultipleScatteringCorrection", { "Type" : None} )
     van_inelastic_corr = SetInelasticCorrection(van.get('InelasticCorrection', None))
 
-    results = PDLoadCharacterizations(Filename=charac, OutputWorkspace='characterizations')
+    results = PDLoadCharacterizations(Filename=config['Characterizations']['Filename'], OutputWorkspace='characterizations')
     alignAndFocusArgs = dict(PrimaryFlightPath = results[2],
                              SpectrumIDs       = results[3],
                              L2                = results[4],
                              Polar             = results[5],
                              Azimuthal         = results[6])
 
-    alignAndFocusArgs['CalFilename'] = calib
+    alignAndFocusArgs['CalFilename'] = config['Calibration']['Filename']
     #alignAndFocusArgs['GroupFilename'] don't use
     #alignAndFocusArgs['Params'] use resampleX
     alignAndFocusArgs['ResampleX'] = -6000
