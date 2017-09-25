@@ -1371,6 +1371,8 @@ if __name__ == "__main__":
     ConvertUnits(InputWorkspace=sam_corrected, OutputWorkspace=sam_corrected,
                  Target='Wavelength', EMode='Elastic')
     if sam_inelastic_corr['Type'] == "Placzek":
+        if sam_material is None:
+            raise Exception("ERROR: For Placzek correction, must specifiy a sample material.")
         for sam_scan in sample['Runs']:
             sam_incident_wksp = 'sam_incident_wksp'
             lambda_binning_fit  = sample['InelasticCorrection']['LambdaBinningForFit']
@@ -1385,8 +1387,6 @@ if __name__ == "__main__":
                                 BinningForCalc=lambda_binning_calc)
 
             sam_placzek = 'sam_placzek'
-            if sam_material is None:
-                raise Exception("ERROR: For Placzek correction, must specifiy a sample material.")
             SetSample(InputWorkspace=sam_incident_wksp,
                       Material={'ChemicalFormula': sam_material,
                                 'SampleMassDensity' : sam_mass_density} )
