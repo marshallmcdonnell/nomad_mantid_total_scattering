@@ -1,7 +1,6 @@
 {
     "Instrument": "NOM",
-    "HighQLinearFitRange" : 0.60,
-    "title" : "Si_SRM_e_d91772_no_mask",
+    "Title" : "Si_SRM_e_d91772_no_mask",
     "Sample": { "Runs" : "91796",
              "Background" : { "Runs" : "91766",
                               "Background" : { "Runs" : "91607" }
@@ -38,9 +37,11 @@
                                             "LambdaBinningForCalc" : "0.1,0.0001,3.0"}
                 },
     "Calibration":{"Filename":"/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_d91621_2017_04_12_shifter.h5"},
-    "Characterizations":{"Filename":"/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt"},
-    "binning": [0.0, 0.02, 40.0],
-    "sumbanks": [3],
+    "HighQLinearFitRange" : 0.60,
+    "Merging":{"QBinning": [0.0, 0.02, 40.0],
+               "SumBanks": [3],
+               "Characterizations":{"Filename":"/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt"}
+              },
     "CacheDir" : "/SNS/NOM/shared/cache_files",
     "OutputDir" : "./test"
 }

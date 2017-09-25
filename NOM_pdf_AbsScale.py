@@ -804,7 +804,7 @@ if __name__ == "__main__":
             config = json.load(handle)
         else:
             config = json_loads_byteified(handle.read())
-    title = config['title']
+    title = config['Title']
     instr = config['Instrument']
 
     print("create index of runs")
@@ -825,9 +825,10 @@ if __name__ == "__main__":
     van_material = van.get('Material', 'V')
 
     # Get calibration, characterization, and other settings
-    binning= config['binning']
     high_q_linear_fit_range = config['HighQLinearFitRange']
-    wkspIndices=config['sumbanks'] # workspace indices - zero indexed arrays
+    binning= config['Merging']['QBinning']
+    wkspIndices=config['Merging']['SumBanks'] # workspace indices - zero indexed arrays
+    # TODO how much of each bank gets merged has info here in the form of {"ID", "Qmin", "QMax"}
     cache_dir = config.get("CacheDir", os.path.abspath('.'))
     output_dir = config.get("OutputDir", os.path.abspath('.'))
 
@@ -902,7 +903,7 @@ if __name__ == "__main__":
     van_ms_corr = van.get("MultipleScatteringCorrection", { "Type" : None} )
     van_inelastic_corr = SetInelasticCorrection(van.get('InelasticCorrection', None))
 
-    results = PDLoadCharacterizations(Filename=config['Characterizations']['Filename'], OutputWorkspace='characterizations')
+    results = PDLoadCharacterizations(Filename=config['Merging']['Characterizations']['Filename'], OutputWorkspace='characterizations')
     alignAndFocusArgs = dict(PrimaryFlightPath = results[2],
                              SpectrumIDs       = results[3],
                              L2                = results[4],
