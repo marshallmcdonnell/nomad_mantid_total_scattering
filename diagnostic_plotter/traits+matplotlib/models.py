@@ -7,7 +7,7 @@ from traits.api \
 
 from traitsui.api \
     import Group, View, Item, TableEditor, RangeEditor, \
-           ListEditor, EnumEditor, HGroup, VGroup
+           TreeEditor, TreeNode, HGroup, VGroup
 
 from traitsui.table_column \
     import ObjectColumn
@@ -53,8 +53,11 @@ class Dataset(HasTraits):
 
 class Measurement(HasTraits):
     datasets = List(Dataset)
+    title = Str
 
-
+class Experiment(HasTraits):
+    measurements = List(Measurement) 
+    title = Str
 
 table_editor= TableEditor(
                            columns= [ObjectColumn(name='title', editable=False, width=0.3)], 
@@ -62,16 +65,40 @@ table_editor= TableEditor(
                            auto_size=False,
                          )
 
-measurement_view = View( 
-                        Item('datasets', show_label=False, editor=table_editor),
-                        resizable=True,
-                       )
+measurement_view = View(Item('datasets', show_label=False, editor=table_editor),resizable=True, )
+experiment_view = View(Item('measurements', show_label=False, editor=table_editor),resizable=True, )
 
+tree_editor = TreeEditor(
+                  nodes = [
+                            TreeNode( node_for  = [ Experiment ],
+                                      auto_open = True,
+                                      children  = '',
+                                      label     = 'title',
+                                      view      = View( Group('title', orientation='vertical', show_left=True))),
+                            TreeNode( node_for  = [ Experiment ],
+                                      auto_open = True,
+                                      children  = 'measurements',
+                                      label     = '=Measurements',
+                                      view      = View(),
+                                      add       = [ Measurement ] ),
+                            TreeNode( node_for  = [ Measurement ],
+                                      auto_open = True,
+                                      children  = 'datasets',
+                                      label     = 'title',
+                                      view      = View( Group('title', orientation='vertical', show_left=True)),
+                                      add       = [ Dataset ] ),
+                            TreeNode( node_for  = [ Dataset ],
+                                      auto_open = True,
+                                      label     = 'title',
+                                      view      = View()),
+                          ],
+                 selected='selected'
+)
 
 
 class ControlPanel(HasTraits):
     # Passed in measurement
-    measurement = Instance(Measurement, ())
+    experiment = Instance(Experiment, ())
 
     # Figure to display selected dataset
     figure = Instance(Figure, ())
@@ -93,7 +120,7 @@ class ControlPanel(HasTraits):
              HGroup(
                     Item('figure', editor=MPLFigureEditor(), show_label=False),
                     VGroup(
-                           Item('datasets', editor=table_editor),
+                           Item(name='experiment',editor=tree_editor,resizable=True),
                            Group(
                             Item('scale', editor=RangeEditor(mode='slider')),  
                             Item('shift', editor=RangeEditor(mode='xslider')),
@@ -102,8 +129,13 @@ class ControlPanel(HasTraits):
                 ),
                 resizable=True)
 
+    @property_depends_on('experiment')
     def _get_datasets(self):
-        return [dataset for dataset in self.measurement.datasets]
+        datasets = list()
+        for measurement in self.experiment.measurements:
+            for dataset in measurement.datasets:
+                datasets.append(dataset)
+        return datasets
             
 
     @property_depends_on('selected')
@@ -113,17 +145,40 @@ class ControlPanel(HasTraits):
 
         return self.selected.x, self.selected.y
 
-    @on_trait_change('selected,scale,shift')
-    def plot(self):
-        scale = self.scale
-        shift = self.shift
+    @on_trait_change('selected')
+    def plot_selection(self):
+        try:
+            x = self.selected.x
+            y = self.selected.y 
 
-        x = self.selected.x
-        y = scale*(self.selected.y) + shift 
-   
-        self.figure.pan_zoom = PanAndZoom(self.figure)
-        axes = self.figure.add_subplot(111)
-        
+            self.figure.pan_zoom = PanAndZoom(self.figure)
+
+            axes = self.figure.add_subplot(111)
+            axes.set_xlim(min(x),max(x))
+            axes.set_ylim(min(y),max(y))
+
+            self.plot(axes, x, y)
+    
+        except AttributeError:
+            pass
+
+    @on_trait_change('scale,shift')
+    def plot_modification(self):
+        try:
+            scale = self.scale
+            shift = self.shift
+
+            x = self.selected.x
+            y = scale*(self.selected.y) + shift 
+
+            axes = self.figure.add_subplot(111)
+
+            self.plot(axes, x, y)
+        except AttributeError:
+            pass
+ 
+    def plot(self, axes, x, y):
+
         if not axes.lines:
             axes.plot(x, y)
         else:
@@ -135,11 +190,16 @@ class ControlPanel(HasTraits):
         if canvas is not None:
             canvas.draw()
 
+       
+
+
+
 
    
 
 if __name__ == "__main__":
 
+    # Make two datsets w/ titles
     x = np.linspace(0,4*np.pi, 200)
     y = np.sin(x)
     d1 = Dataset(x=x,y=y,title='sin(x)') 
@@ -147,9 +207,19 @@ if __name__ == "__main__":
     y = np.sin(x) * np.sin(x)
     d2 = Dataset(x=x,y=y,title='sin(x) * sin(x)') 
 
-    m1 = Measurement(datasets=[d1, d2])
+    # Use the datasets to make a Measurement
+    m1 = Measurement(datasets=[d1, d2], title='sine functions')
+    #m1.configure_traits(view=measurement_view)
 
-    m1.configure_traits(view=measurement_view)
+    # Now make a second measurement
+    x = np.linspace(-20,20,200)
+    m2 = Measurement( datasets = [ Dataset(x=x, y=x*x, title='x^2'),
+                                   Dataset(x=x, y=x*x*x, title='x^3') ],
+                      title='polynomials' )
 
-    cp = ControlPanel(measurement=m1)
+    # Create a Experiment from these two measurements
+    e1 = Experiment(measurements=[m1,m2],title='Test Functions')
+
+    # Use the ControlPanel to View the Measurement
+    cp = ControlPanel(experiment=e1)
     cp.configure_traits()
