@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+from pyface.qt import QtGui, QtCore
+from traits.etsconfig.api import ETSConfig
+ETSConfig.toolkit = 'qt4'
+
 from traits.api \
     import HasTraits, Array, Str, Instance, List, Float,\
            DelegatesTo, Property, Any, \
@@ -17,10 +21,11 @@ from traitsui.qt4.basic_editor_factory import BasicEditorFactory
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT
 
 import numpy as np
 
-from mpl_interaction import PanAndZoom
+from mpl_interaction import ZoomOnWheel
 
 #-----------------------------------------------------------#
 # Matplotlib w/ Qt4 classes for TraitsUI Editor
@@ -35,8 +40,20 @@ class _MPLFigureEditor(Editor):
         pass
 
     def _create_canvas(self, parent):
-        mpl_canvas = FigureCanvas(self.value)
-        return mpl_canvas
+       """ Create the MPL canvas. """
+       # matplotlib commands to create a canvas
+       frame = QtGui.QWidget()
+       mpl_canvas = FigureCanvas(self.value)
+       mpl_canvas.setParent(frame)
+       mpl_toolbar = NavigationToolbar2QT(mpl_canvas,frame)
+
+       vbox = QtGui.QVBoxLayout()
+       vbox.addWidget(mpl_canvas)
+       vbox.addWidget(mpl_toolbar)
+       frame.setLayout(vbox)
+
+       return frame
+
 
 class MPLFigureEditor(BasicEditorFactory):
 
@@ -59,14 +76,15 @@ class Experiment(HasTraits):
     measurements = List(Measurement) 
     title = Str
 
+
+#-----------------------------------------------------------#
+# Editors
+
 table_editor= TableEditor(
                            columns= [ObjectColumn(name='title', editable=False, width=0.3)], 
                            selected='selected',
                            auto_size=False,
                          )
-
-measurement_view = View(Item('datasets', show_label=False, editor=table_editor),resizable=True, )
-experiment_view = View(Item('measurements', show_label=False, editor=table_editor),resizable=True, )
 
 tree_editor = TreeEditor(
                   nodes = [
@@ -74,7 +92,7 @@ tree_editor = TreeEditor(
                                       auto_open = True,
                                       children  = '',
                                       label     = 'title',
-                                      view      = View( Group('title', orientation='vertical', show_left=True))),
+                                      view      = View( Group('title', orientation='vertical', show_left=False))),
                             TreeNode( node_for  = [ Experiment ],
                                       auto_open = True,
                                       children  = 'measurements',
@@ -85,16 +103,41 @@ tree_editor = TreeEditor(
                                       auto_open = True,
                                       children  = 'datasets',
                                       label     = 'title',
-                                      view      = View( Group('title', orientation='vertical', show_left=True)),
+                                      view      = View( Group('title', orientation='vertical', show_left=False)),
                                       add       = [ Dataset ] ),
                             TreeNode( node_for  = [ Dataset ],
                                       auto_open = True,
                                       label     = 'title',
                                       view      = View()),
                           ],
-                 selected='selected'
+                 selected='selected',
+                 editable=False,
 )
 
+#-----------------------------------------------------------#
+# Views
+
+measurement_view  = View(Item('datasets', show_label=False, editor=table_editor),resizable=True, )
+experiment_view   = View(Item('measurements', show_label=False, editor=table_editor),resizable=True, )
+control_panel_view = View(
+                        HGroup(
+                            Item('figure', editor=MPLFigureEditor(), show_label=False),
+                            VGroup(
+                                Item(name='experiment',
+                                     editor=tree_editor,
+                                     resizable=True,
+                                     show_label=False),
+                                Group(
+                                    Item('scale', editor=RangeEditor(mode='slider')),  
+                                    Item('shift', editor=RangeEditor(mode='xslider')),
+                                ),
+                            ),
+                        ),
+                resizable=True
+)
+
+#-----------------------------------------------------------#
+# Main Control Panel
 
 class ControlPanel(HasTraits):
     # Passed in measurement
@@ -115,19 +158,6 @@ class ControlPanel(HasTraits):
     # Scale and shift controls
     scale = Float(1.0)
     shift = Float(0.0)
-
-    view = View(
-             HGroup(
-                    Item('figure', editor=MPLFigureEditor(), show_label=False),
-                    VGroup(
-                           Item(name='experiment',editor=tree_editor,resizable=True),
-                           Group(
-                            Item('scale', editor=RangeEditor(mode='slider')),  
-                            Item('shift', editor=RangeEditor(mode='xslider')),
-                           ),
-                          ),
-                ),
-                resizable=True)
 
     @property_depends_on('experiment')
     def _get_datasets(self):
@@ -151,7 +181,7 @@ class ControlPanel(HasTraits):
             x = self.selected.x
             y = self.selected.y 
 
-            self.figure.pan_zoom = PanAndZoom(self.figure)
+            self.figure.pan_zoom = ZoomOnWheel(self.figure)
 
             axes = self.figure.add_subplot(111)
             axes.set_xlim(min(x),max(x))
@@ -189,12 +219,6 @@ class ControlPanel(HasTraits):
         canvas = self.figure.canvas
         if canvas is not None:
             canvas.draw()
-
-       
-
-
-
-
    
 
 if __name__ == "__main__":
@@ -222,4 +246,4 @@ if __name__ == "__main__":
 
     # Use the ControlPanel to View the Measurement
     cp = ControlPanel(experiment=e1)
-    cp.configure_traits()
+    cp.configure_traits(view=control_panel_view)
