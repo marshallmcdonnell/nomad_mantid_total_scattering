@@ -1,73 +1,64 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# /*##########################################################################
-#
-# Copyright (c) 2016 European Synchrotron Radiation Facility
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-#
-# ###########################################################################*/
-"""Pan and zoom interaction to plug on a matplotlib Figure.
-
-Interaction:
-
-- Zoom in/out with the mouse wheel
-- Pan figures by dragging the mouse with left button pressed
-- Select a zoom-in area by dragging the mouse with right button pressed
-
-It provides a figure_pz function to create a Figure with interaction.
-Example:
-
->>> import matplotlib.pyplot as plt
->>> from mpl_interaction import figure_pz
->>> fig = figure_pz()
->>> ax = fig.add_subplot(1, 1, 1)
->>> ax.plot((1, 2, 1))
->>> plt.show()
-
-The :class:`PanAndZoom` class can be used to add interaction
-to an existing Figure.
-Example:
-
->>> import matplotlib.pyplot as plt
->>> from mpl_interaction import PanAndZoom
->>> fig = plt.figure()
->>> pan_zoom = PanAndZoom(fig)  # Add support for pan and zoom
->>> ax = fig.add_subplot(1, 1, 1)
->>> ax.plot((1, 2, 1))
->>> plt.show()
-
-Known limitations:
-
-- Only support linear and log scale axes.
-- Zoom area not working well with keep aspect ratio.
-- Interfere with matplotlib toolbar.
-"""
-
 import logging
 import math
 import weakref
 
 import numpy
 
-import matplotlib.pyplot as _plt
+from pyface.qt import QtGui, QtCore
+from traits.etsconfig.api \
+    import ETSConfig
+ETSConfig.toolkit = "qt4"
 
+if ETSConfig.toolkit == "qt4":
+    from traitsui.qt4.editor import Editor
+    from traitsui.qt4.basic_editor_factory import BasicEditorFactory
+elif ETSConfig.toolkit == "wx":
+    from traitsui.wx.editor import Editor
+    from traitsui.qt4.basic_editor_factory import BasicEditorFactory
+
+
+import matplotlib.pyplot as _plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT
+
+
+
+#-----------------------------------------------------------#
+# Matplotlib w/ Qt4 classes for TraitsUI Editor
+
+class _MPLFigureEditor(Editor):
+    
+    def init(self, parent):
+        self.control = self._create_canvas(parent)
+        self.set_tooltip()
+
+    def update_editor(self):
+        pass
+
+    def _create_canvas(self, parent):
+       """ Create the MPL canvas. """
+       # matplotlib commands to create a canvas
+       frame = QtGui.QWidget()
+       mpl_canvas = FigureCanvas(self.value)
+       mpl_canvas.setParent(frame)
+       mpl_toolbar = NavigationToolbar2QT(mpl_canvas,frame)
+
+       vbox = QtGui.QVBoxLayout()
+       vbox.addWidget(mpl_canvas)
+       vbox.addWidget(mpl_toolbar)
+       frame.setLayout(vbox)
+
+       return frame
+
+
+class MPLFigureEditor(BasicEditorFactory):
+
+   klass = _MPLFigureEditor
+
+
+#-----------------------------------------------------------#
+# Matplotlib Interactions
 
 class MplInteraction(object):
     """Base class for class providing interaction to a matplotlib Figure."""
@@ -479,3 +470,5 @@ if __name__ == "__main__":
     ax6.grid(True)
 
     plt.show()
+
+
