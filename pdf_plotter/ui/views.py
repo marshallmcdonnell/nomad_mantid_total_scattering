@@ -1,6 +1,7 @@
 
 from traitsui.api \
-    import TableEditor, RangeEditor, View, HGroup, VGroup, Group, Item
+    import TableEditor, RangeEditor, CheckListEditor, \
+           View, HGroup, VGroup, Group, Item
 
 from traitsui.table_column \
     import ObjectColumn
@@ -10,7 +11,7 @@ from mpl_utilities \
 
 from editors import ExperimentTreeEditor
 
-from controllers import PrintHelpAction
+from controllers import CachePlotAction
 
 
 #-----------------------------------------------------------#
@@ -38,10 +39,11 @@ ControlPanelView = View(
                                 Group(
                                     Item('scale', editor=RangeEditor(mode='slider')),  
                                     Item('shift', editor=RangeEditor(mode='xslider')),
+                                    Item('selected_cmap', editor=CheckListEditor(name='cmap_list')),
                                 ),
                             ),
                         ),
-                buttons = [ PrintHelpAction ],
+                buttons = [ CachePlotAction ],
                 resizable=True,
 )
 
