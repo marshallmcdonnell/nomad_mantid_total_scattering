@@ -11,7 +11,7 @@ from mpl_utilities \
 
 from editors import ExperimentTreeEditor
 
-from controllers import CachePlotAction
+from controllers import CachePlotAction, ClearCacheAction
 
 
 #-----------------------------------------------------------#
@@ -43,7 +43,7 @@ ControlPanelView = View(
                                 ),
                             ),
                         ),
-                buttons = [ CachePlotAction ],
+                buttons = [ CachePlotAction, ClearCacheAction ],
                 resizable=True,
 )
 

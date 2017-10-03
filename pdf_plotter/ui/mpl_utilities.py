@@ -194,6 +194,11 @@ class ZoomOnWheel(MplInteraction):
             return new_max, new_min
 
     def _on_mouse_wheel(self, event):
+        # Skip if we are in the legend space
+        eventInLegend, t =  self.figure.gca().get_legend().legendPatch.contains(event)
+        if eventInLegend:
+            return
+
         if event.step > 0:
             scale_factor = self.scale_factor
         else:

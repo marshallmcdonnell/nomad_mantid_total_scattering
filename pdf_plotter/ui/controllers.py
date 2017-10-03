@@ -12,6 +12,9 @@ from models \
 CachePlotAction = Action(name="Cache Plot",
                          action="cache_plot")
 
+ClearCacheAction = Action(name="Clear Cache",
+                          action="clear_cache")
+
 
 #-----------------------------------------------------------#
 # Controllers
@@ -40,7 +43,10 @@ class ControlPanelHandler(Handler):
             info.object.axes.plot(b.x, b.y, label=b.title)
             info.object.plot_modification()
 
-
+    def clear_cache(self,info):
+        info.object.cached_plots = []
+        info.object.axes.cla()
+        info.object.plot_modification()
             
         
         
