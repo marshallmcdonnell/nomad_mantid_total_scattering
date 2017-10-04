@@ -26,8 +26,8 @@ class ControlPanelHandler(Handler):
 
             # Get info for selected Dataset (=a) and create new Dataset (=b)
             a = selected
-            shift = info.object.controls.shift
-            scale = info.object.controls.scale
+            shift = info.object.controls.shift_factor
+            scale = info.object.controls.scale_factor
             b = Dataset(x=a.x, y=scale * a.y + shift, title=a.title)
 
             # If we have modified Dataset 'a', change title of 'b'

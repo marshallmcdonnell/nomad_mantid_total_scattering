@@ -1,7 +1,8 @@
 
 from traitsui.api \
-    import TableEditor, RangeEditor, CheckListEditor, InstanceEditor, \
-    View, HSplit, VGroup, Group, UItem, Item
+    import TableEditor, RangeEditor, CheckListEditor, \
+    InstanceEditor, TextEditor, \
+    View, HGroup, VGroup, Group, UItem, Item
 
 from traitsui.table_column \
     import ObjectColumn
@@ -49,20 +50,42 @@ SofqPlotView = View(
         springy=True))
 ControlsView = View(
     VGroup(
-        UItem(name='experiment',
-              editor=ExperimentTreeEditor,
-              resizable=True,
-              show_label=False),
+        UItem(
+            name='experiment',
+            editor=ExperimentTreeEditor,
+            resizable=True,
+            show_label=False),
         Group(
-            UItem('scale', editor=RangeEditor(mode='slider')),
-            UItem('shift', editor=RangeEditor(mode='xslider')),
-            UItem('selected_cmap', editor=CheckListEditor(name='cmap_list')),
+            HGroup(
+                UItem('scale_min'),
+                UItem(
+                    'scale_factor',
+                    editor=RangeEditor(
+                        mode='slider',
+                        low_name='scale_min',
+                        high_name='scale_max')),
+                UItem('scale_max'),
+                show_border=True,
+            ),
+            HGroup(
+                UItem('shift_min'),
+                UItem(
+                    'shift_factor',
+                    editor=RangeEditor(
+                        mode='slider',
+                        low_name='shift_min',
+                        high_name='shift_max')),
+                UItem('shift_max'),
+            ),
+            UItem(
+                'selected_cmap',
+                editor=CheckListEditor(
+                    name='cmap_list')),
         ),
-    )
-)
+    ))
 
 ControlPanelView = View(
-    HSplit(
+    HGroup(
         UItem('sofq_plot', width=500, style='custom', editor=InstanceEditor()),
         UItem('controls', width=200, style='custom', editor=InstanceEditor()),
     ),

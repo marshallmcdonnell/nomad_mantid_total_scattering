@@ -2,7 +2,7 @@
 from __future__ import (absolute_import, division, print_function)
 
 from traits.api \
-    import HasTraits, Instance, List, Float, Property, Any, \
+    import HasTraits, Instance, List, Float, Property, Any, Range, \
     on_trait_change, property_depends_on
 
 from matplotlib import cm
@@ -57,9 +57,15 @@ class Controls(HasTraits):
     # The contents of the currently selected dataset
     selected_contents = Property
 
-    # Scale and shift controls
-    scale = Float(1.0)
-    shift = Float(0.0)
+    # Scale controls
+    scale_min    = Float(0.0)
+    scale_max    = Float(10.0)
+    scale_factor = Float(1.0) 
+
+    # Scale controls
+    shift_min    = Float(-5.0)
+    shift_max    = Float(5.0)
+    shift_factor = Float(0.0)
 
     # Cached plots we keep on plot
     cached_plots = List
@@ -242,8 +248,8 @@ class ControlPanel(HasTraits):
         if isinstance(self.controls.selected, Dataset):
 
             # Reset the scale and shift
-            self.controls.scale = 1.0
-            self.controls.shift = 0.0
+            self.controls.scale_factor = 1.0
+            self.controls.shift_factor = 0.0
 
             # Get the Axes
             axes = self._get_axes()
@@ -262,12 +268,12 @@ class ControlPanel(HasTraits):
             # Plot / Re-plot
             self.plot(axes, x, y, self.controls.selected.title)
 
-    @on_trait_change('controls.scale,controls.shift')
+    @on_trait_change('controls.scale_factor,controls.shift_factor')
     def plot_modification(self):
         try:
             axes = self._get_axes()
-            scale = self.controls.scale
-            shift = self.controls.shift
+            scale = self.controls.scale_factor
+            shift = self.controls.shift_factor
 
             x = self.controls.selected.x
             y = scale * (self.controls.selected.y) + shift
