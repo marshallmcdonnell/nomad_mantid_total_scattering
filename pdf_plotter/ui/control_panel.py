@@ -69,9 +69,6 @@ class ControlPanel(HasTraits):
     xlim = { 'min' : None, 'max' : None }
     ylim = { 'min' : None, 'max' : None }
 
-    def __init__(self, **traits):
-        super(HasTraits, self).__init__(**traits)
-
     #-------------------------------------------------------#
     # Utilities
 
