@@ -3,8 +3,9 @@
 from traits.api \
     import HasTraits, Array, Str, List
 
-#-----------------------------------------------------------#
+# -----------------------------------------------------------#
 # Models
+
 
 class Dataset(HasTraits):
     x = Array
@@ -16,7 +17,7 @@ class Measurement(HasTraits):
     datasets = List(Dataset)
     title = Str
 
-class Experiment(HasTraits):
-    measurements = List(Measurement) 
-    title = Str
 
+class Experiment(HasTraits):
+    measurements = List(Measurement)
+    title = Str

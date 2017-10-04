@@ -16,19 +16,19 @@ elif ETSConfig.toolkit == "wx":
     from traitsui.wx.editor import Editor
     from traitsui.qt4.basic_editor_factory import BasicEditorFactory
 
-
 import matplotlib.pyplot as _plt
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT
+from matplotlib.backends.backend_qt4agg \
+    import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt4agg \
+    import NavigationToolbar2QT
 
 
 
-#-----------------------------------------------------------#
+# -----------------------------------------------------------#
 # Matplotlib w/ Qt4 classes for TraitsUI Editor
 
 class _MPLFigureEditor(Editor):
-    
+
     def init(self, parent):
         self.control = self._create_canvas(parent)
         self.set_tooltip()
@@ -37,27 +37,27 @@ class _MPLFigureEditor(Editor):
         pass
 
     def _create_canvas(self, parent):
-       """ Create the MPL canvas. """
-       # matplotlib commands to create a canvas
-       frame = QtGui.QWidget()
-       mpl_canvas = FigureCanvas(self.value)
-       mpl_canvas.setParent(frame)
-       mpl_toolbar = NavigationToolbar2QT(mpl_canvas,frame)
+        """ Create the MPL canvas. """
+        # matplotlib commands to create a canvas
+        frame = QtGui.QWidget()
+        mpl_canvas = FigureCanvas(self.value)
+        mpl_canvas.setParent(frame)
+        mpl_toolbar = NavigationToolbar2QT(mpl_canvas, frame)
 
-       vbox = QtGui.QVBoxLayout()
-       vbox.addWidget(mpl_canvas)
-       vbox.addWidget(mpl_toolbar)
-       frame.setLayout(vbox)
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(mpl_canvas)
+        vbox.addWidget(mpl_toolbar)
+        frame.setLayout(vbox)
 
-       return frame
+        return frame
 
 
 class MPLFigureEditor(BasicEditorFactory):
 
-   klass = _MPLFigureEditor
+    klass = _MPLFigureEditor
 
 
-#-----------------------------------------------------------#
+# -----------------------------------------------------------#
 # Matplotlib Interactions
 
 class MplInteraction(object):
@@ -195,7 +195,8 @@ class ZoomOnWheel(MplInteraction):
 
     def _on_mouse_wheel(self, event):
         # Skip if we are in the legend space
-        eventInLegend, t =  self.figure.gca().get_legend().legendPatch.contains(event)
+        eventInLegend, t = \
+            self.figure.gca().get_legend().legendPatch.contains(event)
         if eventInLegend:
             return
 
@@ -476,17 +477,18 @@ if __name__ == "__main__":
 
     plt.show()
 
+
 class DraggableLegend:
     def __init__(self, legend):
         self.legend = legend
         self.gotLegend = False
         legend.figure.canvas.mpl_connect('motion_notify_event', self.on_motion)
         legend.figure.canvas.mpl_connect('pick_event', self.on_picker)
-        legend.figure.canvas.mpl_connect('button_release_event', self.on_release)
+        legend.figure.canvas.mpl_connect(
+            'button_release_event', self.on_release)
         legend.set_picker(self.my_legend_picker)
 
-
-    #----------------------------------------------------#
+    # ----------------------------------------------------#
     # Connected event handlers
 
     def on_motion(self, event):
@@ -494,12 +496,13 @@ class DraggableLegend:
             dx = event.x - self.mouse_x
             dy = event.y - self.mouse_y
             loc_in_canvas = self.legend_x + dx, self.legend_y + dy
-            loc_in_norm_axes = self.legend.parent.transAxes.inverted().transform_point(loc_in_canvas)
+            loc_in_norm_axes = \
+                self.legend.parent.transAxes.inverted().transform_point(loc_in_canvas)
             self.legend._loc = tuple(loc_in_norm_axes)
             self.legend.figure.canvas.draw()
 
-    def my_legend_picker(self, legend, event): 
-        return self.legend.legendPatch.contains(event)   
+    def my_legend_picker(self, legend, event):
+        return self.legend.legendPatch.contains(event)
 
     def on_picker(self, event):
         if event.artist == self.legend:
@@ -513,7 +516,7 @@ class DraggableLegend:
 
             # right-click
             if event.mouseevent.button == 3:
-                self._hideLegend() 
+                self._hideLegend()
 
             # mouse up
             if event.mouseevent.button == 'up':
@@ -522,34 +525,34 @@ class DraggableLegend:
             # mouse down
             if event.mouseevent.button == 'down':
                 self._scaleDownLegendFont()
-            
 
     def on_release(self, event):
         if self.gotLegend:
             self.gotLegend = False
 
-    #----------------------------------------------------#
+    # ----------------------------------------------------#
     # Utility functions
-               
-    def _move_legend(self,event):
-            bbox = self.legend.get_window_extent()
-            self.mouse_x = event.mouseevent.x
-            self.mouse_y = event.mouseevent.y
-            self.legend_x = bbox.xmin
-            self.legend_y = bbox.ymin 
-            self.gotLegend = 1
 
-    def _scaleUpLegendFont(self,size_step=4):
+    def _move_legend(self, event):
+        bbox = self.legend.get_window_extent()
+        self.mouse_x = event.mouseevent.x
+        self.mouse_y = event.mouseevent.y
+        self.legend_x = bbox.xmin
+        self.legend_y = bbox.ymin
+        self.gotLegend = 1
+
+    def _scaleUpLegendFont(self, size_step=4):
         size = self.legend.get_texts()[0].get_fontsize()
         size += size_step
-        _plt.setp(self.legend.get_texts(), fontsize=size) #legend 'list' fontsize
+        _plt.setp(self.legend.get_texts(),
+                  fontsize=size)  # legend 'list' fontsize
         self.legend.figure.canvas.draw()
-         
 
-    def _scaleDownLegendFont(self,size_step=4):
+    def _scaleDownLegendFont(self, size_step=4):
         size = self.legend.get_texts()[0].get_fontsize()
         size -= size_step
-        _plt.setp(self.legend.get_texts(), fontsize=size) #legend 'list' fontsize
+        _plt.setp(self.legend.get_texts(),
+                  fontsize=size)  # legend 'list' fontsize
         self.legend.figure.canvas.draw()
 
     def _hideLegend(self):
@@ -558,4 +561,3 @@ class DraggableLegend:
         else:
             self.legend.set_visible(True)
         self.legend.figure.canvas.draw()
-            
