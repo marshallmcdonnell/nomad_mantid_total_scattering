@@ -2,7 +2,7 @@
 from traitsui.api \
     import TableEditor, RangeEditor, CheckListEditor, \
     InstanceEditor, TextEditor, \
-    View, HGroup, VGroup, Group, UItem, Item
+    View, HSplit, VSplit, HGroup, VGroup, Group, UItem, Item
 
 from traitsui.table_column \
     import ObjectColumn
@@ -41,6 +41,7 @@ ExperimentView = View(
         editor=table_editor),
     resizable=True,
 )
+
 SofqPlotView = View(
     Item(
         'figure',
@@ -48,14 +49,15 @@ SofqPlotView = View(
         show_label=False,
         resizable=True,
         springy=True))
+
 ControlsView = View(
     VGroup(
         UItem(
             name='experiment',
             editor=ExperimentTreeEditor,
             resizable=True,
-            show_label=False),
-        Group(
+            show_label=False,),
+        VGroup(
             HGroup(
                 UItem('scale_min'),
                 UItem(
@@ -63,9 +65,11 @@ ControlsView = View(
                     editor=RangeEditor(
                         mode='slider',
                         low_name='scale_min',
-                        high_name='scale_max')),
+                        high_name='scale_max',
+                        format='%4.2f')),
                 UItem('scale_max'),
                 show_border=True,
+                label='Scale',
             ),
             HGroup(
                 UItem('shift_min'),
@@ -74,8 +78,11 @@ ControlsView = View(
                     editor=RangeEditor(
                         mode='slider',
                         low_name='shift_min',
-                        high_name='shift_max')),
+                        high_name='shift_max',
+                        format='%4.2f')),
                 UItem('shift_max'),
+                show_border=True,
+                label='Shift',
             ),
             UItem(
                 'selected_cmap',
@@ -85,9 +92,9 @@ ControlsView = View(
     ))
 
 ControlPanelView = View(
-    HGroup(
-        UItem('sofq_plot', width=500, style='custom', editor=InstanceEditor()),
-        UItem('controls', width=200, style='custom', editor=InstanceEditor()),
+    HSplit(
+        UItem('sofq_plot', width=0.7, style='custom', editor=InstanceEditor()),
+        UItem('controls', width=0.3, style='custom', editor=InstanceEditor()),
     ),
     buttons=[CachePlotAction, ClearCacheAction],
     resizable=True,

@@ -58,8 +58,8 @@ class Controls(HasTraits):
     selected_contents = Property
 
     # Scale controls
-    scale_min    = Float(0.0)
-    scale_max    = Float(10.0)
+    scale_min    = Float(0.5)
+    scale_max    = Float(1.5)
     scale_factor = Float(1.0) 
 
     # Scale controls
