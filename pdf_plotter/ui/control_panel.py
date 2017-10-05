@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 from __future__ import (absolute_import, division, print_function)
 
 import os
@@ -23,7 +24,7 @@ from mpl_utilities \
     import ZoomOnWheel, DraggableLegend
 
 from models \
-    import Experiment, Measurement, Dataset
+    import Experiment, Measurement, CorrectedDatasets, Dataset
 
 from views \
     import SofqPlotView, ControlsView, ControlPanelView, \
@@ -33,10 +34,11 @@ from controllers \
     import ControlPanelHandler
 
 from thread_workers \
-    import NexusFileThread 
+    import NexusFileThread
 
 # -----------------------------------------------------------#
 # Figure Model
+
 
 class SofqPlot(HasTraits):
     # View
@@ -47,6 +49,7 @@ class SofqPlot(HasTraits):
 
 # -----------------------------------------------------------#
 # Experiment File Input Model
+
 
 class ExperimentFileInput(HasTraits):
     # View
@@ -78,8 +81,7 @@ class ExperimentFileInput(HasTraits):
     def _load_button_changed(self):
         f = open_file(file_name=os.getcwd(),
                       extensions=[FileInfo()],
-                      filter=['*.nxs', '*.dat'],
-            )
+                      filter=['*.nxs', '*.dat'])
         if f != '':
             name, ext = os.path.splitext(f)
             if ext == '.nxs':
@@ -88,13 +90,13 @@ class ExperimentFileInput(HasTraits):
                 self.parse_dat_experiment(f)
 
     # Parse the Experiment NeXus file
-    def load_and_extract_nexus(self,f):
-        self.main_thread               = NexusFileThread(f)
+    def load_and_extract_nexus(self, f):
+        self.main_thread = NexusFileThread(f)
         self.main_thread.update_status = self.update_status
-        self.main_thread.datasets      = self.datasets
+        self.main_thread.datasets = self.datasets
         self.main_thread.start()
 
-            
+
 # -----------------------------------------------------------#
 # Controls Model
 
@@ -186,7 +188,7 @@ class Controls(HasTraits):
 
     def addPlotToNode(self, dataset):
         if 'Other' not in [m.title for m in self.experiment.measurements]:
-            other = Measurement(datasets=[dataset], title='Other')
+            other = Measurement(extra_datasets=[dataset], title='Other')
             self.experiment.measurements.append(other)
         else:
             other = [
@@ -194,7 +196,7 @@ class Controls(HasTraits):
             if len(other) != 1:
                 print("ERROR: More than 1 'Other' Measurement. Resuming...")
             other = other[0]
-            other.datasets.append(dataset)
+            other.extra_datasets.append(dataset)
 
     # -------------------------------------------------------#
     # Dynamic
@@ -406,44 +408,79 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--dummy_data', action='store_true',
-                        help="Loads Experiment Tree w/ dummy data for testing.")
+                        help="Loads Experiment Tree w/ dummy data.")
     args = parser.parse_args()
 
     if args.dummy_data:
 
         # Make datsets w/ titles
         x = np.linspace(0, 4 * np.pi, 200)
-        y = np.sin(x)
-        d1 = Dataset(x=x, y=y, title='sin(x)')
+        y = 1.21 * np.sin(x)
+        d1 = Dataset(x=x, y=y, title='Bank 1', info={'correction': 'S/V'})
 
-        y = np.sin(x) * np.sin(x)
-        d2 = Dataset(x=x, y=y, title='sin(x) * sin(x)')
+        y = 1.24 * np.sin(x)
+        d2 = Dataset(x=x, y=y, title='Bank 2', info={'correction': 'S/V'})
 
-        y = np.cos(x)
-        d3 = Dataset(x=x, y=y, title='cos(x)')
+        y = 0.90 * np.cos(x)
+        d3 = Dataset(x=x, y=y, title='Bank 1', info={'correction': '(S-C)/V'})
 
-        y = np.cos(x) * np.cos(x)
-        d4 = Dataset(x=x, y=y, title='cos(x) * cos(x)')
+        y = 1.20 * np.cos(x)
+        d4 = Dataset(x=x, y=y, title='Bank 2', info={'correction': '(S-C)/V'})
 
-        y = np.sin(x) * np.cos(x)
-        d5 = Dataset(x=x, y=y, title='sin(x) * cos(x)')
+        y = 1.21 * np.cos(x)
+        d5 = Dataset(x=x, y=y, title='Bank 3', info={'correction': '(S-C/V'})
 
-        # Use the datasets to make a Measurement
-        m1 = Measurement(datasets=[d1, d2, d3, d4, d5], title='sine functions')
+        # Use the datasets to make a CorrectedDatasets
+        cd1 = CorrectedDatasets(datasets=[d1, d2], title='S/V')
+        cd2 = CorrectedDatasets(datasets=[d3, d4, d5], title='(S-C)/V')
 
-        # Now make a second measurement
+        # Combine the CorrectedDatasets to make a Measurment for the sample
+        m1 = Measurement(corrected_datasets=[cd1, cd2], title='Sample')
+
+        # Now make a second measurement for the container
         x = np.linspace(-2, 2, 200)
-        m2 = Measurement(datasets=[Dataset(x=x, y=x * x, title='x^2'),
-                                   Dataset(x=x, y=x * x * x, title='x^3')],
-                     title='polynomials')
+        m2 = Measurement(
+                 corrected_datasets=[
+                    CorrectedDatasets(datasets=[
+                        Dataset(x=x,
+                                y=0.80 * x * x,
+                                title='Bank 1',
+                                info={'correction': '(C-CB)/V'},
+                        ),
+                        Dataset(x=x,
+                                y=0.97 * x * x,
+                                title='Bank 2',
+                                info={'correction': '(C-CB)/V'},
+                            ),
+                        ],
+                        title='(C-CB)/V',
+                    ),
+                    CorrectedDatasets(datasets=[
+                            Dataset(x=x,
+                                    y=0.80 * x * x * x,
+                                    title='Bank 1',
+                                    info={'correction': '1/A(C-CB)/V - MS'},
+                            ),
+                            Dataset(x=x,
+                                    y=0.97 * x * x * x,
+                                    title='Bank 2',
+                                    info={'correction': '1/A(C-CB)/V - MS'},
+                            ),
+                        ],
+                        title="1/A(C-CB)/V - MS",
+                    ),
+                ],
+                title='Container',
+        )
 
         # Create a Experiment from these two measurements
-        e1 = Experiment(measurements=[m1, m2], title='Test Functions')
+        e1 = Experiment(measurements=[m1, m2], title='Si_NOM97884')
 
         # Use the ControlPanel to View the Measurement
         cp = ControlPanel(experiment_file=ExperimentFileInput(),
                           controls=Controls(experiment=e1))
         cp.configure_traits(view=ControlPanelView, handler=ControlPanelHandler)
 
-    cp = ControlPanel(experiment_file=ExperimentFileInput())
-    cp.configure_traits(view=ControlPanelView, handler=ControlPanelHandler)
+    else:
+        cp = ControlPanel(experiment_file=ExperimentFileInput())
+        cp.configure_traits(view=ControlPanelView, handler=ControlPanelHandler)

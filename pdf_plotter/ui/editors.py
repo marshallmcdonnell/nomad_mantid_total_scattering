@@ -1,5 +1,5 @@
 from models \
-    import Experiment, Measurement, Dataset
+    import Experiment, Measurement, CorrectedDatasets, Dataset
 
 from traitsui.api \
     import TreeEditor, TreeNode, View, Group
@@ -17,7 +17,7 @@ class RootNode(TreeNode):
     children = ''
 
     # Label of the node (this is an attribute of the class in 'node_for')
-    label = 'title'
+    label = '=Experiments'
 
     # View for the node
     view = View(Group('title', orientation='vertical', show_left=False))
@@ -36,7 +36,7 @@ class ExperimentNode(TreeNode):
     children = 'measurements'
 
     # Label of the node
-    label = '=Measurements'
+    label = 'title'
 
     # View for the node
     view = View()
@@ -55,6 +55,27 @@ class MeasurementNode(TreeNode):
 
     # Specify children of node (this is an attribute of the class in
     # 'node_for')
+    children = 'corrected_datasets'
+
+    # Label of the node (this is an attribute of the class in 'node_for')
+    label = 'title'
+
+    # View for the node
+    view = View(Group('title', orientation='vertical', show_left=True))
+
+    # Class of node to add
+    add = [Dataset, CorrectedDatasets]
+
+class CorrectedDatasetsNode(TreeNode):
+
+    # List of object classes the node applies to
+    node_for = [CorrectedDatasets]
+
+    # Automatically open the children underneath the node
+    auto_open = False 
+
+    # Specify children of node (this is an attribute of the class in
+    # 'node_for')
     children = 'datasets'
 
     # Label of the node (this is an attribute of the class in 'node_for')
@@ -67,13 +88,14 @@ class MeasurementNode(TreeNode):
     add = [Dataset]
 
 
+
 class DatasetNode(TreeNode):
 
     # List of object classes the node applies to
     node_for = [Dataset]
 
     # Automatically open the children underneath the node
-    auto_open = True
+    auto_open = False 
 
     # Label of the node (this is an attribute of the class in 'node_for')
     label = 'title'
@@ -87,8 +109,8 @@ ExperimentTreeEditor = TreeEditor(
         RootNode(),
         ExperimentNode(),
         MeasurementNode(),
+        CorrectedDatasetsNode(),
         DatasetNode(),
-
     ],
     selected='selected',
     editable=False,
