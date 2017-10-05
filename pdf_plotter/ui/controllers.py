@@ -1,6 +1,13 @@
 from __future__ import (absolute_import, division, print_function)
+
+from traits.api \
+    import on_trait_change
+
 from traitsui.api \
     import Action, Handler
+
+from traitsui.file_dialog \
+    import open_file, FileInfo
 
 from models \
     import Dataset
@@ -14,6 +21,9 @@ CachePlotAction = Action(name="Cache Plot",
 
 ClearCacheAction = Action(name="Clear Cache",
                           action="clear_cache")
+
+LoadExperimentFileAction = Action(name="Load...",
+                                  action="load_experiment_file")
 
 
 # -----------------------------------------------------------#
@@ -63,7 +73,7 @@ class ControlPanelHandler(Handler):
                 info.object.controls.cached_plots.append(b)
 
                 # Add to plot and refresh
-                axes = info.object._get_axes()
+                axes = info.object.get_axes()
                 axes.plot(b.x, b.y, label=b.title)
                 info.object.plot_modification()
 
@@ -72,6 +82,7 @@ class ControlPanelHandler(Handler):
 
     def clear_cache(self, info):
         info.object.controls.cached_plots = []
-        axes = info.object._get_axes()
+        axes = info.object.get_axes()
         axes.cla()
         info.object.plot_modification()
+    

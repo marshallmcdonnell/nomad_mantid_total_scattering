@@ -1,14 +1,22 @@
 #!/usr/bin/env python
 from __future__ import (absolute_import, division, print_function)
 
+import os
+import argparse
+import numpy as np
+
+# Traits
 from traits.api \
     import HasTraits, Instance, List, CFloat, Property, Any, \
-    on_trait_change, property_depends_on
+    Str, File, Button, on_trait_change, property_depends_on
 
+from traitsui.file_dialog \
+    import open_file, FileInfo
+
+# Matplotlib
 from matplotlib import cm
 from matplotlib.figure import Figure
 
-import numpy as np
 
 # Local
 from mpl_utilities \
@@ -18,14 +26,17 @@ from models \
     import Experiment, Measurement, Dataset
 
 from views \
-    import SofqPlotView, ControlsView, ControlPanelView
+    import SofqPlotView, ControlsView, ControlPanelView, \
+    ExperimentFileInputView
 
 from controllers \
     import ControlPanelHandler
 
-# -----------------------------------------------------------#
-# Figure View
+from thread_workers \
+    import NexusFileThread 
 
+# -----------------------------------------------------------#
+# Figure Model
 
 class SofqPlot(HasTraits):
     # View
@@ -34,9 +45,58 @@ class SofqPlot(HasTraits):
     # Figure to display selected dataset and axes for figure
     figure = Instance(Figure, ())
 
-
 # -----------------------------------------------------------#
-# Controls View
+# Experiment File Input Model
+
+class ExperimentFileInput(HasTraits):
+    # View
+    view = ExperimentFileInputView
+
+    # Load button
+    load_button = Button("Load Experiment...")
+
+    # Thread to handle loading in the file
+    main_thread = Instance(NexusFileThread)
+
+    # status
+    load_status = Str('Load in a file.')
+
+    # Measurement dictionary: key=tag, value=List(Dataset)
+    measurements = dict()
+
+    # Dataset dictionary: key=title, value={Dataset, tag}
+    datasets = dict()
+
+    # Returned Experiment
+    result = Instance(Experiment)
+
+    # Get update from thread
+    def update_status(self, status):
+        self.load_status = status
+
+    # Handle the user clicking the Load button
+    def _load_button_changed(self):
+        f = open_file(file_name=os.getcwd(),
+                      extensions=[FileInfo()],
+                      filter=['*.nxs', '*.dat'],
+            )
+        if f != '':
+            name, ext = os.path.splitext(f)
+            if ext == '.nxs':
+                self.load_and_extract_nexus(f)
+            elif ext == '.dat':
+                self.parse_dat_experiment(f)
+
+    # Parse the Experiment NeXus file
+    def load_and_extract_nexus(self,f):
+        self.main_thread               = NexusFileThread(f)
+        self.main_thread.update_status = self.update_status
+        self.main_thread.datasets      = self.datasets
+        self.main_thread.start()
+
+            
+# -----------------------------------------------------------#
+# Controls Model
 
 class Controls(HasTraits):
     # View
@@ -171,11 +231,16 @@ class ControlPanel(HasTraits):
     # -------------------------------------------------------#
     # Traits
 
+    experiment_file = Instance(ExperimentFileInput)
+
     # S(Q) Plot
     sofq_plot = Instance(SofqPlot, ())
 
     # Controls for adjusting plots
     controls = Instance(Controls)
+
+    # Status
+    load_status = Property(depends_on='experiment_file.load_status')
 
     # Current colors of contents that is setup by __setupColorMap
     _colors = list()
@@ -239,7 +304,7 @@ class ControlPanel(HasTraits):
         if canvas is not None:
             canvas.draw()
 
-    def _get_axes(self):
+    def get_axes(self):
         # If no Axes for the figure, 1) Make the figure zoomable by mouse wheel
         # and 2) initialize an Axes
         if len(self.sofq_plot.figure.axes) == 0:
@@ -251,6 +316,9 @@ class ControlPanel(HasTraits):
             axes = self.sofq_plot.figure.axes[0]
 
         return axes
+
+    def _get_load_status(self):
+        return ("%s" % self.experiment_file.load_status)
 
     def _filter_xrange(self, xset, yset):
         xmin = self.controls.xmin
@@ -268,6 +336,10 @@ class ControlPanel(HasTraits):
     # -------------------------------------------------------#
     # Dynamic
 
+    @on_trait_change('experiment_file.load_status')
+    def update_status(self):
+        self.status = self.experiment_file.load_status
+
     # Re-plot when we either select another Dataset or if we change the
     # ColorMap
     @on_trait_change('controls.selected,controls.selected_cmap')
@@ -282,7 +354,7 @@ class ControlPanel(HasTraits):
             self.controls.shift_factor = 0.0
 
             # Get the Axes
-            axes = self._get_axes()
+            axes = self.get_axes()
 
             # Pull the X, Y from the selected Dataset
             x = self.controls.selected.x
@@ -307,7 +379,7 @@ class ControlPanel(HasTraits):
         'controls.xmin,controls.xmax')
     def plot_modification(self):
         try:
-            axes = self._get_axes()
+            axes = self.get_axes()
             scale = self.controls.scale_factor
             shift = self.controls.shift_factor
 
@@ -332,35 +404,46 @@ class ControlPanel(HasTraits):
 
 if __name__ == "__main__":
 
-    # Make datsets w/ titles
-    x = np.linspace(0, 4 * np.pi, 200)
-    y = np.sin(x)
-    d1 = Dataset(x=x, y=y, title='sin(x)')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dummy_data', action='store_true',
+                        help="Loads Experiment Tree w/ dummy data for testing.")
+    args = parser.parse_args()
 
-    y = np.sin(x) * np.sin(x)
-    d2 = Dataset(x=x, y=y, title='sin(x) * sin(x)')
+    if args.dummy_data:
 
-    y = np.cos(x)
-    d3 = Dataset(x=x, y=y, title='cos(x)')
+        # Make datsets w/ titles
+        x = np.linspace(0, 4 * np.pi, 200)
+        y = np.sin(x)
+        d1 = Dataset(x=x, y=y, title='sin(x)')
 
-    y = np.cos(x) * np.cos(x)
-    d4 = Dataset(x=x, y=y, title='cos(x) * cos(x)')
+        y = np.sin(x) * np.sin(x)
+        d2 = Dataset(x=x, y=y, title='sin(x) * sin(x)')
 
-    y = np.sin(x) * np.cos(x)
-    d5 = Dataset(x=x, y=y, title='sin(x) * cos(x)')
+        y = np.cos(x)
+        d3 = Dataset(x=x, y=y, title='cos(x)')
 
-    # Use the datasets to make a Measurement
-    m1 = Measurement(datasets=[d1, d2, d3, d4, d5], title='sine functions')
+        y = np.cos(x) * np.cos(x)
+        d4 = Dataset(x=x, y=y, title='cos(x) * cos(x)')
 
-    # Now make a second measurement
-    x = np.linspace(-2, 2, 200)
-    m2 = Measurement(datasets=[Dataset(x=x, y=x * x, title='x^2'),
-                               Dataset(x=x, y=x * x * x, title='x^3')],
+        y = np.sin(x) * np.cos(x)
+        d5 = Dataset(x=x, y=y, title='sin(x) * cos(x)')
+
+        # Use the datasets to make a Measurement
+        m1 = Measurement(datasets=[d1, d2, d3, d4, d5], title='sine functions')
+
+        # Now make a second measurement
+        x = np.linspace(-2, 2, 200)
+        m2 = Measurement(datasets=[Dataset(x=x, y=x * x, title='x^2'),
+                                   Dataset(x=x, y=x * x * x, title='x^3')],
                      title='polynomials')
 
-    # Create a Experiment from these two measurements
-    e1 = Experiment(measurements=[m1, m2], title='Test Functions')
+        # Create a Experiment from these two measurements
+        e1 = Experiment(measurements=[m1, m2], title='Test Functions')
 
-    # Use the ControlPanel to View the Measurement
-    cp = ControlPanel(controls=Controls(experiment=e1))
+        # Use the ControlPanel to View the Measurement
+        cp = ControlPanel(experiment_file=ExperimentFileInput(),
+                          controls=Controls(experiment=e1))
+        cp.configure_traits(view=ControlPanelView, handler=ControlPanelHandler)
+
+    cp = ControlPanel(experiment_file=ExperimentFileInput())
     cp.configure_traits(view=ControlPanelView, handler=ControlPanelHandler)
