@@ -34,7 +34,7 @@ from controllers \
     import ControlPanelHandler
 
 from thread_workers \
-    import NexusFileThread
+    import NexusFileThread, ExperimentThread
 
 # -----------------------------------------------------------#
 # Figure Model
@@ -59,16 +59,19 @@ class ExperimentFileInput(HasTraits):
     load_button = Button("Load Experiment...")
 
     # Thread to handle loading in the file
-    main_thread = Instance(NexusFileThread)
+    file_thread = Instance(NexusFileThread)
+
+    # Thread to handle putting together the Experiment from CorrectedDatasets
+    experiment_thread = Instance(ExperimentThread)
 
     # status
     load_status = Str('Load in a file.')
 
-    # Measurement dictionary: key=tag, value=List(Dataset)
+    # Measurement dictionary: key=tag, value=List(CorrectedDatasets)
     measurements = dict()
 
-    # Dataset dictionary: key=title, value={Dataset, tag}
-    datasets = dict()
+    # Dataset dictionary: key=title, value={CorrectedDatasets, tag}
+    corrected_datasets = dict()
 
     # Returned Experiment
     result = Instance(Experiment)
@@ -86,16 +89,22 @@ class ExperimentFileInput(HasTraits):
             name, ext = os.path.splitext(f)
             if ext == '.nxs':
                 self.load_and_extract_nexus(f)
+                self.form_experiment()
             elif ext == '.dat':
-                self.parse_dat_experiment(f)
+                self.load_and_extract_dat_file(f)
 
     # Parse the Experiment NeXus file
     def load_and_extract_nexus(self, f):
-        self.main_thread = NexusFileThread(f)
-        self.main_thread.update_status = self.update_status
-        self.main_thread.datasets = self.datasets
-        self.main_thread.start()
+        self.file_thread = NexusFileThread(f)
+        self.file_thread.update_status = self.update_status
+        self.file_thread.corrected_datasets = self.corrected_datasets
+        self.file_thread.start()
 
+    def form_experiment(self):
+        self.experiment_thread = ExperimentThread
+        self.experiment_thread.update_status = self.update_status
+        self.experiment_thread.corrected_datasets = self.corrected_datasets
+        self.experiment_thread.start()
 
 # -----------------------------------------------------------#
 # Controls Model
@@ -187,10 +196,13 @@ class Controls(HasTraits):
             return
 
     def addPlotToNode(self, dataset):
+        print('inside addPlotToNode')
         if 'Other' not in [m.title for m in self.experiment.measurements]:
+            print("In 'Other' creation")
             other = Measurement(extra_datasets=[dataset], title='Other')
             self.experiment.measurements.append(other)
         else:
+            print("In 'Other' else")
             other = [
                 m for m in self.experiment.measurements if m.title == 'Other']
             if len(other) != 1:

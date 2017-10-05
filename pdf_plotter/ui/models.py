@@ -19,7 +19,6 @@ class CorrectedDatasets(HasTraits):
     info = Dict
 
 class Measurement(HasTraits):
-    extra_datasets = List(Dataset)
     corrected_datasets = List(CorrectedDatasets)
     title = Str
 

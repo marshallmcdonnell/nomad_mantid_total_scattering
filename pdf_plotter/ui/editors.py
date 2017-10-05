@@ -64,7 +64,7 @@ class MeasurementNode(TreeNode):
     view = View(Group('title', orientation='vertical', show_left=True))
 
     # Class of node to add
-    add = [Dataset, CorrectedDatasets]
+    add = [CorrectedDatasets]
 
 class CorrectedDatasetsNode(TreeNode):
 

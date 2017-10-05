@@ -4,7 +4,7 @@ import numpy as np
 from nexusformat import nexus
 
 from models \
-    import Dataset
+    import Dataset, CorrectedDatasets, Measurement, Experiment
 
 
 # -----------------------------------------------------------#
@@ -20,14 +20,13 @@ class NexusFileThread(threading.Thread):
     def extract_datasets_nexus(self):
         nx = self.nxresult
         a = [nx[wksp] for wksp in nx]
-        print(a)
-        wksps = [nx[wksp]
-                 for wksp in nx if str(wksp.title).startswith("mantid_workspace")]
+        wksps = [nx[wksp] for wksp in nx if str(
+            wksp.title).startswith("mantid_workspace")]
 
         t_list = list()
         for i, wksp in enumerate(wksps):
             t = DatasetThread(wksp)
-            t.datasets = self.datasets
+            t.corrected_datasets = self.corrected_datasets
             t.start()
             t_list.append(t)
 
@@ -67,6 +66,8 @@ class DatasetThread(threading.Thread):
     def getTag(self, title):
         if title.startswith('sample'):
             return 'Sample'
+        elif title.startswith('vanadium_background'):
+            return 'Vanadium Background'
         elif title.startswith('vanadium'):
             return 'Vanadium'
         elif title.startswith('container_background'):
@@ -104,14 +105,90 @@ class DatasetThread(threading.Thread):
         # Theta must be sorted last
         Theta, tmp = self.sort_lists(sorter=Theta, sortee=Theta)
 
+        dataset_list = list()
         for i, (l1, theta, phi, y, err) in enumerate(
                 zip(L1, Theta, Phi, y_groups, err_groups)):
-            tag = self.getTag(title)
             info_dict = {
-                'tag': tag,
                 'L1': l1,
                 'Theta': theta,
                 'Phi': Phi,
                 'yerr': err}
-            self.datasets[title] = Dataset(
-                x=x, y=y, title=title, info=info_dict)
+            dataset_title = "Bank: {0:.2f}".format(theta)
+            dataset_list.append(
+                    Dataset(x=x, y=y, 
+                            title=dataset_title, 
+                            info=info_dict
+                    )
+            )
+
+        # Get CorrectedDatasets type based on title (called the Tag)
+        tag = self.getTag(title)
+        info_dict = {'tag': tag}
+        self.corrected_datasets[title] = CorrectedDatasets( 
+                                            datasets = dataset_list,
+                                            title = title,
+                                            info = info_dict
+                                         )
+
+
+# -----------------------------------------------------------------#
+# Thread to handle creating Measurement from CoorectedDatasets
+class MeasurementThread(threading.Thread):
+    def __init__(self, measurement_type):
+        self.measurement_type = measurement_type
+        threading.Thread.__init__(self)
+
+
+    def get_measurement(self):
+        cd_list = list()
+        for title, cd in self.corrected_datasets.items():
+            tag = cd.info['tag']
+            if tag == self.measurement_type:
+                cd_list.append(cd)
+
+        self.measurements[tag] = Measurement( corrected_datasets=cd_list,
+                                              title=tag)
+    def get_other_measurement(self):
+        pass
+                                              
+    def run(self):
+        if self.measurement_type == 'Other':
+            self.get_other_measurement()
+        else:
+            self.get_measurement()
+               
+# -----------------------------------------------------------------#
+# Thread to handle creating the Experiment from CorrectedDatasets
+
+class ExperimentThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+
+ 
+    # Multithreaded extraction of Datasets from Nexus file
+    def create_measurements(self):
+
+        t_list = list()
+        for i, wksp in enumerate(wksps):
+            t = MeasurementThread(wksp)
+            t.corrected_datasets = self.corrected_datasets
+            t.start()
+            t_list.append(t)
+
+        for t in t_list:
+            t.join()
+
+    # Main thread opens and extracts Nexus and then launchs threads to extract
+    # Datasets
+    def run(self):
+        self.update_status("Creating Measurements...")
+        self.create_measurements()
+        self.update_status("Done with Measurements!")
+        self.update_status("Creating Experiment...")
+        self.create_experiments()
+        self.update_status("Done with Experiment!")
+        return
+
+   
+
+ 
