@@ -1,8 +1,8 @@
 
 from traitsui.api \
     import TableEditor, RangeEditor, CheckListEditor, \
-    InstanceEditor, TextEditor, spring, \
-    View, HSplit, VSplit, HGroup, VGroup, Group, UItem, Item
+    InstanceEditor, TextEditor, \
+    View, HSplit, VSplit, VGroup, UItem, Item
 
 from traitsui.table_column \
     import ObjectColumn
@@ -52,6 +52,7 @@ SofqPlotView = View(
 
 ControlsView = View(
     VSplit(
+        # Experiment Tree
         UItem(
             name='experiment',
             editor=ExperimentTreeEditor,
@@ -59,6 +60,7 @@ ControlsView = View(
             show_label=False,
             width=0.9),
         VGroup(
+            # Scale group
             HSplit(
                 UItem('scale_min', width=0.1),
                 UItem(
@@ -75,6 +77,7 @@ ControlsView = View(
                 show_border=True,
                 label='Scale',
             ),
+            # Shift group
             HSplit(
                 UItem('shift_min', width=0.1),
                 UItem(
@@ -91,10 +94,59 @@ ControlsView = View(
                 show_border=True,
                 label='Shift',
             ),
+            # X range
+            VSplit(
+                # Xmin
+                HSplit(
+                    UItem('xmin_min',
+                          width=0.1,
+                          editor=TextEditor(auto_set=False,),
+                          ),
+                    UItem('xmin',
+                          editor=RangeEditor(
+                              mode='slider',
+                              low_name='xmin_min',
+                              high_name='xmin_max',
+                              format='%4.2f',
+                          ),
+                          width=0.8,
+                          ),
+                    UItem('xmin_max',
+                          width=0.1,
+                          editor=TextEditor(auto_set=False,),
+                          ),
+                    label='Xmin',
+                ),
+                # Xmax
+                HSplit(
+                    UItem('xmax_min',
+                          width=0.1,
+                          editor=TextEditor(auto_set=False,),
+                          ),
+                    UItem('xmax',
+                          editor=RangeEditor(
+                              mode='slider',
+                              low_name='xmax_min',
+                              high_name='xmax_max',
+                              format='%4.2f',
+                          ),
+                          width=0.8,
+                          ),
+                    UItem('xmax_max',
+                          width=0.1,
+                          editor=TextEditor(auto_set=False,),
+                          ),
+                    label='Xmax',
+                ),
+                show_border=True,
+                label='X-range',
+            ),
+
+            # Color map
             HSplit(
                 UItem('selected_cmap',
                       editor=CheckListEditor(name='cmap_list')
-                ),
+                      ),
                 show_border=True,
                 label='ColorMap',
             ),

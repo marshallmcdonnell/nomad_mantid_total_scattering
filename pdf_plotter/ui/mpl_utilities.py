@@ -23,7 +23,6 @@ from matplotlib.backends.backend_qt4agg \
     import NavigationToolbar2QT
 
 
-
 # -----------------------------------------------------------#
 # Matplotlib w/ Qt4 classes for TraitsUI Editor
 

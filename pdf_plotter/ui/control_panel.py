@@ -2,7 +2,7 @@
 from __future__ import (absolute_import, division, print_function)
 
 from traits.api \
-    import HasTraits, Instance, List, Float, Property, Any, Range, \
+    import HasTraits, Instance, List, CFloat, Property, Any, \
     on_trait_change, property_depends_on
 
 from matplotlib import cm
@@ -58,14 +58,23 @@ class Controls(HasTraits):
     selected_contents = Property
 
     # Scale controls
-    scale_min    = Float(0.5)
-    scale_max    = Float(1.5)
-    scale_factor = Float(1.0) 
+    scale_min = CFloat(0.5)
+    scale_max = CFloat(1.5)
+    scale_factor = CFloat(1.0)
 
     # Scale controls
-    shift_min    = Float(-5.0)
-    shift_max    = Float(5.0)
-    shift_factor = Float(0.0)
+    shift_min = CFloat(-5.0)
+    shift_max = CFloat(5.0)
+    shift_factor = CFloat(0.0)
+
+    # X-range controls
+    xmin = CFloat(0.0)
+    xmin_min = CFloat(0.0)
+    xmin_max = CFloat(5.0)
+
+    xmax = CFloat(4 * np.pi)
+    xmax_min = CFloat(0.0)
+    xmax_max = CFloat(2.0)
 
     # Cached plots we keep on plot
     cached_plots = List
@@ -91,21 +100,29 @@ class Controls(HasTraits):
     # -------------------------------------------------------#
     # Utilities
 
-    def getLimits(self):
+    def getLimits(self, xin, yin):
         xlist = []
         ylist = []
 
         if len(self.cached_plots) > 0:
-            xlist = np.append(xlist, [a.x for a in self.cached_plots])
-            ylist = np.append(ylist, [a.y for a in self.cached_plots])
+            for a in self.cached_plots:
+                xlist = np.append(xlist, a.x, axis=None)
+                ylist = np.append(ylist, a.y, axis=None)
 
-        xlist = np.append(xlist, self.selected.x)
-        self.xlim['min'] = min(xlist)
-        self.xlim['max'] = max(xlist)
+        xlist = np.append(xlist, xin)
+        xlist = np.append(xlist, self.xmin)
+        xlist = np.append(xlist, self.xmax)
 
-        ylist = np.append(ylist, self.selected.y)
-        self.ylim['min'] = min(ylist)
-        self.ylim['max'] = max(ylist)
+        ylist = np.append(ylist, yin)
+
+        try:
+            self.xlim['min'] = min(xlist)
+            self.xlim['max'] = max(xlist)
+            self.ylim['min'] = min(ylist)
+            self.ylim['max'] = max(ylist)
+
+        except ValueError:
+            return
 
     def addPlotToNode(self, dataset):
         if 'Other' not in [m.title for m in self.experiment.measurements]:
@@ -235,6 +252,19 @@ class ControlPanel(HasTraits):
 
         return axes
 
+    def _filter_xrange(self, xset, yset):
+        xmin = self.controls.xmin
+        xmax = self.controls.xmax
+
+        xout = list()
+        yout = list()
+        for x, y in zip(xset, yset):
+            if xmin <= x and x <= xmax:
+                xout.append(x)
+                yout.append(y)
+
+        return xout, yout
+
     # -------------------------------------------------------#
     # Dynamic
 
@@ -258,8 +288,11 @@ class ControlPanel(HasTraits):
             x = self.controls.selected.x
             y = self.controls.selected.y
 
+            # Apply x-range filter
+            x, y = self._filter_xrange(x, y)
+
             # Get the X, Y limits from all plots (selected + cached)
-            self.controls.getLimits()
+            self.controls.getLimits(x, y)
 
             # Set the limits
             axes.set_xlim(self.controls.xlim['min'], self.controls.xlim['max'])
@@ -268,7 +301,10 @@ class ControlPanel(HasTraits):
             # Plot / Re-plot
             self.plot(axes, x, y, self.controls.selected.title)
 
-    @on_trait_change('controls.scale_factor,controls.shift_factor')
+    # Re-plot when we apply a shift or scale factor
+    @on_trait_change(
+        'controls.scale_factor,controls.shift_factor,'
+        'controls.xmin,controls.xmax')
     def plot_modification(self):
         try:
             axes = self._get_axes()
@@ -278,7 +314,18 @@ class ControlPanel(HasTraits):
             x = self.controls.selected.x
             y = scale * (self.controls.selected.y) + shift
 
+            # Apply x-range filter
+            x, y = self._filter_xrange(x, y)
+
+            # Get the X, Y limits from all plots (selected + cached)
+            self.controls.getLimits(x, y)
+
+            # Set the limits
+            axes.set_xlim(self.controls.xlim['min'], self.controls.xlim['max'])
+            axes.set_ylim(self.controls.ylim['min'], self.controls.ylim['max'])
+
             self.plot(axes, x, y, self.controls.selected.title)
+
         except AttributeError:
             pass
 
