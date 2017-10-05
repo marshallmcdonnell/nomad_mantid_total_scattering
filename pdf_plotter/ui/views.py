@@ -1,7 +1,7 @@
 
 from traitsui.api \
     import TableEditor, RangeEditor, CheckListEditor, \
-    InstanceEditor, TextEditor, \
+    InstanceEditor, TextEditor, spring, \
     View, HSplit, VSplit, HGroup, VGroup, Group, UItem, Item
 
 from traitsui.table_column \
@@ -51,43 +51,53 @@ SofqPlotView = View(
         springy=True))
 
 ControlsView = View(
-    VGroup(
+    VSplit(
         UItem(
             name='experiment',
             editor=ExperimentTreeEditor,
             resizable=True,
-            show_label=False,),
+            show_label=False,
+            width=0.9),
         VGroup(
-            HGroup(
-                UItem('scale_min'),
+            HSplit(
+                UItem('scale_min', width=0.1),
                 UItem(
                     'scale_factor',
                     editor=RangeEditor(
                         mode='slider',
                         low_name='scale_min',
                         high_name='scale_max',
-                        format='%4.2f')),
-                UItem('scale_max'),
+                        format='%4.2f',
+                    ),
+                    width=0.8,
+                ),
+                UItem('scale_max', width=0.1),
                 show_border=True,
                 label='Scale',
             ),
-            HGroup(
-                UItem('shift_min'),
+            HSplit(
+                UItem('shift_min', width=0.1),
                 UItem(
                     'shift_factor',
                     editor=RangeEditor(
                         mode='slider',
                         low_name='shift_min',
                         high_name='shift_max',
-                        format='%4.2f')),
-                UItem('shift_max'),
+                        format='%4.2f',
+                    ),
+                    width=0.8,
+                ),
+                UItem('shift_max', width=0.1),
                 show_border=True,
                 label='Shift',
             ),
-            UItem(
-                'selected_cmap',
-                editor=CheckListEditor(
-                    name='cmap_list')),
+            HSplit(
+                UItem('selected_cmap',
+                      editor=CheckListEditor(name='cmap_list')
+                ),
+                show_border=True,
+                label='ColorMap',
+            ),
         ),
     ))
 

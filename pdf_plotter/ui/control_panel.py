@@ -193,7 +193,7 @@ class ControlPanel(HasTraits):
     def plot(self, axes, x, y, title):
         # Add first line to plot if none already
         if not axes.lines:
-            axes.plot(x, y, 'bo', label=title)
+            axes.plot(x, y, 'bo--', label=title)
 
         # Adjust the current X, Y data of the selected line the plot
         else:
