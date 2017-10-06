@@ -19,9 +19,8 @@ class NexusFileThread(threading.Thread):
     # Multithreaded extraction of Datasets from Nexus file
     def extract_datasets_nexus(self):
         nx = self.nxresult
-        a = [nx[wksp] for wksp in nx]
-        wksps = [nx[wksp] for wksp in nx 
-                          if  wksp.startswith("mantid_workspace")]
+        wksps = [nx[wksp] for wksp in nx
+                 if wksp.startswith("mantid_workspace")]
 
         t_list = list()
         for i, wksp in enumerate(wksps):
@@ -37,7 +36,7 @@ class NexusFileThread(threading.Thread):
     # Datasets
     def run(self):
         self.update_status("Loading...")
-        self.nxresult =  h5py.File(self.f, 'r')
+        self.nxresult = h5py.File(self.f, 'r')
         self.update_status("Done Loading!")
         self.update_status('Extracting Data...')
         self.extract_datasets_nexus()
@@ -93,16 +92,16 @@ class DatasetThread(threading.Thread):
         # Get detector group data
         x = np.array(wksp['workspace']['axis1'].value)
         err_groups = wksp['workspace']['errors'].value
-        y_groups =  wksp['workspace']['values'].value   # 0==error, 1==values
+        y_groups = wksp['workspace']['values'].value   # 0==error, 1==values
 
         # Re-sort based on Theta degrees
         tmp, err_groups = self.sort_lists(sorter=Theta, sortee=err_groups)
-        tmp, y_groups   = self.sort_lists(sorter=Theta, sortee=y_groups)
-        tmp, L1         = self.sort_lists(sorter=Theta, sortee=L1)
-        tmp, Phi        = self.sort_lists(sorter=Theta, sortee=Phi)
+        tmp, y_groups = self.sort_lists(sorter=Theta, sortee=y_groups)
+        tmp, L1 = self.sort_lists(sorter=Theta, sortee=L1)
+        tmp, Phi = self.sort_lists(sorter=Theta, sortee=Phi)
 
         # Theta must be sorted last
-        tmp, Theta      = self.sort_lists(sorter=Theta, sortee=Theta)
+        tmp, Theta = self.sort_lists(sorter=Theta, sortee=Theta)
 
         dataset_list = list()
         for i, (l1, theta, phi, y, err) in enumerate(
@@ -114,20 +113,20 @@ class DatasetThread(threading.Thread):
                 'yerr': err}
             dataset_title = "Bank: {0:.2f}".format(theta)
             dataset_list.append(
-                    Dataset(x=x, y=y, 
-                            title=dataset_title, 
-                            info=info_dict
-                    )
+                Dataset(x=x, y=y,
+                        title=dataset_title,
+                        info=info_dict
+                        )
             )
 
         # Get CorrectedDatasets type based on title (called the Tag)
         tag = self.getTag(title)
         info_dict = {'tag': tag}
-        self.corrected_datasets[title] = CorrectedDatasets( 
-                                            datasets = dataset_list,
-                                            title = title,
-                                            info = info_dict
-                                         )
+        self.corrected_datasets[title] = CorrectedDatasets(
+            datasets=dataset_list,
+            title=title,
+            info=info_dict
+        )
 
 
 # -----------------------------------------------------------------#
@@ -137,7 +136,6 @@ class MeasurementThread(threading.Thread):
         self.measurement_type = measurement_type
         threading.Thread.__init__(self)
 
-
     def get_measurement(self):
         cd_list = list()
         for title, cd in self.corrected_datasets.items():
@@ -145,25 +143,26 @@ class MeasurementThread(threading.Thread):
             if tag == self.measurement_type:
                 cd_list.append(cd)
 
-        self.measurements[tag] = Measurement( corrected_datasets=cd_list,
-                                              title=tag)
+        self.measurements[tag] = Measurement(corrected_datasets=cd_list,
+                                             title=tag)
+
     def get_other_measurement(self):
         pass
-                                              
+
     def run(self):
         if self.measurement_type == 'Other':
             self.get_other_measurement()
         else:
             self.get_measurement()
-               
+
 # -----------------------------------------------------------------#
 # Thread to handle creating the Experiment from CorrectedDatasets
+
 
 class ExperimentThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
 
- 
     # Multithreaded extraction of Datasets from Nexus file
     def create_measurements(self):
         pass
@@ -193,7 +192,3 @@ class ExperimentThread(threading.Thread):
         self.create_experiments()
         self.update_status("Done with Experiment!")
         return
-
-   
-
- 

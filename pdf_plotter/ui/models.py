@@ -13,10 +13,12 @@ class Dataset(HasTraits):
     title = Str
     info = Dict
 
+
 class CorrectedDatasets(HasTraits):
     datasets = List(Dataset)
     title = Str
     info = Dict
+
 
 class Measurement(HasTraits):
     corrected_datasets = List(CorrectedDatasets)

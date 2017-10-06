@@ -1,13 +1,7 @@
 from __future__ import (absolute_import, division, print_function)
 
-from traits.api \
-    import on_trait_change
-
 from traitsui.api \
     import Action, Handler
-
-from traitsui.file_dialog \
-    import open_file, FileInfo
 
 from models \
     import Dataset
@@ -22,13 +16,30 @@ CachePlotAction = Action(name="Cache Plot",
 ClearCacheAction = Action(name="Clear Cache",
                           action="clear_cache")
 
-LoadExperimentFileAction = Action(name="Load...",
-                                  action="load_experiment_file")
 
-
-# -----------------------------------------------------------#
-# Controllers
 class ControlPanelHandler(Handler):
+    # -----------------------------------------------------------#
+    def get_parents(self, info, node):
+        # Grab selected Dataset
+        selected = info.object.controls.selected
+
+        # Get the TreeEditor for the Experiment
+        controls_editors = info.ui.get_editors("controls")
+        experiment_editors = list()
+        for editor in controls_editors:
+            experiment_editors.extend(editor._ui.get_editors("experiment"))
+        experiment_editor = experiment_editors[0]  # just grab first
+
+        # Get the parents
+        corrected_dataset = experiment_editor.get_parent(selected)
+        measurement = experiment_editor.get_parent(corrected_dataset)
+        experiment = experiment_editor.get_parent(measurement)
+
+        parents = {'corrected_dataset': corrected_dataset,
+                   'measurement': measurement,
+                   'experiment': experiment}
+
+        return parents
 
     def cache_plot(self, info):
         selected = info.object.controls.selected
@@ -67,7 +78,9 @@ class ControlPanelHandler(Handler):
                 # Check if title changed.
                 # If so, add as a different Node in 'Other' Measurement
                 if tmp_title != b.title:
-                    info.object.controls.addPlotToNode(b)
+                    parents = self.get_parents(info, b)
+                    info.object.controls.addPlotToNode(dataset=b,
+                                                       parents=parents)
 
                 # Add 'b' to cached plots
                 info.object.controls.cached_plots.append(b)
@@ -85,4 +98,3 @@ class ControlPanelHandler(Handler):
         axes = info.object.get_axes()
         axes.cla()
         info.object.plot_modification()
-    

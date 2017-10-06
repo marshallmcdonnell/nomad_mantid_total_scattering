@@ -2,7 +2,7 @@ from models \
     import Experiment, Measurement, CorrectedDatasets, Dataset
 
 from traitsui.api \
-    import TreeEditor, TreeNode, View, Group
+    import TreeEditor, TreeNode, View, Group, Menu, Action
 
 
 class RootNode(TreeNode):
@@ -66,13 +66,14 @@ class MeasurementNode(TreeNode):
     # Class of node to add
     add = [CorrectedDatasets]
 
+
 class CorrectedDatasetsNode(TreeNode):
 
     # List of object classes the node applies to
     node_for = [CorrectedDatasets]
 
     # Automatically open the children underneath the node
-    auto_open = False 
+    auto_open = False
 
     # Specify children of node (this is an attribute of the class in
     # 'node_for')
@@ -88,17 +89,20 @@ class CorrectedDatasetsNode(TreeNode):
     add = [Dataset]
 
 
-
 class DatasetNode(TreeNode):
 
     # List of object classes the node applies to
     node_for = [Dataset]
 
     # Automatically open the children underneath the node
-    auto_open = False 
+    auto_open = False
 
     # Label of the node (this is an attribute of the class in 'node_for')
     label = 'title'
+
+    # Menu
+    menu = Menu(Action(name="Test...",
+                       action="handler.get_measurement(editor,object)"))
 
     # View for the node
     view = View()

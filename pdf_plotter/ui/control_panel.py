@@ -9,7 +9,7 @@ import numpy as np
 # Traits
 from traits.api \
     import HasTraits, Instance, List, CFloat, Property, Any, \
-    Str, File, Button, on_trait_change, property_depends_on
+    Str, Button, on_trait_change, property_depends_on
 
 from traitsui.file_dialog \
     import open_file, FileInfo
@@ -109,6 +109,7 @@ class ExperimentFileInput(HasTraits):
 # -----------------------------------------------------------#
 # Controls Model
 
+
 class Controls(HasTraits):
     # View
     view = ControlsView
@@ -195,20 +196,26 @@ class Controls(HasTraits):
         except ValueError:
             return
 
-    def addPlotToNode(self, dataset):
-        print('inside addPlotToNode')
-        if 'Other' not in [m.title for m in self.experiment.measurements]:
-            print("In 'Other' creation")
-            other = Measurement(extra_datasets=[dataset], title='Other')
-            self.experiment.measurements.append(other)
+    def addPlotToNode(self, dataset, parents):
+        if dataset is None or parents is None:
+            return
+
+        # Get the pointer to the right Measurements and CorrectedDatasets
+        for m in self.experiment.measurements:
+            if m == parents['measurement']:
+                measurement = m
+
+        # Create the 'Other' CorrectedDatasets Node if it does not exist
+        if 'Other' not in [m.title for m in measurement.corrected_datasets]:
+            other = CorrectedDatasets(datasets=[dataset], title='Other')
+            measurement.corrected_datasets.append(other)
         else:
-            print("In 'Other' else")
-            other = [
-                m for m in self.experiment.measurements if m.title == 'Other']
+            other = [m for m in measurement.corrected_datasets
+                     if m.title == 'Other']
             if len(other) != 1:
-                print("ERROR: More than 1 'Other' Measurement. Resuming...")
+                print("WARNING: More than 1 'Other' CorrectedDatsets...")
             other = other[0]
-            other.extra_datasets.append(dataset)
+            other.datasets.append(dataset)
 
     # -------------------------------------------------------#
     # Dynamic
@@ -225,8 +232,9 @@ class Controls(HasTraits):
     def _get_datasets(self):
         datasets = list()
         for measurement in self.experiment.measurements:
-            for dataset in measurement.datasets:
-                datasets.append(dataset)
+            for corrected_dataset in measurement.corrected_datasets:
+                for dataset in corrected_dataset.datasets:
+                    datasets.append(dataset)
         return datasets
 
     # Gets the
@@ -421,6 +429,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--dummy_data', action='store_true',
                         help="Loads Experiment Tree w/ dummy data.")
+    parser.add_argument(
+        '--controls_view_only',
+        action='store_true',
+        help="Loads Experiment Tree w/ dummy data and just view Controls.")
     args = parser.parse_args()
 
     if args.dummy_data:
@@ -452,46 +464,52 @@ if __name__ == "__main__":
         # Now make a second measurement for the container
         x = np.linspace(-2, 2, 200)
         m2 = Measurement(
-                 corrected_datasets=[
-                    CorrectedDatasets(datasets=[
-                        Dataset(x=x,
-                                y=0.80 * x * x,
-                                title='Bank 1',
-                                info={'correction': '(C-CB)/V'},
-                        ),
-                        Dataset(x=x,
-                                y=0.97 * x * x,
-                                title='Bank 2',
-                                info={'correction': '(C-CB)/V'},
+            corrected_datasets=[
+                CorrectedDatasets(datasets=[
+                    Dataset(x=x,
+                            y=0.80 * x * x,
+                            title='Bank 1',
+                            info={'correction': '(C-CB)/V'},
                             ),
-                        ],
-                        title='(C-CB)/V',
-                    ),
-                    CorrectedDatasets(datasets=[
-                            Dataset(x=x,
-                                    y=0.80 * x * x * x,
-                                    title='Bank 1',
-                                    info={'correction': '1/A(C-CB)/V - MS'},
+                    Dataset(x=x,
+                            y=0.97 * x * x,
+                            title='Bank 2',
+                            info={'correction': '(C-CB)/V'},
                             ),
-                            Dataset(x=x,
-                                    y=0.97 * x * x * x,
-                                    title='Bank 2',
-                                    info={'correction': '1/A(C-CB)/V - MS'},
-                            ),
-                        ],
-                        title="1/A(C-CB)/V - MS",
-                    ),
                 ],
-                title='Container',
+                    title='(C-CB)/V',
+                ),
+                CorrectedDatasets(datasets=[
+                    Dataset(x=x,
+                            y=0.80 * x * x * x,
+                            title='Bank 1',
+                            info={'correction': '1/A(C-CB)/V - MS'},
+                            ),
+                    Dataset(x=x,
+                            y=0.97 * x * x * x,
+                            title='Bank 2',
+                            info={'correction': '1/A(C-CB)/V - MS'},
+                            ),
+                ],
+                    title="1/A(C-CB)/V - MS",
+                ),
+            ],
+            title='Container',
         )
 
         # Create a Experiment from these two measurements
         e1 = Experiment(measurements=[m1, m2], title='Si_NOM97884')
 
         # Use the ControlPanel to View the Measurement
-        cp = ControlPanel(experiment_file=ExperimentFileInput(),
-                          controls=Controls(experiment=e1))
-        cp.configure_traits(view=ControlPanelView, handler=ControlPanelHandler)
+        if args.controls_view_only:
+            c = Controls(experiment=e1)
+            c.configure_traits()
+        else:
+            cp = ControlPanel(experiment_file=ExperimentFileInput(),
+                              controls=Controls(experiment=e1))
+            cp.configure_traits(
+                view=ControlPanelView,
+                handler=ControlPanelHandler)
 
     else:
         cp = ControlPanel(experiment_file=ExperimentFileInput())

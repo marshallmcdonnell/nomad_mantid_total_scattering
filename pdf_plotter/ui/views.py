@@ -13,7 +13,7 @@ from mpl_utilities \
 from editors import ExperimentTreeEditor
 
 from controllers \
-    import CachePlotAction, ClearCacheAction, LoadExperimentFileAction
+    import CachePlotAction, ClearCacheAction
 
 
 # -----------------------------------------------------------#
@@ -32,7 +32,7 @@ MeasurementView = View(
     Item('datasets',
          show_label=False,
          editor=table_editor
-    ),
+         ),
     resizable=True,
 )
 
@@ -40,14 +40,14 @@ ExperimentView = View(
     Item('measurements',
          show_label=False,
          editor=table_editor
-    ),
+         ),
     resizable=True,
 )
 
 ExperimentFileInputView = View(
     Item('load_button',
          show_label=False,
-    ),
+         ),
 )
 
 SofqPlotView = View(
@@ -56,7 +56,7 @@ SofqPlotView = View(
          show_label=False,
          resizable=True,
          springy=True
-    ),
+         ),
 )
 
 ControlsView = View(
@@ -168,14 +168,23 @@ ControlsView = View(
                 label='ColorMap',
             ),
         ),
-    ))
+    ),
+)
 
 ControlPanelView = View(
     HSplit(
         UItem('sofq_plot', width=0.7, style='custom', editor=InstanceEditor()),
         VSplit(
-            UItem('experiment_file', height=0.1, style='custom', editor=InstanceEditor()),
-            UItem('controls',  height=0.9, style='custom', editor=InstanceEditor()),
+            UItem('experiment_file',
+                  height=0.1,
+                  style='custom',
+                  editor=InstanceEditor()
+                  ),
+            UItem('controls',
+                  height=0.9,
+                  style='custom',
+                  editor=InstanceEditor()
+                  ),
         ),
     ),
     buttons=[CachePlotAction, ClearCacheAction],
