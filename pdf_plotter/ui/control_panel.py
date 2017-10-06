@@ -3,6 +3,7 @@
 from __future__ import (absolute_import, division, print_function)
 
 import os
+import time
 import argparse
 import numpy as np
 
@@ -58,6 +59,9 @@ class ExperimentFileInput(HasTraits):
     # Load button
     load_button = Button("Load Experiment...")
 
+    # NeXus filename that is loaded in
+    filename = Str
+
     # Thread to handle loading in the file
     file_thread = Instance(NexusFileThread)
 
@@ -67,28 +71,32 @@ class ExperimentFileInput(HasTraits):
     # status
     load_status = Str('Load in a file.')
 
-    # Measurement dictionary: key=tag, value=List(CorrectedDatasets)
-    measurements = dict()
-
     # Dataset dictionary: key=title, value={CorrectedDatasets, tag}
     corrected_datasets = dict()
 
     # Returned Experiment
-    result = Instance(Experiment)
+    experiment = Instance(Experiment)
 
     # Get update from thread
     def update_status(self, status):
         self.load_status = status
+
+    # Get experiment update from thread
+    def update_experiment(self, experiment):
+        self.experiment = experiment
 
     # Handle the user clicking the Load button
     def _load_button_changed(self):
         f = open_file(file_name=os.getcwd(),
                       extensions=[FileInfo()],
                       filter=['*.nxs', '*.dat'])
+        self.filename = f
         if f != '':
             name, ext = os.path.splitext(f)
             if ext == '.nxs':
                 self.load_and_extract_nexus(f)
+                while self.file_thread.isAlive():
+                    time.sleep(1)
                 self.form_experiment()
             elif ext == '.dat':
                 self.load_and_extract_dat_file(f)
@@ -103,8 +111,12 @@ class ExperimentFileInput(HasTraits):
     def form_experiment(self):
         self.experiment_thread = ExperimentThread()
         self.experiment_thread.update_status = self.update_status
+        self.experiment_thread.update_experiment = self.update_experiment
         self.experiment_thread.corrected_datasets = self.corrected_datasets
+        self.experiment_thread.filename = self.filename
+        self.experiment_thread.experiment = self.experiment
         self.experiment_thread.start()
+
 
 # -----------------------------------------------------------#
 # Controls Model
@@ -357,6 +369,15 @@ class ControlPanel(HasTraits):
 
     # -------------------------------------------------------#
     # Dynamic
+
+    @on_trait_change('experiment_file.experiment')
+    def experiment_updated(self):
+        experiment = self.experiment_file.experiment
+        if experiment:
+            if self.controls:
+                self.controls.experiment = experiment
+            else:
+                self.controls = Controls(experiment=experiment)
 
     @on_trait_change('experiment_file.load_status')
     def update_status(self):
