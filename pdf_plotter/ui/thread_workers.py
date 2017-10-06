@@ -1,7 +1,7 @@
 
 import threading
 import numpy as np
-from nexusformat import nexus
+import h5py
 
 from models \
     import Dataset, CorrectedDatasets, Measurement, Experiment
@@ -20,8 +20,8 @@ class NexusFileThread(threading.Thread):
     def extract_datasets_nexus(self):
         nx = self.nxresult
         a = [nx[wksp] for wksp in nx]
-        wksps = [nx[wksp] for wksp in nx if str(
-            wksp.title).startswith("mantid_workspace")]
+        wksps = [nx[wksp] for wksp in nx 
+                          if  wksp.startswith("mantid_workspace")]
 
         t_list = list()
         for i, wksp in enumerate(wksps):
@@ -37,8 +37,7 @@ class NexusFileThread(threading.Thread):
     # Datasets
     def run(self):
         self.update_status("Loading...")
-        with nexus.NXFile(self.f, 'r') as f:
-            self.nxresult = f.readfile()
+        self.nxresult =  h5py.File(self.f, 'r')
         self.update_status("Done Loading!")
         self.update_status('Extracting Data...')
         self.extract_datasets_nexus()
@@ -80,11 +79,12 @@ class DatasetThread(threading.Thread):
             return 'Other'
 
     def run(self):
-        wksp = self.wksp
+        wksp = dict(self.wksp)
 
         # Get title and detector group info (L1s, Thetas, and Phis)
-        title = str(wksp.title)
-        groups = wksp.instrument.detector.detector_positions
+        title = str(wksp['title'].value[0])
+        print title
+        groups = wksp['instrument']['detector']['detector_positions'].value
 
         # Extract detector group info
         L1 = [float(l1) for (l1, theta, phi) in groups]
@@ -92,18 +92,18 @@ class DatasetThread(threading.Thread):
         Phi = [float(phi) for (l1, theta, phi) in groups]
 
         # Get detector group data
-        x = np.array(wksp.workspace.axis1.boundaries())
-        err_groups = np.array(wksp.workspace.errors)
-        y_groups = np.array(wksp.workspace.values()[1])  # 0==error, 1==values
+        x = np.array(wksp['workspace']['axis1'].value)
+        err_groups = wksp['workspace']['errors'].value
+        y_groups =  wksp['workspace']['values'].value   # 0==error, 1==values
 
         # Re-sort based on Theta degrees
-        err_groups, tmp = self.sort_lists(sorter=Theta, sortee=err_groups)
-        y_groups, tmp = self.sort_lists(sorter=Theta, sortee=y_groups)
-        L1, tmp = self.sort_lists(sorter=Theta, sortee=L1)
-        Phi, tmp = self.sort_lists(sorter=Theta, sortee=Phi)
+        tmp, err_groups = self.sort_lists(sorter=Theta, sortee=err_groups)
+        tmp, y_groups   = self.sort_lists(sorter=Theta, sortee=y_groups)
+        tmp, L1         = self.sort_lists(sorter=Theta, sortee=L1)
+        tmp, Phi        = self.sort_lists(sorter=Theta, sortee=Phi)
 
         # Theta must be sorted last
-        Theta, tmp = self.sort_lists(sorter=Theta, sortee=Theta)
+        tmp, Theta      = self.sort_lists(sorter=Theta, sortee=Theta)
 
         dataset_list = list()
         for i, (l1, theta, phi, y, err) in enumerate(
