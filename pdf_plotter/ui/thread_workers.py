@@ -83,7 +83,6 @@ class DatasetThread(threading.Thread):
 
         # Get title and detector group info (L1s, Thetas, and Phis)
         title = str(wksp['title'].value[0])
-        print title
         groups = wksp['instrument']['detector']['detector_positions'].value
 
         # Extract detector group info
@@ -167,7 +166,9 @@ class ExperimentThread(threading.Thread):
  
     # Multithreaded extraction of Datasets from Nexus file
     def create_measurements(self):
+        pass
 
+        '''
         t_list = list()
         for i, wksp in enumerate(wksps):
             t = MeasurementThread(wksp)
@@ -177,6 +178,10 @@ class ExperimentThread(threading.Thread):
 
         for t in t_list:
             t.join()
+        '''
+
+    def create_experiments(self):
+        pass
 
     # Main thread opens and extracts Nexus and then launchs threads to extract
     # Datasets

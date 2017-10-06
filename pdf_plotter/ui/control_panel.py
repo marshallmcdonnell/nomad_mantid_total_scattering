@@ -101,7 +101,7 @@ class ExperimentFileInput(HasTraits):
         self.file_thread.start()
 
     def form_experiment(self):
-        self.experiment_thread = ExperimentThread
+        self.experiment_thread = ExperimentThread()
         self.experiment_thread.update_status = self.update_status
         self.experiment_thread.corrected_datasets = self.corrected_datasets
         self.experiment_thread.start()
