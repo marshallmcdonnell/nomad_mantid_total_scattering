@@ -51,7 +51,7 @@ class MeasurementNode(TreeNode):
     node_for = [Measurement]
 
     # Automatically open the children underneath the node
-    auto_open = True
+    auto_open = False 
 
     # Specify children of node (this is an attribute of the class in
     # 'node_for')
