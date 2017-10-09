@@ -2,18 +2,13 @@
 
 from __future__ import (absolute_import, division, print_function)
 
-import os
-import time
 import argparse
 import numpy as np
 
 # Traits
 from traits.api \
-    import HasTraits, Instance, List, CFloat, Property, Any, \
-    Str, Button, on_trait_change, property_depends_on
-
-from traitsui.file_dialog \
-    import open_file, FileInfo
+    import HasTraits, Instance, Property,  \
+    on_trait_change
 
 # Matplotlib
 from matplotlib import cm
@@ -28,14 +23,16 @@ from models \
     import Experiment, Measurement, CorrectedDatasets, Dataset
 
 from views \
-    import SofqPlotView, ControlsView, ControlPanelView, \
-    ExperimentFileInputView
+    import SofqPlotView, ControlPanelView
+
+from controls \
+    import Controls
 
 from controllers \
     import ControlPanelHandler
 
-from thread_workers \
-    import NexusFileThread, ExperimentThread
+from file_load \
+    import ExperimentFileInput
 
 # -----------------------------------------------------------#
 # Figure Model
@@ -48,260 +45,6 @@ class SofqPlot(HasTraits):
     # Figure to display selected dataset and axes for figure
     figure = Instance(Figure, ())
 
-# -----------------------------------------------------------#
-# Experiment File Input Model
-
-
-class ExperimentFileInput(HasTraits):
-    # View
-    view = ExperimentFileInputView
-
-    # Load button
-    load_button = Button("Load Experiment...")
-
-    # NeXus filename that is loaded in
-    filename = Str
-
-    # Thread to handle loading in the file
-    file_thread = Instance(NexusFileThread)
-
-    # Thread to handle putting together the Experiment from CorrectedDatasets
-    experiment_thread = Instance(ExperimentThread)
-
-    # status
-    load_status = Str('Load in a file.')
-
-    # Dataset dictionary: key=title, value={CorrectedDatasets, tag}
-    corrected_datasets = dict()
-
-    # Returned Experiment
-    experiment = Instance(Experiment)
-
-    # Get update from thread
-    def update_status(self, status):
-        self.load_status = status
-
-    # Get experiment update from thread
-    def update_experiment(self, experiment):
-        self.experiment = experiment
-
-    # Handle the user clicking the Load button
-    def _load_button_changed(self):
-        f = open_file(file_name=os.getcwd(),
-                      extensions=[FileInfo()],
-                      filter=['*.nxs', '*.dat'])
-        self.filename = f
-        if f != '':
-            name, ext = os.path.splitext(f)
-            if ext == '.nxs':
-                self.load_and_extract_nexus(f)
-                while self.file_thread.isAlive():
-                    time.sleep(1)
-                self.form_experiment()
-            elif ext == '.dat':
-                self.load_and_extract_dat_file(f)
-
-    # Parse the Experiment NeXus file
-    def load_and_extract_nexus(self, f):
-        self.file_thread = NexusFileThread(f)
-        self.file_thread.update_status = self.update_status
-        self.file_thread.corrected_datasets = self.corrected_datasets
-        self.file_thread.start()
-
-    def form_experiment(self):
-        self.experiment_thread = ExperimentThread()
-        self.experiment_thread.update_status = self.update_status
-        self.experiment_thread.update_experiment = self.update_experiment
-        self.experiment_thread.corrected_datasets = self.corrected_datasets
-        self.experiment_thread.filename = self.filename
-        self.experiment_thread.experiment = self.experiment
-        self.experiment_thread.start()
-
-
-# -----------------------------------------------------------#
-# Controls Model
-
-
-class Controls(HasTraits):
-    # View
-    view = ControlsView
-
-    # -------------------------------------------------------#
-    # Traits
-
-    # Passed in measurement
-    experiment = Instance(Experiment, ())
-
-    # The current list of datasets
-    datasets = Property
-
-    # The currently selected dataset
-    selected = Any
-
-    # The contents of the currently selected dataset
-    selected_contents = Property
-
-    # Scale controls
-    scale_min = CFloat(0.5)
-    scale_max = CFloat(1.5)
-    scale_factor = CFloat(1.0)
-
-    # Scale controls
-    shift_min = CFloat(-5.0)
-    shift_max = CFloat(5.0)
-    shift_factor = CFloat(0.0)
-
-    # X-range controls
-    xmin = CFloat(0.0)
-    xmin_min = CFloat(0.0)
-    xmin_max = CFloat(5.0)
-
-    xmax = CFloat(40.0)
-    xmax_min = CFloat(0.0)
-    xmax_max = CFloat(2.0)
-
-    # Cached plots we keep on plot
-    cached_plots = List
-
-    # List of color maps available
-    cmap_list = List(sorted(
-        [cmap for cmap in cm.datad if not cmap.endswith("_r")],
-        key=lambda s: s.upper()
-    )
-    )
-
-    # Selected color map
-    selected_cmap = Any
-
-    # Selected color map  contents
-    selected_cmap_contents = Property
-
-    # Limits for min/max for x and y on all datasets in experiment
-    xlim_for_exp = {'min': None, 'max': None}
-    ylim_for_exp = {'min': None, 'max': None}
-
-    # Limits for min/max for x and y on all datasets to plot (self.selected +
-    # self.cached_plots)
-    xlim_on_plot = {'min': None, 'max': None}
-    ylim_on_plot = {'min': None, 'max': None}
-
-    # -------------------------------------------------------#
-    # Utilities
-
-    # Sets the limits for the X-range axis using all datasets
-    def getLimitsForExperiment(self):
-        xlist = []
-        ylist = []
-        for d in self.datasets:
-            xlist = np.append(xlist, d.x, axis=None)
-            ylist = np.append(ylist, d.y, axis=None)
-
-        try:
-            self.xlim_for_exp['min'] = min(xlist)
-            self.xlim_for_exp['max'] = max(xlist)
-            self.ylim_for_exp['min'] = min(ylist)
-            self.ylim_for_exp['max'] = max(ylist)
-
-        except ValueError:
-            return
-
-    # Sets the limits for the plots in the figure (cached and selected)
-    def getLimitsOnPlot(self, xin, yin):
-        xlist = []
-        ylist = []
-
-        if len(self.cached_plots) > 0:
-            for a in self.cached_plots:
-
-                xlist = np.append(xlist, a.x, axis=None)
-                ylist = np.append(ylist, a.y, axis=None)
-
-        xlist = np.append(xlist, xin)
-        xlist = np.append(xlist, self.xmin)
-        xlist = np.append(xlist, self.xmax)
-
-        ylist = np.append(ylist, yin)
-
-        ylist[ ylist ==  np.inf ] = 0.0
-        ylist[ ylist == -np.inf ] = 0.0
-        ylist[ np.isnan(ylist)  ] = 0.0
-        try:
-            self.xlim_on_plot['min'] = min(xlist)
-            self.xlim_on_plot['max'] = max(xlist)
-            self.ylim_on_plot['min'] = min(ylist)
-            self.ylim_on_plot['max'] = max(ylist)
-
-        except ValueError:
-            return
-
-    # Adds nodes to the Tree View in Controls
-    def addPlotToNode(self, dataset, parents):
-        if dataset is None or parents is None:
-            return
-
-        # Get the pointer to the right Measurements and CorrectedDatasets
-        for m in self.experiment.measurements:
-            if m == parents['measurement']:
-                measurement = m
-
-        # Create the 'Other' CorrectedDatasets Node if it does not exist
-        if 'Other' not in [m.title for m in measurement.corrected_datasets]:
-            other = CorrectedDatasets(datasets=[dataset], title='Other')
-            measurement.corrected_datasets.append(other)
-        else:
-            other = [m for m in measurement.corrected_datasets
-                     if m.title == 'Other']
-            if len(other) != 1:
-                print("WARNING: More than 1 'Other' CorrectedDatsets...")
-            other = other[0]
-            other.datasets.append(dataset)
-
-    # -------------------------------------------------------#
-    # Dynamic
-
-    # Gives the X,Y of the selected node and stores in selected_contents
-    @property_depends_on('selected')
-    def _get_selected_contents(self):
-        if self.selected is None:
-            return ''
-        if isinstance(self.selected, Dataset):
-            return self.selected.x, self.selected.y
-
-    # Extracts Datasets models that are stored in the Experiment model
-    @property_depends_on('experiment')
-    def _get_datasets(self):
-        datasets = list()
-        for measurement in self.experiment.measurements:
-            for corrected_dataset in measurement.corrected_datasets:
-                for dataset in corrected_dataset.datasets:
-                    # Strip +- inf 
-                    y = dataset.y
-                    y[ y ==  np.inf ] = 0.0
-                    y[ y == -np.inf ] = 0.0
-
-                    datasets.append(dataset)
-        return datasets
-
-    # Gets the selected Color Map, default == 'Set1'
-    @property_depends_on('selected_cmap')
-    def _get_selected_cmap_contents(self):
-        if self.selected_cmap:
-            return self.selected_cmap[0]
-        return 'Set1'
-
-    
-
-    # Looks for change in Experiment and sets the correct limits
-    @on_trait_change('experiment')
-    def update_experiment(self):
-        self.getLimitsForExperiment()
-        self.xmin     = self.xlim_for_exp['min']
-        self.xmin_min = self.xlim_for_exp['min']
-        self.xmin_max = self.xlim_for_exp['max']
-
-        self.xmax     = self.xlim_for_exp['max']
-        self.xmax_min = self.xlim_for_exp['min']
-        self.xmax_max = self.xlim_for_exp['max']
 
 # -----------------------------------------------------------#
 # Main Control Panel
@@ -378,7 +121,6 @@ class ControlPanel(HasTraits):
         axes = self.get_axes()
         for cached_plot in self.controls.cached_plots:
             axes.plot(cached_plot.x, cached_plot.y)
-            
 
     # Loop over lines in the Axes for the cached plots and modify
     # accordingly
@@ -419,8 +161,12 @@ class ControlPanel(HasTraits):
         self.controls.getLimitsOnPlot(x, y)
 
         # Set the limits
-        axes.set_xlim(self.controls.xlim_on_plot['min'], self.controls.xlim_on_plot['max'])
-        axes.set_ylim(self.controls.ylim_on_plot['min'], self.controls.ylim_on_plot['max'])
+        axes.set_xlim(
+            self.controls.xlim_on_plot['min'],
+            self.controls.xlim_on_plot['max'])
+        axes.set_ylim(
+            self.controls.ylim_on_plot['min'],
+            self.controls.ylim_on_plot['max'])
 
         # Use the modifications to adjust the x, y line
         self.set_xy(axes, x, y, self.controls.selected.title)
@@ -439,10 +185,10 @@ class ControlPanel(HasTraits):
         for i, dataset in enumerate(datasets):
             x = dataset.x[:-1]
             y = dataset.y
-            axes.plot(x, y,label=dataset.title)
+            axes.plot(x, y, label=dataset.title)
 
         # Set index to start plotting cached plots
-        self.cache_start_index = len(datasets) 
+        self.cache_start_index = len(datasets)
 
     # Plots the X, Y data (cached and selected) on the given Axes and re-draws
     # the canvas
@@ -472,7 +218,7 @@ class ControlPanel(HasTraits):
             axes = self.sofq_plot.figure.axes[0]
 
         return axes
-    
+
     def redraw_canvas(self):
         axes = self.get_axes()
 
@@ -484,7 +230,6 @@ class ControlPanel(HasTraits):
         canvas = self.sofq_plot.figure.canvas
         if canvas is not None:
             canvas.draw()
-
 
     # -------------------------------------------------------#
     # Dynamic
@@ -531,9 +276,6 @@ class ControlPanel(HasTraits):
         except AttributeError:
             pass
 
-
-
-
     # Re-plot when we apply a shift or scale factor
     @on_trait_change(
         'controls.scale_factor,controls.shift_factor,'
@@ -554,8 +296,12 @@ class ControlPanel(HasTraits):
             self.controls.getLimitsOnPlot(x, y)
 
             # Set the limits
-            axes.set_xlim(self.controls.xlim_on_plot['min'], self.controls.xlim_on_plot['max'])
-            axes.set_ylim(self.controls.ylim_on_plot['min'], self.controls.ylim_on_plot['max'])
+            axes.set_xlim(
+                self.controls.xlim_on_plot['min'],
+                self.controls.xlim_on_plot['max'])
+            axes.set_ylim(
+                self.controls.ylim_on_plot['min'],
+                self.controls.ylim_on_plot['max'])
 
             # Use the modifications to adjust the x, y line
             self.set_xy(axes, x, y, self.controls.selected.title)
