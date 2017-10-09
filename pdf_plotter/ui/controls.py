@@ -12,6 +12,9 @@ from traits.api \
     import HasTraits, Instance, List, CFloat, Property, Any, \
     on_trait_change, property_depends_on
 
+from traitsui.api \
+    import RangeEditor, CheckListEditor, TextEditor, \
+    View, HSplit, VSplit, VGroup, Item
 
 # Local
 from models \
@@ -21,27 +24,17 @@ from views \
     import ControlsView
 
 # -----------------------------------------------------------#
-# Controls Model
+# Node Controls Model
 
 
-class Controls(HasTraits):
-    # View
-    view = ControlsView
+class NodeControls(HasTraits):
+    pass
 
-    # -------------------------------------------------------#
-    # Traits
+# -----------------------------------------------------------#
+# Dataset Node Controls Model
 
-    # Passed in measurement
-    experiment = Instance(Experiment, ())
 
-    # The current list of datasets
-    datasets = Property
-
-    # The currently selected dataset
-    selected = Any
-
-    # The contents of the currently selected dataset
-    selected_contents = Property
+class DatasetNodeControls(NodeControls):
 
     # Scale controls
     scale_min = CFloat(0.5)
@@ -62,14 +55,11 @@ class Controls(HasTraits):
     xmax_min = CFloat(0.0)
     xmax_max = CFloat(2.0)
 
-    # Cached plots we keep on plot
-    cached_plots = List
-
     # List of color maps available
     cmap_list = List(sorted(
         [cmap for cmap in cm.datad if not cmap.endswith("_r")],
         key=lambda s: s.upper()
-    )
+        )
     )
 
     # Selected color map
@@ -77,6 +67,161 @@ class Controls(HasTraits):
 
     # Selected color map  contents
     selected_cmap_contents = Property
+
+
+    traits_view = View(
+        VGroup(
+
+            # Scale group
+            HSplit(
+                Item('scale_min', width=0.1,label='Min'),
+                Item(
+                    'scale_factor',
+                    editor=RangeEditor(
+                        mode='slider',
+                        low_name='scale_min',
+                        high_name='scale_max',
+                        format='%4.2f',
+                    ),
+                    width=0.8,
+                    show_label=False,
+                ),
+                Item('scale_max', width=0.1,label='Max'),
+                show_border=True,
+                label='Scale',
+            ),
+
+            # Shift group
+            HSplit(
+                Item('shift_min', width=0.1,label='Min'),
+                Item(
+                    'shift_factor',
+                    editor=RangeEditor(
+                        mode='slider',
+                        low_name='shift_min',
+                        high_name='shift_max',
+                        format='%4.2f',
+                    ),
+                    width=0.8,
+                    show_label=False,
+                ),
+                Item('shift_max', width=0.1,label='Max'),
+                show_border=True,
+                label='Shift',
+            ),
+
+            # X range
+            VSplit(
+
+                # Xmin
+                HSplit(
+                    Item('xmin_min',
+                          width=0.1,
+                          editor=TextEditor(auto_set=False,),
+                          label='Min',
+                    ),
+                    Item('xmin',
+                          editor=RangeEditor(
+                              mode='slider',
+                              low_name='xmin_min',
+                              high_name='xmin_max',
+                              format='%4.2f',
+                          ),
+                          width=0.8,
+                          show_label=False,
+                    ),
+                    Item('xmin_max',
+                          width=0.1,
+                          editor=TextEditor(auto_set=False,),
+                          label='Max',
+                    ),
+                    label='Xmin',
+                ),
+
+                # Xmax
+                HSplit(
+                    Item('xmax_min',
+                          width=0.1,
+                          editor=TextEditor(auto_set=False,),
+                          label='Min',
+                          ),
+                    Item('xmax',
+                          editor=RangeEditor(
+                              mode='slider',
+                              low_name='xmax_min',
+                              high_name='xmax_max',
+                              format='%4.2f',
+                          ),
+                          width=0.8,
+                          show_label=False,
+                          ),
+                    Item('xmax_max',
+                          width=0.1,
+                          editor=TextEditor(auto_set=False,),
+                          label='Max',
+                          ),
+                    label='Xmax',
+                ),
+                show_border=True,
+                label='X-range',
+            ),
+
+            # Color map
+            HSplit(
+                Item('selected_cmap',
+                      editor=CheckListEditor(name='cmap_list'),
+                      show_label=False,
+                ),
+                show_border=True,
+                label='ColorMap',
+            ),
+        ),
+    )
+
+    # Gets the selected Color Map, default == 'Set1'
+    @property_depends_on('selected_cmap')
+    def _get_selected_cmap_contents(self):
+        if self.selected_cmap:
+            return self.selected_cmap[0]
+        return 'Set1'
+
+
+# -----------------------------------------------------------#
+# CorrectedDatasets Node Controls Model
+
+
+class CorrectedDatasetsNodeControls(NodeControls):
+    traits_view = View(width=0.1)
+
+# -----------------------------------------------------------#
+# Controls Model
+
+
+class Controls(HasTraits):
+    # View
+    view = ControlsView
+
+    # -------------------------------------------------------#
+    # Traits
+
+    # Passed in measurement
+    experiment = Instance(Experiment, ())
+
+    # Controls for selected node type
+    node_controls = Instance(NodeControls)
+
+    # The current list of datasets
+    datasets = Property
+
+    # The currently selected dataset
+    selected = Any
+
+    # The contents of the currently selected dataset
+    selected_contents = Property
+
+    # Node controls used for different types of TreeNodes
+    # Cached plots we keep on plot
+    cached_plots = List
 
     # Limits for min/max for x and y on all datasets in experiment
     xlim_for_exp = {'min': None, 'max': None}
@@ -183,13 +328,6 @@ class Controls(HasTraits):
 
                     datasets.append(dataset)
         return datasets
-
-    # Gets the selected Color Map, default == 'Set1'
-    @property_depends_on('selected_cmap')
-    def _get_selected_cmap_contents(self):
-        if self.selected_cmap:
-            return self.selected_cmap[0]
-        return 'Set1'
 
     # Looks for change in Experiment and sets the correct limits
     @on_trait_change('experiment')

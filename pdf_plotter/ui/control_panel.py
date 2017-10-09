@@ -26,7 +26,7 @@ from views \
     import SofqPlotView, ControlPanelView
 
 from controls \
-    import Controls
+    import DatasetNodeControls, Controls
 
 from controllers \
     import ControlPanelHandler
@@ -65,6 +65,9 @@ class ControlPanel(HasTraits):
     # Status
     load_status = Property(depends_on='experiment_file.load_status')
 
+    # Status
+    selected = Property(depends_on='controls.selected')
+
     # Current colors of contents that is setup by _setupColorMap
     _colors = list()
 
@@ -80,6 +83,10 @@ class ControlPanel(HasTraits):
     def _get_load_status(self):
         return ("%s" % self.experiment_file.load_status)
 
+    # Updates the displayed load status based on notifications from Controls
+    def _get_selected(self):
+        return self.controls.selected
+
     # Initialize the ColorMap selected for the list of plots
     def _setupColorMap(self, plot_list, num_lines=8, reset_cycler=True):
         # If there are more lines than
@@ -92,7 +99,7 @@ class ControlPanel(HasTraits):
             self.sofq_plot.figure.gca().set_prop_cycle(None)
 
         # Get the currently selected ColorMap from the Controls
-        myCMap = cm.get_cmap(name=self.controls.selected_cmap_contents)
+        myCMap = cm.get_cmap(name=self.controls.node_controls.selected_cmap_contents)
 
         # Create a value for each line that corresponds to the color in the
         # ColorMap, ranged from 0->1
@@ -104,8 +111,8 @@ class ControlPanel(HasTraits):
 
     # Use Controls X-range to select subset of the domain of the plot
     def _filter_xrange(self, xset, yset):
-        xmin = self.controls.xmin
-        xmax = self.controls.xmax
+        xmin = self.controls.node_controls.xmin
+        xmax = self.controls.node_controls.xmax
 
         xout = list()
         yout = list()
@@ -147,8 +154,8 @@ class ControlPanel(HasTraits):
         axes = self.get_axes()
 
         # Reset the scale and shift
-        self.controls.scale_factor = 1.0
-        self.controls.shift_factor = 0.0
+        self.controls.node_controls.scale_factor = 1.0
+        self.controls.node_controls.shift_factor = 0.0
 
         # Pull the X, Y from the selected Dataset
         x = self.controls.selected.x
@@ -241,7 +248,8 @@ class ControlPanel(HasTraits):
             if self.controls:
                 self.controls.experiment = experiment
             else:
-                self.controls = Controls(experiment=experiment)
+                self.controls = Controls(experiment=experiment,
+                                         node_controls=DatasetNodeControls())
 
     @on_trait_change('experiment_file.load_status')
     def update_status(self):
@@ -249,7 +257,7 @@ class ControlPanel(HasTraits):
 
     # Re-plot when we either select another Dataset or if we change the
     # ColorMap
-    @on_trait_change('controls.selected,controls.selected_cmap')
+    @on_trait_change('controls.selected,controls.node_controls.selected_cmap')
     def plot_selection(self):
         try:
             # Plot the selected Tree Node based on its type
@@ -277,14 +285,15 @@ class ControlPanel(HasTraits):
             pass
 
     # Re-plot when we apply a shift or scale factor
-    @on_trait_change(
-        'controls.scale_factor,controls.shift_factor,'
-        'controls.xmin,controls.xmax')
+    @on_trait_change('controls.node_controls.scale_factor,'
+                     'controls.node_controls.shift_factor,'
+                     'controls.node_controls.xmin,'
+                     'controls.node_controls.xmax,')
     def plot_dataset_modification(self):
         try:
             axes = self.get_axes()
-            scale = self.controls.scale_factor
-            shift = self.controls.shift_factor
+            scale = self.controls.node_controls.scale_factor
+            shift = self.controls.node_controls.shift_factor
 
             x = self.controls.selected.x
             y = scale * (self.controls.selected.y) + shift

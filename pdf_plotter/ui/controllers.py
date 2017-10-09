@@ -1,21 +1,16 @@
 from __future__ import (absolute_import, division, print_function)
 
 from traitsui.api \
-    import Action, Handler
+    import Handler
 
 from models \
-    import Dataset
+    import Dataset, CorrectedDatasets
 
+from controls \
+    import DatasetNodeControls, CorrectedDatasetsNodeControls
 
 # -----------------------------------------------------------#
-# Actions
-
-CachePlotAction = Action(name="Cache Plot",
-                         action="cache_plot")
-
-ClearCacheAction = Action(name="Clear Cache",
-                          action="clear_cache")
-
+# Controllers
 
 class ControlPanelHandler(Handler):
     # -----------------------------------------------------------#
@@ -41,14 +36,15 @@ class ControlPanelHandler(Handler):
 
         return parents
 
+
     def cache_plot(self, info):
         selected = info.object.controls.selected
         if isinstance(selected, Dataset):
 
             # Get info for selected Dataset (=a) and create new Dataset (=b)
             a = selected
-            shift = info.object.controls.shift_factor
-            scale = info.object.controls.scale_factor
+            shift = info.object.controls.node_controls.shift_factor
+            scale = info.object.controls.node_controls.scale_factor
             b = Dataset(x=a.x, y=scale * a.y + shift, title=a.title)
 
             # Apply x-range filter
@@ -100,3 +96,16 @@ class ControlPanelHandler(Handler):
         axes = info.object.get_axes()
         axes.cla()
         info.object.plot_dataset_modification()
+
+
+    
+    def object_selected_changed(self, info):
+        if not info.initialized:
+            return
+
+        if isinstance(info.object.selected, Dataset):
+            info.object.controls.node_controls = DatasetNodeControls() 
+
+        elif isinstance(info.object.selected, CorrectedDatasets):
+            info.object.controls.node_controls = CorrectedDatasetsNodeControls() 
+

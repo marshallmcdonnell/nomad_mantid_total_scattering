@@ -1,8 +1,7 @@
 
 from traitsui.api \
-    import TableEditor, RangeEditor, CheckListEditor, \
-    InstanceEditor, TextEditor, \
-    View, HSplit, VSplit, VGroup, UItem, Item, StatusItem
+    import TableEditor, InstanceEditor, \
+    Action, View, HGroup, VGroup, HSplit, VSplit, UItem, Item, StatusItem
 
 from traitsui.table_column \
     import ObjectColumn
@@ -12,12 +11,18 @@ from mpl_utilities \
 
 from editors import ExperimentTreeEditor
 
-from controllers \
-    import CachePlotAction, ClearCacheAction
+# -----------------------------------------------------------#
+# Actions
+
+CachePlotAction = Action(name="Cache Plot",
+                         action="cache_plot")
+
+ClearCacheAction = Action(name="Clear Cache",
+                          action="clear_cache")
 
 
 # -----------------------------------------------------------#
-# Simpl Table Editor for Views
+# Simple Table Editor for Views
 
 table_editor = TableEditor(
     columns=[ObjectColumn(name='title', editable=False, width=0.3)],
@@ -67,113 +72,20 @@ ControlsView = View(
             editor=ExperimentTreeEditor,
             resizable=True,
             show_label=False,
-            width=0.9
+            height=0.7,
         ),
-
-        # Tools
-        VGroup(
-
-            # Scale group
-            HSplit(
-                UItem('scale_min', width=0.1),
-                UItem(
-                    'scale_factor',
-                    editor=RangeEditor(
-                        mode='slider',
-                        low_name='scale_min',
-                        high_name='scale_max',
-                        format='%4.2f',
-                    ),
-                    width=0.8,
-                ),
-                UItem('scale_max', width=0.1),
-                show_border=True,
-                label='Scale',
-            ),
-
-            # Shift group
-            HSplit(
-                UItem('shift_min', width=0.1),
-                UItem(
-                    'shift_factor',
-                    editor=RangeEditor(
-                        mode='slider',
-                        low_name='shift_min',
-                        high_name='shift_max',
-                        format='%4.2f',
-                    ),
-                    width=0.8,
-                ),
-                UItem('shift_max', width=0.1),
-                show_border=True,
-                label='Shift',
-            ),
-
-            # X range
-            VSplit(
-
-                # Xmin
-                HSplit(
-                    UItem('xmin_min',
-                          width=0.1,
-                          editor=TextEditor(auto_set=False,),
-                          ),
-                    UItem('xmin',
-                          editor=RangeEditor(
-                              mode='slider',
-                              low_name='xmin_min',
-                              high_name='xmin_max',
-                              format='%4.2f',
-                          ),
-                          width=0.8,
-                          ),
-                    UItem('xmin_max',
-                          width=0.1,
-                          editor=TextEditor(auto_set=False,),
-                          ),
-                    label='Xmin',
-                ),
-
-                # Xmax
-                HSplit(
-                    UItem('xmax_min',
-                          width=0.1,
-                          editor=TextEditor(auto_set=False,),
-                          ),
-                    UItem('xmax',
-                          editor=RangeEditor(
-                              mode='slider',
-                              low_name='xmax_min',
-                              high_name='xmax_max',
-                              format='%4.2f',
-                          ),
-                          width=0.8,
-                          ),
-                    UItem('xmax_max',
-                          width=0.1,
-                          editor=TextEditor(auto_set=False,),
-                          ),
-                    label='Xmax',
-                ),
-                show_border=True,
-                label='X-range',
-            ),
-
-            # Color map
-            HSplit(
-                UItem('selected_cmap',
-                      editor=CheckListEditor(name='cmap_list')
-                      ),
-                show_border=True,
-                label='ColorMap',
-            ),
+        UItem('node_controls',
+            editor=InstanceEditor(),
+            style='custom',
+            resizable=True,
+            height=0.3,
         ),
     ),
 )
 
 ControlPanelView = View(
     HSplit(
-        UItem('sofq_plot', width=0.7, style='custom', editor=InstanceEditor()),
+        UItem('sofq_plot', width=0.8, style='custom', editor=InstanceEditor()),
         VSplit(
             UItem('experiment_file',
                   height=0.1,
