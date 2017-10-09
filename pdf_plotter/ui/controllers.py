@@ -88,7 +88,9 @@ class ControlPanelHandler(Handler):
                 # Add to plot and refresh
                 axes = info.object.get_axes()
                 axes.plot(b.x, b.y, label=b.title)
-                info.object.plot_modification()
+                info.object._setupColorMap(info.object.controls.cached_plots)
+                info.object.plot_cached()
+                info.object.plot_dataset_modification()
 
             except ValueError:
                 return
@@ -97,4 +99,4 @@ class ControlPanelHandler(Handler):
         info.object.controls.cached_plots = []
         axes = info.object.get_axes()
         axes.cla()
-        info.object.plot_modification()
+        info.object.plot_dataset_modification()
