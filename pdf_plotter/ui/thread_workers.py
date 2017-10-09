@@ -9,6 +9,7 @@ from models \
 
 # -----------------------------------------------------------#
 # Measurement-type to workspace-title-startswith Map
+#   NOTE: Need to search *Background 1st, hence the order
 
 mtype2title = collections.OrderedDict()
 mtype2title['Sample'] = 'sample'
@@ -24,8 +25,14 @@ for k, v in mtype2title.iteritems():
     title2mtype[v] = k
 
 
-# List of measurement types
-mtype_list = [k for k, v in mtype2title.iteritems()]
+# List of measurement types in order of the Controlsview Tree View
+mtype_list = ['Sample', 
+              'Container',
+              'Container Background',
+              'Vanadium',
+              'Vanadium Background',
+              'Correction' ]
+
 # -----------------------------------------------------------#
 # Thread to handle loading in Experiment files
 
@@ -195,8 +202,10 @@ class ExperimentThread(threading.Thread):
 
     def create_experiments(self):
         measurement_list = list()
-        for title, measurement in self.measurements.iteritems():
-            measurement_list.extend([measurement])
+        for next_title_in_list in mtype_list:
+            for title, measurement in self.measurements.iteritems():
+                if title == next_title_in_list:
+                    measurement_list.extend([measurement])
         name, ext = os.path.splitext(self.filename)
         name = os.path.basename(name)
         self.experiment = Experiment(measurements=measurement_list, title=name)
