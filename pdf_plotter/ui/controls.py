@@ -9,23 +9,25 @@ from matplotlib import cm
 
 # Traits
 from traits.api \
-    import HasTraits, Instance, List, CFloat, Property, Any, \
+    import HasTraits, Instance, List, CFloat, Property, \
+    Any, Button, Event, Bool, Str,\
     on_trait_change, property_depends_on, cached_property
 
 from traitsui.api \
-    import RangeEditor, CheckListEditor, TextEditor, \
-    View, HSplit, VSplit, VGroup, Item
+    import RangeEditor, CheckListEditor, TextEditor, InstanceEditor, \
+    View, HSplit, VSplit, HGroup, VGroup, Item, Action
 
 # Local
-from models \
-    import Dataset, CorrectedDatasets, Experiment
-
-from views \
-    import ControlsView
+import models 
+import views 
+import controllers 
 
 # -----------------------------------------------------------#
-# Node Controls Model
+# Generic Node Models
 
+class NodeButtons(HasTraits):
+    button_event = Bool(False)
+    button_name  = Str
 
 class NodeControls(HasTraits):
     # X-range controls
@@ -50,6 +52,22 @@ class NodeControls(HasTraits):
     # Selected color map  contents
     selected_cmap_contents = Property
 
+
+    # Use X-range to select subset of the domain of the datasets
+    def filter_xrange(self, xset, yset):
+        xmin = self.xmin
+        xmax = self.xmax
+
+        xout = list()
+        yout = list()
+
+        for x, y in zip(xset, yset):
+            if xmin <= x and x <= xmax:
+                xout.append(x)
+                yout.append(y)
+
+        return xout, yout
+
     # Gets the selected Color Map, default == 'Set1'
     @property_depends_on('selected_cmap')
     def _get_selected_cmap_contents(self):
@@ -71,7 +89,25 @@ class NodeControls(HasTraits):
 
 
 # -----------------------------------------------------------#
-# Dataset Node Controls Model
+# Dataset Node Models
+
+class DatasetNodeButtons(NodeButtons):
+    cache_button       = Button
+    clear_cache_button = Button
+    
+    traits_view = View(
+            HGroup( 
+                Item('cache_button',
+                     label="Cache Plot",
+                     show_label=False,
+                ),
+                Item('clear_cache_button',
+                     label="Clear Cache",
+                     show_label=False,
+                ),
+            ),
+        handler=controllers.DatasetNodeButtonHandler(),
+    )
 
 class DatasetNodeControls(NodeControls):
 
@@ -196,8 +232,10 @@ class DatasetNodeControls(NodeControls):
 
 
 # -----------------------------------------------------------#
-# CorrectedDatasets Node Controls Model
+# CorrectedDatasets Node Models
 
+class CorrectedDatasetsNodeButtons(NodeButtons):
+    cache_button       = Instance(Button("Cache Plots"))
 
 class CorrectedDatasetsNodeControls(NodeControls):
     traits_view = View(
@@ -217,16 +255,19 @@ class CorrectedDatasetsNodeControls(NodeControls):
 
 class Controls(HasTraits):
     # View
-    view = ControlsView
+    view = views.ControlsView
 
     # -------------------------------------------------------#
     # Traits
 
     # Passed in measurement
-    experiment = Instance(Experiment, ())
+    experiment = Instance(models.Experiment, ())
 
     # Controls for selected node type
     node_controls = Instance(NodeControls)
+
+    # Buttons for the selected node type
+    node_buttons = Instance(NodeButtons)
 
     # The currently selected dataset
     selected = Any
@@ -261,7 +302,7 @@ class Controls(HasTraits):
 
         # Create the 'Other' CorrectedDatasets Node if it does not exist
         if 'Other' not in [m.title for m in measurement.corrected_datasets]:
-            other = CorrectedDatasets(datasets=[dataset], title='Other')
+            other = models.CorrectedDatasets(datasets=[dataset], title='Other')
             measurement.corrected_datasets.append(other)
         else:
             other = [m for m in measurement.corrected_datasets
@@ -279,7 +320,7 @@ class Controls(HasTraits):
     def _get_selected_contents(self):
         if self.selected is None:
             return ''
-        if isinstance(self.selected, Dataset):
+        if isinstance(self.selected, models.Dataset):
             return self.selected.x, self.selected.y
 
     # Extracts Datasets models that are stored in the Experiment model

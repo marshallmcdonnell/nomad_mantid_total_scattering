@@ -15,11 +15,8 @@ from traitsui.file_dialog \
     import open_file, FileInfo
 
 # Local
-from models \
-    import Dataset, CorrectedDatasets, Measurement, Experiment
-
-from views \
-    import ExperimentFileInputView
+import models 
+import views
 
 # -----------------------------------------------------------#
 # Measurement-type to workspace-title-startswith Map
@@ -144,7 +141,7 @@ class DatasetThread(threading.Thread):
                 'yerr': err}
             dataset_title = "Bank: {0:.2f}".format(theta)
             dataset_list.append(
-                Dataset(x=x, y=y,
+                models.Dataset(x=x, y=y,
                         title=dataset_title,
                         info=info_dict
                         )
@@ -153,7 +150,7 @@ class DatasetThread(threading.Thread):
         # Get Measurement-type based on title
         measurement_type = self.get_measurement_type(title)
         info_dict = {'measurement_type': measurement_type}
-        self.corrected_datasets[title] = CorrectedDatasets(
+        self.corrected_datasets[title] = models.CorrectedDatasets(
             datasets=dataset_list,
             title=title,
             info=info_dict
@@ -171,7 +168,7 @@ class MeasurementThread(threading.Thread):
     def get_measurement_of_type(self, my_type):
         cd_list = [cd for title, cd in self.corrected_datasets.items()
                    if cd.info['measurement_type'] == my_type]
-        self.measurements[my_type] = Measurement(corrected_datasets=cd_list,
+        self.measurements[my_type] = models.Measurement(corrected_datasets=cd_list,
                                                  title=my_type)
 
     def get_other_measurement(self):
@@ -181,7 +178,7 @@ class MeasurementThread(threading.Thread):
         if len(cd_list) == 0:
             return
 
-        self.measurements['Other'] = Measurement(corrected_datasets=cd_list,
+        self.measurements['Other'] = models.Measurement(corrected_datasets=cd_list,
                                                  title='Other')
 
     def run(self):
@@ -222,7 +219,7 @@ class ExperimentThread(threading.Thread):
                     measurement_list.extend([measurement])
         name, ext = os.path.splitext(self.filename)
         name = os.path.basename(name)
-        self.experiment = Experiment(measurements=measurement_list, title=name)
+        self.experiment = models.Experiment(measurements=measurement_list, title=name)
 
     # Main thread opens and extracts Nexus and then launchs threads to extract
     # Datasets
@@ -242,7 +239,7 @@ class ExperimentThread(threading.Thread):
 
 class ExperimentFileInput(HasTraits):
     # View
-    view = ExperimentFileInputView
+    view = views.ExperimentFileInputView
 
     # Load button
     load_button = Button("Load Experiment...")
@@ -263,7 +260,7 @@ class ExperimentFileInput(HasTraits):
     corrected_datasets = dict()
 
     # Returned Experiment
-    experiment = Instance(Experiment)
+    experiment = Instance(models.Experiment)
 
     # Get update from thread
     def update_status(self, status):

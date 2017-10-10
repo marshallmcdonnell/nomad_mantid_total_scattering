@@ -9,17 +9,7 @@ from traitsui.table_column \
 from mpl_utilities \
     import MPLFigureEditor
 
-from editors import ExperimentTreeEditor
-
-# -----------------------------------------------------------#
-# Actions
-
-CachePlotAction = Action(name="Cache Plot",
-                         action="cache_plot")
-
-ClearCacheAction = Action(name="Clear Cache",
-                          action="clear_cache")
-
+import editors
 
 # -----------------------------------------------------------#
 # Simple Table Editor for Views
@@ -69,7 +59,7 @@ ControlsView = View(
         # Experiment Tree
         UItem(
             name='experiment',
-            editor=ExperimentTreeEditor,
+            editor=editors.ExperimentTreeEditor,
             resizable=True,
             show_label=False,
             height=0.7,
@@ -78,7 +68,14 @@ ControlsView = View(
               editor=InstanceEditor(),
               style='custom',
               resizable=True,
-              height=0.3,
+              height=0.2,
+              ),
+        UItem('node_buttons',
+              editor=InstanceEditor(),
+              style='custom',
+              resizable=True,
+              height=0.1,
+              show_label=False,
               ),
     ),
 )
@@ -99,7 +96,6 @@ ControlPanelView = View(
                   ),
         ),
     ),
-    buttons=[CachePlotAction, ClearCacheAction],
     resizable=True,
     statusbar=[StatusItem(name='load_status')]
 )

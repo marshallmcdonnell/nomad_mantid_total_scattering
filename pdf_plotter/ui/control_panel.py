@@ -7,7 +7,7 @@ import numpy as np
 
 # Traits
 from traits.api \
-    import HasTraits, Instance, Property, CFloat, \
+    import HasTraits, Instance, Property, CFloat, Event,\
     on_trait_change
 
 # Matplotlib
@@ -19,20 +19,11 @@ from matplotlib.figure import Figure
 from mpl_utilities \
     import ZoomOnWheel, DraggableLegend
 
-from models \
-    import Experiment, Measurement, CorrectedDatasets, Dataset
-
-from views \
-    import SofqPlotView, ControlPanelView
-
-from controls \
-    import DatasetNodeControls, Controls
-
-from controllers \
-    import ControlPanelHandler
-
-from file_load \
-    import ExperimentFileInput
+import models
+import views 
+import controls 
+import controllers 
+import file_load 
 
 # -----------------------------------------------------------#
 # Figure Model
@@ -40,7 +31,7 @@ from file_load \
 
 class SofqPlot(HasTraits):
     # View
-    view = SofqPlotView
+    view = views.SofqPlotView
 
     # Figure to display selected dataset and axes for figure
     figure = Instance(Figure, ())
@@ -54,27 +45,30 @@ class ControlPanel(HasTraits):
     # -------------------------------------------------------#
     # Traits
 
-    experiment_file = Instance(ExperimentFileInput)
+    experiment_file = Instance(file_load.ExperimentFileInput)
 
     # S(Q) Plot
     sofq_plot = Instance(SofqPlot, ())
 
     # Controls for adjusting plots
-    controls = Instance(Controls)
+    controls = Instance(controls.Controls)
 
     # Status
     load_status = Property(depends_on='experiment_file.load_status')
 
-    # Status
+    # Selected node
     selected = Property(depends_on='controls.selected')
+
+    # Button event fired
+    button_pressed = Property(depends_on='controls.node_buttons.button_event')
 
     # Current colors of contents that is setup by _setupColorMap
     _colors = list()
 
     # Stuff for plots
     cache_start_index = 0
-    dataset = Instance(Dataset)
-    corrected_datasets = Instance(CorrectedDatasets)
+    dataset = Instance(models.Dataset)
+    corrected_datasets = Instance(models.CorrectedDatasets)
 
     plot_xmin = CFloat
     plot_xmax = CFloat
@@ -91,6 +85,10 @@ class ControlPanel(HasTraits):
     # Updates the displayed load status based on notifications from Controls
     def _get_selected(self):
         return self.controls.selected
+
+    # Updates the buttons fired from Controls
+    def _get_button_pressed(self):
+        return self.controls.node_buttons
 
     # Initialize the ColorMap selected for the list of plots
     def _setupColorMap(self, plot_list, num_lines=8, reset_cycler=True):
@@ -115,26 +113,11 @@ class ControlPanel(HasTraits):
         # in cm_subsection
         self._colors = [myCMap(x) for x in cm_subsection]
 
-    # Use Controls X-range to select subset of the domain of the plot
-    def _filter_xrange(self, xset, yset):
-        xmin = self.controls.node_controls.xmin
-        xmax = self.controls.node_controls.xmax
-
-        xout = list()
-        yout = list()
-
-        for x, y in zip(xset, yset):
-            if xmin <= x and x <= xmax:
-                xout.append(x)
-                yout.append(y)
-
-        return xout, yout
-
     # Sets the limits for the plots in the figure (cached and selected)
     def _get_limits_on_plot(self, xin, yin):
 
         # Apply x-range filter
-        x, y = self._filter_xrange(xin, yin)
+        x, y = self.controls.node_controls.filter_xrange(xin, yin)
 
         xlist = list()
         ylist = list()
@@ -283,8 +266,9 @@ class ControlPanel(HasTraits):
             if self.controls:
                 self.controls.experiment = experiment
             else:
-                self.controls = Controls(experiment=experiment,
-                                         node_controls=DatasetNodeControls())
+                self.controls = controls.Controls(experiment=experiment,
+                                         node_controls=controls.DatasetNodeControls(),
+                                         node_buttons=controls.DatasetNodeButtons())
 
     @on_trait_change('experiment_file.load_status')
     def update_status(self):
@@ -296,11 +280,11 @@ class ControlPanel(HasTraits):
     def plot_selection(self):
         try:
             # Plot the selected Tree Node based on its type
-            if isinstance(self.controls.selected, Dataset):
+            if isinstance(self.controls.selected, models.Dataset):
                 self.clear_plot()
                 self.plot_dataset()
 
-            elif isinstance(self.controls.selected, CorrectedDatasets):
+            elif isinstance(self.controls.selected, models.CorrectedDatasets):
                 self.clear_plot()
                 self.plot_corrected_datasets()
 
@@ -334,7 +318,7 @@ class ControlPanel(HasTraits):
             y = scale * (self.controls.selected.y) + shift
 
             # Apply x-range filter
-            x, y = self._filter_xrange(x, y)
+            x, y = self.controls.node_controls.filter_xrange(x, y)
 
             # Get the X, Y limits from all plots (selected + cached)
             self._get_limits_on_plot(x, y)
@@ -354,5 +338,5 @@ class ControlPanel(HasTraits):
 
 
 if __name__ == "__main__":
-    cp = ControlPanel(experiment_file=ExperimentFileInput())
-    cp.configure_traits(view=ControlPanelView, handler=ControlPanelHandler)
+    cp = ControlPanel(experiment_file=file_load.ExperimentFileInput())
+    cp.configure_traits(view=views.ControlPanelView, handler=controllers.ControlPanelHandler)

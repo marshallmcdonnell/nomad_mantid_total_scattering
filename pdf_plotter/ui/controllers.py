@@ -3,15 +3,24 @@ from __future__ import (absolute_import, division, print_function)
 from traitsui.api \
     import Handler
 
-from models \
-    import Dataset, CorrectedDatasets
-
-from controls \
-    import DatasetNodeControls, CorrectedDatasetsNodeControls
+import models 
+import controls
 
 # -----------------------------------------------------------#
 # Controllers
 
+class DatasetNodeButtonHandler(Handler):
+    def trigger_button_event(self, info):
+        info.object.button_event = True
+        info.object.button_event = False
+
+    def object_cache_button_changed(self, info):
+        info.object.button_name  = 'cache_plot'
+        self.trigger_button_event(info)
+
+    def object_clear_cache_button_changed(self, info):
+        info.object.button_name  = 'clear_cache'
+        self.trigger_button_event(info)
 
 class ControlPanelHandler(Handler):
     # -----------------------------------------------------------#
@@ -37,18 +46,29 @@ class ControlPanelHandler(Handler):
 
         return parents
 
+    def object_button_pressed_changed(self, info):
+        if info.initialized:
+            if info.object.controls.node_buttons.button_event:
+                if info.object.controls.node_buttons.button_name == 'cache_plot':
+                    self.cache_plot(info)
+                if info.object.controls.node_buttons.button_name == 'clear_cache':
+                    self.clear_cache(info)
+
+            # Reset the button status
+            #info.object.controls.node_buttons.button_event = False
+
     def cache_plot(self, info):
         selected = info.object.controls.selected
-        if isinstance(selected, Dataset):
+        if isinstance(selected, models.Dataset):
 
             # Get info for selected Dataset (=a) and create new Dataset (=b)
             a = selected
             shift = info.object.controls.node_controls.shift_factor
             scale = info.object.controls.node_controls.scale_factor
-            b = Dataset(x=a.x, y=scale * a.y + shift, title=a.title)
+            b = models.Dataset(x=a.x, y=scale * a.y + shift, title=a.title)
 
             # Apply x-range filter
-            b.x, b.y = info.object._filter_xrange(b.x, b.y)
+            b.x, b.y = info.object.controls.node_controls.filter_xrange(b.x, b.y)
 
             # If we have modified Dataset 'a', change title of 'b' for
             # differences in...
@@ -104,8 +124,8 @@ class ControlPanelHandler(Handler):
         xmin = info.object.controls.exp_xmin
         xmax = info.object.controls.exp_xmax
         selected_cmap = info.object.controls.node_controls.selected_cmap
-        if isinstance(info.object.selected, Dataset):
-            info.object.controls.node_controls = DatasetNodeControls(
+        if isinstance(info.object.selected, models.Dataset):
+            info.object.controls.node_controls = controls.DatasetNodeControls(
                 xmin=xmin,
                 xmin_min=xmin,
                 xmin_max=xmax,
@@ -115,9 +135,14 @@ class ControlPanelHandler(Handler):
                 selected_cmap=selected_cmap,
             )
 
-        elif isinstance(info.object.selected, CorrectedDatasets):
-            info.object.controls.node_controls = CorrectedDatasetsNodeControls(
+            info.object.controls.node_buttons = controls.DatasetNodeButtons()
+
+        elif isinstance(info.object.selected, models.CorrectedDatasets):
+            info.object.controls.node_controls = controls.CorrectedDatasetsNodeControls(
                 xmin=xmin,
                 xmax=xmax,
                 selected_cmap=selected_cmap,
             )
+
+            info.object.controls.node_buttons = controls.CorrectedDatasetsNodeButtons()
+
