@@ -160,7 +160,7 @@ class ControlPanel(HasTraits):
         self.plot_ymin = min(ylist)
         self.plot_ymax = max(ylist)
 
-    # Add the cached lines back the plot (style taken care of in plot_cached)
+    # Add the cached lines back to the plot (style taken care of in plot_cached)
     def add_cached(self):
         axes = self.get_axes()
         for cached_plot in self.controls.cached_plots:
@@ -354,92 +354,5 @@ class ControlPanel(HasTraits):
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dummy_data', action='store_true',
-                        help="Loads Experiment Tree w/ dummy data.")
-    parser.add_argument(
-        '--controls_view_only',
-        action='store_true',
-        help="Loads Experiment Tree w/ dummy data and just view Controls.")
-    args = parser.parse_args()
-
-    if args.dummy_data:
-
-        # Make datasets w/ titles
-        x = np.linspace(0, 4 * np.pi, 200)
-        y = 1.21 * np.sin(x)
-        d1 = Dataset(x=x, y=y, title='Bank 1', info={'correction': 'S/V'})
-
-        y = 1.24 * np.sin(x)
-        d2 = Dataset(x=x, y=y, title='Bank 2', info={'correction': 'S/V'})
-
-        y = 0.90 * np.cos(x)
-        d3 = Dataset(x=x, y=y, title='Bank 1', info={'correction': '(S-C)/V'})
-
-        y = 1.20 * np.cos(x)
-        d4 = Dataset(x=x, y=y, title='Bank 2', info={'correction': '(S-C)/V'})
-
-        y = 1.21 * np.cos(x)
-        d5 = Dataset(x=x, y=y, title='Bank 3', info={'correction': '(S-C/V'})
-
-        # Use the datasets to make a CorrectedDatasets
-        cd1 = CorrectedDatasets(datasets=[d1, d2], title='S/V')
-        cd2 = CorrectedDatasets(datasets=[d3, d4, d5], title='(S-C)/V')
-
-        # Combine the CorrectedDatasets to make a Measurment for the sample
-        m1 = Measurement(corrected_datasets=[cd1, cd2], title='Sample')
-
-        # Now make a second measurement for the container
-        x = np.linspace(-2, 2, 200)
-        m2 = Measurement(
-            corrected_datasets=[
-                CorrectedDatasets(datasets=[
-                    Dataset(x=x,
-                            y=0.80 * x * x,
-                            title='Bank 1',
-                            info={'correction': '(C-CB)/V'},
-                            ),
-                    Dataset(x=x,
-                            y=0.97 * x * x,
-                            title='Bank 2',
-                            info={'correction': '(C-CB)/V'},
-                            ),
-                ],
-                    title='(C-CB)/V',
-                ),
-                CorrectedDatasets(datasets=[
-                    Dataset(x=x,
-                            y=0.80 * x * x * x,
-                            title='Bank 1',
-                            info={'correction': '1/A(C-CB)/V - MS'},
-                            ),
-                    Dataset(x=x,
-                            y=0.97 * x * x * x,
-                            title='Bank 2',
-                            info={'correction': '1/A(C-CB)/V - MS'},
-                            ),
-                ],
-                    title="1/A(C-CB)/V - MS",
-                ),
-            ],
-            title='Container',
-        )
-
-        # Create a Experiment from these two measurements
-        e1 = Experiment(measurements=[m1, m2], title='Si_NOM97884')
-
-        # Use the ControlPanel to View the Measurement
-        if args.controls_view_only:
-            c = Controls(experiment=e1)
-            c.configure_traits()
-        else:
-            cp = ControlPanel(experiment_file=ExperimentFileInput(),
-                              controls=Controls(experiment=e1))
-            cp.configure_traits(
-                view=ControlPanelView,
-                handler=ControlPanelHandler)
-
-    else:
-        cp = ControlPanel(experiment_file=ExperimentFileInput())
-        cp.configure_traits(view=ControlPanelView, handler=ControlPanelHandler)
+    cp = ControlPanel(experiment_file=ExperimentFileInput())
+    cp.configure_traits(view=ControlPanelView, handler=ControlPanelHandler)
