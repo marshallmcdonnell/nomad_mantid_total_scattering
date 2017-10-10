@@ -12,6 +12,7 @@ from controls \
 # -----------------------------------------------------------#
 # Controllers
 
+
 class ControlPanelHandler(Handler):
     # -----------------------------------------------------------#
     def get_parents(self, info, node):
@@ -36,7 +37,6 @@ class ControlPanelHandler(Handler):
 
         return parents
 
-
     def cache_plot(self, info):
         selected = info.object.controls.selected
         if isinstance(selected, Dataset):
@@ -57,26 +57,26 @@ class ControlPanelHandler(Handler):
             try:
                 # Shift
                 if shift != 0.0:
-                    b.title += " shift: {0:.2}".format(shift)
+                    b.title += " shift: {0:>5.2f}".format(shift)
 
                 # Scale
-                if scale != 0.0:
-                    b.title += " scale: {0:.2}".format(scale)
+                if scale != 1.0:
+                    b.title += " scale: {0:>5.2f}".format(scale)
 
                 # Xmin
                 if min(b.x) != min(a.x):
-                    b.title += " xmin: {0:.2}".format(min(b.x))
+                    b.title += " xmin: {0:.2f}".format(min(b.x))
 
                 # Xmax
                 if max(b.x) != max(a.x):
-                    b.title += " xmax: {0:.2}".format(max(b.x))
+                    b.title += " xmax: {0:.2f}".format(max(b.x))
 
                 # Check if title changed.
                 # If so, add as a different Node in 'Other' Measurement
                 if tmp_title != b.title:
                     parents = self.get_parents(info, b)
-                    info.object.controls.addPlotToNode(dataset=b,
-                                                       parents=parents)
+                    info.object.controls.add_plot_to_node(dataset=b,
+                                                          parents=parents)
 
                 # Add 'b' to cached plots
                 info.object.controls.cached_plots.append(b)
@@ -97,15 +97,27 @@ class ControlPanelHandler(Handler):
         axes.cla()
         info.object.plot_dataset_modification()
 
-
-    
     def object_selected_changed(self, info):
         if not info.initialized:
             return
 
+        xmin = info.object.controls.exp_xmin
+        xmax = info.object.controls.exp_xmax
+        selected_cmap = info.object.controls.node_controls.selected_cmap
         if isinstance(info.object.selected, Dataset):
-            info.object.controls.node_controls = DatasetNodeControls() 
+            info.object.controls.node_controls = DatasetNodeControls(
+                xmin=xmin,
+                xmin_min=xmin,
+                xmin_max=xmax,
+                xmax=xmax,
+                xmax_min=xmin,
+                xmax_max=xmax,
+                selected_cmap=selected_cmap,
+            )
 
         elif isinstance(info.object.selected, CorrectedDatasets):
-            info.object.controls.node_controls = CorrectedDatasetsNodeControls() 
-
+            info.object.controls.node_controls = CorrectedDatasetsNodeControls(
+                xmin=xmin,
+                xmax=xmax,
+                selected_cmap=selected_cmap,
+            )

@@ -1,7 +1,7 @@
 
 from traitsui.api \
     import TableEditor, InstanceEditor, \
-    Action, View, HGroup, VGroup, HSplit, VSplit, UItem, Item, StatusItem
+    Action, View, HSplit, VSplit, UItem, Item, StatusItem
 
 from traitsui.table_column \
     import ObjectColumn
@@ -75,11 +75,11 @@ ControlsView = View(
             height=0.7,
         ),
         UItem('node_controls',
-            editor=InstanceEditor(),
-            style='custom',
-            resizable=True,
-            height=0.3,
-        ),
+              editor=InstanceEditor(),
+              style='custom',
+              resizable=True,
+              height=0.3,
+              ),
     ),
 )
 

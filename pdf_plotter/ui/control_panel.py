@@ -7,7 +7,7 @@ import numpy as np
 
 # Traits
 from traits.api \
-    import HasTraits, Instance, Property,  \
+    import HasTraits, Instance, Property, CFloat, \
     on_trait_change
 
 # Matplotlib
@@ -76,6 +76,11 @@ class ControlPanel(HasTraits):
     dataset = Instance(Dataset)
     corrected_datasets = Instance(CorrectedDatasets)
 
+    plot_xmin = CFloat
+    plot_xmax = CFloat
+    plot_ymin = CFloat
+    plot_ymax = CFloat
+
     # -------------------------------------------------------#
     # Utilities
 
@@ -99,7 +104,8 @@ class ControlPanel(HasTraits):
             self.sofq_plot.figure.gca().set_prop_cycle(None)
 
         # Get the currently selected ColorMap from the Controls
-        myCMap = cm.get_cmap(name=self.controls.node_controls.selected_cmap_contents)
+        myCMap = cm.get_cmap(
+            name=self.controls.node_controls.selected_cmap_contents)
 
         # Create a value for each line that corresponds to the color in the
         # ColorMap, ranged from 0->1
@@ -116,12 +122,43 @@ class ControlPanel(HasTraits):
 
         xout = list()
         yout = list()
+
         for x, y in zip(xset, yset):
             if xmin <= x and x <= xmax:
                 xout.append(x)
                 yout.append(y)
 
         return xout, yout
+
+    # Sets the limits for the plots in the figure (cached and selected)
+    def _get_limits_on_plot(self, xin, yin):
+
+        # Apply x-range filter
+        x, y = self._filter_xrange(xin, yin)
+
+        xlist = list()
+        ylist = list()
+
+        if len(self.controls.cached_plots) > 0:
+            for a in self.controls.cached_plots:
+
+                xlist = np.append(xlist, a.x, axis=None)
+                ylist = np.append(ylist, a.y, axis=None)
+
+        xlist = np.append(xlist, x)
+        xlist = np.append(xlist, self.controls.node_controls.xmin)
+        xlist = np.append(xlist, self.controls.node_controls.xmax)
+
+        ylist = np.append(ylist, y)
+
+        ylist[ylist == np.inf] = 0.0
+        ylist[ylist == -np.inf] = 0.0
+        ylist[np.isnan(ylist)] = 0.0
+
+        self.plot_xmin = min(xlist)
+        self.plot_xmax = max(xlist)
+        self.plot_ymin = min(ylist)
+        self.plot_ymax = max(ylist)
 
     # Add the cached lines back the plot (style taken care of in plot_cached)
     def add_cached(self):
@@ -157,23 +194,16 @@ class ControlPanel(HasTraits):
         self.controls.node_controls.scale_factor = 1.0
         self.controls.node_controls.shift_factor = 0.0
 
-        # Pull the X, Y from the selected Dataset
+        # Get X, Y for selected Dataset
         x = self.controls.selected.x
         y = self.controls.selected.y
 
-        # Apply x-range filter
-        x, y = self._filter_xrange(x, y)
-
-        # Get the X, Y limits from all plots (selected + cached)
-        self.controls.getLimitsOnPlot(x, y)
+        # Get the limits
+        self._get_limits_on_plot(x, y)
 
         # Set the limits
-        axes.set_xlim(
-            self.controls.xlim_on_plot['min'],
-            self.controls.xlim_on_plot['max'])
-        axes.set_ylim(
-            self.controls.ylim_on_plot['min'],
-            self.controls.ylim_on_plot['max'])
+        axes.set_xlim(self.plot_xmin, self.plot_xmax)
+        axes.set_ylim(self.plot_ymin, self.plot_ymax)
 
         # Use the modifications to adjust the x, y line
         self.set_xy(axes, x, y, self.controls.selected.title)
@@ -200,6 +230,11 @@ class ControlPanel(HasTraits):
     # Plots the X, Y data (cached and selected) on the given Axes and re-draws
     # the canvas
     def set_xy(self, axes, x, y, title):
+
+        if len(x) > len(y):
+            diff = len(x) - len(y)
+            x = x[diff:]
+
         # Add first line to plot if none already
         if not axes.lines:
             axes.plot(x, y, label=title)
@@ -302,15 +337,11 @@ class ControlPanel(HasTraits):
             x, y = self._filter_xrange(x, y)
 
             # Get the X, Y limits from all plots (selected + cached)
-            self.controls.getLimitsOnPlot(x, y)
+            self._get_limits_on_plot(x, y)
 
             # Set the limits
-            axes.set_xlim(
-                self.controls.xlim_on_plot['min'],
-                self.controls.xlim_on_plot['max'])
-            axes.set_ylim(
-                self.controls.ylim_on_plot['min'],
-                self.controls.ylim_on_plot['max'])
+            axes.set_xlim(self.plot_xmin, self.plot_xmax)
+            axes.set_ylim(self.plot_ymin, self.plot_ymax)
 
             # Use the modifications to adjust the x, y line
             self.set_xy(axes, x, y, self.controls.selected.title)
