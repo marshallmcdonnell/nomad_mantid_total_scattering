@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
 from ui.file_load     import ExperimentFileInput
-from ui.control_panel import ControlPanel
-from ui.views         import ControlPanelView
-from ui.controllers   import ControlPanelHandler
+from ui.control_panel import ControlPanel, ControlPanelView, ControlPanelHandler
 
 
 # Use the ControlPanel to View the Measurement

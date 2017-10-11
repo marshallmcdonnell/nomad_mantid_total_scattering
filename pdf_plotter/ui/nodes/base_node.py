@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 
 from traits.api \
-    import HasTraits, Bool, Str, CFloat, List, Any, Property, Handler, \
+    import HasTraits, Bool, Str, CFloat, List, Any, Property, \
     property_depends_on, on_trait_change
 
-from matplotlib.cm import cm
+from traitsui.api \
+    import Handler
+
+from matplotlib import cm
 
 # -----------------------------------------------------------#
 # Generic Node Buttons

@@ -7,11 +7,11 @@ import numpy as np
 # Traits
 from traits.api \
     import HasTraits, Instance, List, Property, \
-    Any, UItem, property_depends_on, cached_property
+    Any, property_depends_on, cached_property
 
 from traitsui.api \
     import InstanceEditor, \
-    View, VSplit
+    View, VSplit, UItem
 
 # Local
 from ui.models \

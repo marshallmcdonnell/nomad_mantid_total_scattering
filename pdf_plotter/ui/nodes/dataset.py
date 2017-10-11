@@ -10,12 +10,19 @@ from traitsui.api \
 from ui.nodes.base_node \
     import NodeButtonHandler, NodeButtons, NodeControls
 
-from ui.nodes.dataset \
-    import DatasetNodeButtonHandler
-
 
 # -----------------------------------------------------------#
 # Dataset Node Buttons
+
+class DatasetNodeButtonHandler(NodeButtonHandler):
+    def object_cache_button_changed(self, info):
+        info.object.button_name = 'cache_plot'
+        self.trigger_button_event(info)
+
+    def object_clear_cache_button_changed(self, info):
+        info.object.button_name = 'clear_cache'
+        self.trigger_button_event(info)
+
 
 class DatasetNodeButtons(NodeButtons):
     cache_button = Button
@@ -34,16 +41,6 @@ class DatasetNodeButtons(NodeButtons):
         ),
         handler=DatasetNodeButtonHandler(),
     )
-
-
-class DatasetNodeButtonHandler(NodeButtonHandler):
-    def object_cache_button_changed(self, info):
-        info.object.button_name = 'cache_plot'
-        self.trigger_button_event(info)
-
-    def object_clear_cache_button_changed(self, info):
-        info.object.button_name = 'clear_cache'
-        self.trigger_button_event(info)
 
 
 # -----------------------------------------------------------#

@@ -19,7 +19,7 @@ from matplotlib.figure import Figure
 
 
 # Local
-from mpl_utilities \
+from utils.mpl_utilities \
     import ZoomOnWheel, DraggableLegend, MPLFigureEditor
 
 from ui.models \
