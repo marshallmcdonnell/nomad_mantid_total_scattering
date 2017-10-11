@@ -235,7 +235,23 @@ class DatasetNodeControls(NodeControls):
 # CorrectedDatasets Node Models
 
 class CorrectedDatasetsNodeButtons(NodeButtons):
-    cache_button       = Instance(Button("Cache Plots"))
+    cache_button       = Button
+    clear_cache_button       = Button
+
+    traits_view = View(
+            HGroup( 
+                Item('cache_button',
+                     label="Cache Plots",
+                     show_label=False,
+                ),
+                Item('clear_cache_button',
+                     label="Clear Cache",
+                     show_label=False,
+                ),
+            ),
+        handler=controllers.CorrectedDatasetsNodeButtonHandler(),
+    )
+
 
 class CorrectedDatasetsNodeControls(NodeControls):
     traits_view = View(

@@ -9,11 +9,12 @@ import controls
 # -----------------------------------------------------------#
 # Controllers
 
-class DatasetNodeButtonHandler(Handler):
+class NodeButtonHandler(Handler):
     def trigger_button_event(self, info):
         info.object.button_event = True
         info.object.button_event = False
 
+class DatasetNodeButtonHandler(NodeButtonHandler):
     def object_cache_button_changed(self, info):
         info.object.button_name  = 'cache_plot'
         self.trigger_button_event(info)
@@ -21,6 +22,16 @@ class DatasetNodeButtonHandler(Handler):
     def object_clear_cache_button_changed(self, info):
         info.object.button_name  = 'clear_cache'
         self.trigger_button_event(info)
+
+class CorrectedDatasetsNodeButtonHandler(NodeButtonHandler):
+    def object_cache_button_changed(self, info):
+        info.object.button_name  = 'cache_plots'
+        self.trigger_button_event(info)
+
+    def object_clear_cache_button_changed(self, info):
+        info.object.button_name  = 'clear_cache'
+        self.trigger_button_event(info)
+
 
 class ControlPanelHandler(Handler):
     # -----------------------------------------------------------#
@@ -53,63 +64,77 @@ class ControlPanelHandler(Handler):
                     self.cache_plot(info)
                 if info.object.controls.node_buttons.button_name == 'clear_cache':
                     self.clear_cache(info)
+                if info.object.controls.node_buttons.button_name == 'cache_plots':
+                    self.cache_plots(info)
 
             # Reset the button status
             #info.object.controls.node_buttons.button_event = False
 
     def cache_plot(self, info):
         selected = info.object.controls.selected
-        if isinstance(selected, models.Dataset):
 
-            # Get info for selected Dataset (=a) and create new Dataset (=b)
-            a = selected
-            shift = info.object.controls.node_controls.shift_factor
-            scale = info.object.controls.node_controls.scale_factor
-            b = models.Dataset(x=a.x, y=scale * a.y + shift, title=a.title)
+        # Get info for selected Dataset (=a) and create new Dataset (=b)
+        a = selected
+        shift = info.object.controls.node_controls.shift_factor
+        scale = info.object.controls.node_controls.scale_factor
+        b = models.Dataset(x=a.x, y=scale * a.y + shift, title=a.title)
 
-            # Apply x-range filter
-            b.x, b.y = info.object.controls.node_controls.filter_xrange(b.x, b.y)
+        # Apply x-range filter
+        b.x, b.y = info.object.controls.node_controls.filter_xrange(b.x, b.y)
 
-            # If we have modified Dataset 'a', change title of 'b' for
-            # differences in...
-            tmp_title = str(b.title)
+        # If we have modified Dataset 'a', change title of 'b' for
+        # differences in...
+        tmp_title = str(b.title)
 
-            try:
-                # Shift
-                if shift != 0.0:
-                    b.title += " shift: {0:>5.2f}".format(shift)
+        try:
+            # Shift
+            if shift != 0.0:
+                b.title += " shift: {0:>5.2f}".format(shift)
 
-                # Scale
-                if scale != 1.0:
-                    b.title += " scale: {0:>5.2f}".format(scale)
+            # Scale
+            if scale != 1.0:
+                b.title += " scale: {0:>5.2f}".format(scale)
 
-                # Xmin
-                if min(b.x) != min(a.x):
-                    b.title += " xmin: {0:.2f}".format(min(b.x))
+            # Xmin
+            if min(b.x) != min(a.x):
+                b.title += " xmin: {0:.2f}".format(min(b.x))
 
-                # Xmax
-                if max(b.x) != max(a.x):
-                    b.title += " xmax: {0:.2f}".format(max(b.x))
+            # Xmax
+            if max(b.x) != max(a.x):
+                b.title += " xmax: {0:.2f}".format(max(b.x))
 
-                # Check if title changed.
-                # If so, add as a different Node in 'Other' Measurement
-                if tmp_title != b.title:
-                    parents = self.get_parents(info, b)
-                    info.object.controls.add_plot_to_node(dataset=b,
-                                                          parents=parents)
+            # Check if title changed.
+            # If so, add as a different Node in 'Other' Measurement
+            if tmp_title != b.title:
+                parents = self.get_parents(info, b)
+                info.object.controls.add_plot_to_node(dataset=b,
+                                                      parents=parents)
 
-                # Add 'b' to cached plots
-                info.object.controls.cached_plots.append(b)
+            # Add 'b' to cached plots
+            info.object.controls.cached_plots.append(b)
 
-                # Add to plot and refresh
-                axes = info.object.get_axes()
-                axes.plot(b.x, b.y, label=b.title)
-                info.object._setupColorMap(info.object.controls.cached_plots)
-                info.object.plot_cached()
-                info.object.plot_dataset_modification()
+            # Add to plot and refresh
+            axes = info.object.get_axes()
+            axes.plot(b.x, b.y, label=b.title)
+            info.object._setupColorMap(info.object.controls.cached_plots)
+            info.object.plot_cached()
+            info.object.plot_dataset_modification()
 
-            except ValueError:
-                return
+        except ValueError:
+            pass
+
+
+    def cache_plots(self, info):
+        datasets = info.object.controls.selected.datasets
+        axes = info.object.get_axes()
+        for dataset in datasets:
+            axes.plot(dataset.x, dataset.y, label=dataset.title)
+            info.object.controls.cached_plots.append(dataset)    
+
+        info.object._setupColorMap(info.object.controls.cached_plots)
+        info.object.plot_cached()
+        info.object.plot_dataset_modification()
+
 
     def clear_cache(self, info):
         info.object.controls.cached_plots = []

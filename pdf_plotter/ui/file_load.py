@@ -140,8 +140,15 @@ class DatasetThread(threading.Thread):
                 'Phi': Phi,
                 'yerr': err}
             dataset_title = "Bank: {0:.2f}".format(theta)
+
+      
+            my_x = list()
+            if len(x) > len(y):
+                diff = len(x) - len(y)
+                my_x = x[diff:]
+
             dataset_list.append(
-                models.Dataset(x=x, y=y,
+                models.Dataset(x=my_x, y=y,
                         title=dataset_title,
                         info=info_dict
                         )

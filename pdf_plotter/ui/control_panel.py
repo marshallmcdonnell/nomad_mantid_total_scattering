@@ -203,9 +203,7 @@ class ControlPanel(HasTraits):
         axes = self.get_axes()
 
         for i, dataset in enumerate(datasets):
-            x = dataset.x[:-1]
-            y = dataset.y
-            axes.plot(x, y, label=dataset.title)
+            axes.plot(dataset.x, dataset.y, label=dataset.title)
 
         # Set index to start plotting cached plots
         self.cache_start_index = len(datasets)
@@ -213,10 +211,6 @@ class ControlPanel(HasTraits):
     # Plots the X, Y data (cached and selected) on the given Axes and re-draws
     # the canvas
     def set_xy(self, axes, x, y, title):
-
-        if len(x) > len(y):
-            diff = len(x) - len(y)
-            x = x[diff:]
 
         # Add first line to plot if none already
         if not axes.lines:
