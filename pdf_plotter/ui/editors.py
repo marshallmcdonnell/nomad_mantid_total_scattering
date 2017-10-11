@@ -1,12 +1,14 @@
 from traitsui.api \
     import TreeEditor, TreeNode, View, Group, Menu, Action
 
-import ui.models as models
+from ui.models \
+    import Dataset, CorrectedDatasets, Measurement, Experiment
+
 
 class RootNode(TreeNode):
 
     # List of object classes the node applies to
-    node_for = [models.Experiment]
+    node_for = [Experiment]
 
     # Automatically open the children underneath the node
     auto_open = True
@@ -24,7 +26,7 @@ class RootNode(TreeNode):
 class ExperimentNode(TreeNode):
 
     # List of object classes the node applies to
-    node_for = [models.Experiment]
+    node_for = [Experiment]
 
     # Automatically open the children underneath the node
     auto_open = True
@@ -40,13 +42,13 @@ class ExperimentNode(TreeNode):
     view = View()
 
     # Class of node to add
-    add = [models.Measurement]
+    add = [Measurement]
 
 
 class MeasurementNode(TreeNode):
 
     # List of object classes the node applies to
-    node_for = [models.Measurement]
+    node_for = [Measurement]
 
     # Automatically open the children underneath the node
     auto_open = False
@@ -62,13 +64,13 @@ class MeasurementNode(TreeNode):
     view = View(Group('title', orientation='vertical', show_left=True))
 
     # Class of node to add
-    add = [models.CorrectedDatasets]
+    add = [CorrectedDatasets]
 
 
 class CorrectedDatasetsNode(TreeNode):
 
     # List of object classes the node applies to
-    node_for = [models.CorrectedDatasets]
+    node_for = [CorrectedDatasets]
 
     # Automatically open the children underneath the node
     auto_open = False
@@ -84,13 +86,13 @@ class CorrectedDatasetsNode(TreeNode):
     view = View(Group('title', orientation='vertical', show_left=False))
 
     # Class of node to add
-    add = [models.Dataset]
+    add = [Dataset]
 
 
 class DatasetNode(TreeNode):
 
     # List of object classes the node applies to
-    node_for = [models.Dataset]
+    node_for = [Dataset]
 
     # Automatically open the children underneath the node
     auto_open = False

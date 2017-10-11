@@ -2,13 +2,16 @@
 
 from __future__ import (absolute_import, division, print_function)
 
-import argparse
 import numpy as np
 
 # Traits
 from traits.api \
-    import HasTraits, Instance, Property, CFloat, Event,\
+    import HasTraits, Instance, Property, CFloat, \
     on_trait_change
+
+from traitsui.api \
+    import View, Item, UItem, StatusItem, HSplit, VSplit,\
+    InstanceEditor, Handler
 
 # Matplotlib
 from matplotlib import cm
@@ -17,41 +20,223 @@ from matplotlib.figure import Figure
 
 # Local
 from mpl_utilities \
-    import ZoomOnWheel, DraggableLegend
+    import ZoomOnWheel, DraggableLegend, MPLFigureEditor
 
-import ui.models        as models
-import ui.views         as views
-import ui.controls      as controls
-import ui.controllers   as controllers
-import ui.file_load     as file_load
+from ui.models \
+    import Dataset, CorrectedDatasets
+
+from ui.controls \
+    import Controls
+
+from ui.nodes.dataset \
+    import DatasetNodeControls, DatasetNodeButtons
+
+from ui.nodes.corrected_datasets \
+    import CorrectedDatasetsNodeControls, CorrectedDatasetsNodeButtons
+
+from ui.file_load import ExperimentFileInput
 
 # -----------------------------------------------------------#
 # Figure Model
 
+SofqPlotView = View(
+    Item('figure',
+         editor=MPLFigureEditor(),
+         show_label=False,
+         resizable=True,
+         springy=True
+         ),
+)
+
 
 class SofqPlot(HasTraits):
     # View
-    view = views.SofqPlotView
+    view = SofqPlotView
 
     # Figure to display selected dataset and axes for figure
     figure = Instance(Figure, ())
 
 
 # -----------------------------------------------------------#
+# Main Control Panel View
+
+ControlPanelView = View(
+    HSplit(
+        UItem('sofq_plot', width=0.8, style='custom', editor=InstanceEditor()),
+        VSplit(
+            UItem('experiment_file',
+                  height=0.1,
+                  style='custom',
+                  editor=InstanceEditor()
+                  ),
+            UItem('controls',
+                  height=0.9,
+                  style='custom',
+                  editor=InstanceEditor()
+                  ),
+        ),
+    ),
+    resizable=True,
+    statusbar=[StatusItem(name='load_status')]
+)
+
+# -----------------------------------------------------------#
+# Main Control Panel Controller
+
+
+class ControlPanelHandler(Handler):
+    def get_parents(self, info, node):
+        # Grab selected Dataset
+        selected = info.object.controls.selected
+
+        # Get the TreeEditor for the Experiment
+        controls_editors = info.ui.get_editors("controls")
+        experiment_editors = list()
+        for editor in controls_editors:
+            experiment_editors.extend(editor._ui.get_editors("experiment"))
+        experiment_editor = experiment_editors[0]  # just grab first
+
+        # Get the parents
+        corrected_dataset = experiment_editor.get_parent(selected)
+        measurement = experiment_editor.get_parent(corrected_dataset)
+        experiment = experiment_editor.get_parent(measurement)
+
+        parents = {'corrected_dataset': corrected_dataset,
+                   'measurement': measurement,
+                   'experiment': experiment}
+
+        return parents
+
+    def object_button_pressed_changed(self, info):
+
+        # Map of button's name to the function it calls
+        name2func = {'cache_plot': self.cache_plot,
+                     'cache_plots': self.cache_plots,
+                     'clear_cache': self.clear_cache,
+                     }
+
+        #
+        if info.initialized:
+            if info.object.controls.node_buttons.button_event:
+                name = info.object.controls.node_buttons.button_name
+                button_func = name2func[name]
+                button_func(info)
+
+    def cache_plot(self, info):
+        selected = info.object.controls.selected
+
+        # Get info for selected Dataset (=a) and create new Dataset (=b)
+        a = selected
+        shift = info.object.controls.node_controls.shift_factor
+        scale = info.object.controls.node_controls.scale_factor
+        b = Dataset(x=a.x, y=scale * a.y + shift, title=a.title)
+
+        # Apply x-range filter
+        b.x, b.y = info.object.controls.node_controls.filter_xrange(b.x, b.y)
+
+        # If we have modified Dataset 'a', change title of 'b' for
+        # differences in...
+        tmp_title = str(b.title)
+
+        try:
+            # Shift
+            if shift != 0.0:
+                b.title += " shift: {0:>5.2f}".format(shift)
+
+            # Scale
+            if scale != 1.0:
+                b.title += " scale: {0:>5.2f}".format(scale)
+
+            # Xmin
+            if min(b.x) != min(a.x):
+                b.title += " xmin: {0:.2f}".format(min(b.x))
+
+            # Xmax
+            if max(b.x) != max(a.x):
+                b.title += " xmax: {0:.2f}".format(max(b.x))
+
+            # Check if title changed.
+            # If so, add as a different Node in 'Other' Measurement
+            if tmp_title != b.title:
+                parents = self.get_parents(info, b)
+                info.object.controls.add_plot_to_node(dataset=b,
+                                                      parents=parents)
+
+            # Add 'b' to cached plots
+            info.object.controls.cached_plots.append(b)
+
+            # Add to plot and refresh
+            axes = info.object.get_axes()
+            axes.plot(b.x, b.y, label=b.title)
+            info.object._setupColorMap(info.object.controls.cached_plots)
+            info.object.plot_cached()
+            info.object.plot_dataset_modification()
+
+        except ValueError:
+            pass
+
+    def cache_plots(self, info):
+        datasets = info.object.controls.selected.datasets
+        axes = info.object.get_axes()
+        for dataset in datasets:
+            axes.plot(dataset.x, dataset.y, label=dataset.title)
+            info.object.controls.cached_plots.append(dataset)
+
+        info.object._setupColorMap(info.object.controls.cached_plots)
+        info.object.plot_cached()
+        info.object.plot_dataset_modification()
+
+    def clear_cache(self, info):
+        info.object.controls.cached_plots = []
+        axes = info.object.get_axes()
+        axes.cla()
+        info.object.plot_dataset_modification()
+
+    def object_selected_changed(self, info):
+        if not info.initialized:
+            return
+
+        xmin = info.object.controls.exp_xmin
+        xmax = info.object.controls.exp_xmax
+        selected_cmap = info.object.controls.node_controls.selected_cmap
+        if isinstance(info.object.selected, Dataset):
+            info.object.controls.node_controls = DatasetNodeControls(
+                xmin=xmin,
+                xmin_min=xmin,
+                xmin_max=xmax,
+                xmax=xmax,
+                xmax_min=xmin,
+                xmax_max=xmax,
+                selected_cmap=selected_cmap,
+            )
+
+            info.object.controls.node_buttons = DatasetNodeButtons()
+
+        elif isinstance(info.object.selected, CorrectedDatasets):
+            info.object.controls.node_controls = CorrectedDatasetsNodeControls(
+                xmin=xmin,
+                xmax=xmax,
+                selected_cmap=selected_cmap,
+            )
+
+            info.object.controls.node_buttons = CorrectedDatasetsNodeButtons()
+
+# -----------------------------------------------------------#
 # Main Control Panel
+
 
 class ControlPanel(HasTraits):
 
     # -------------------------------------------------------#
     # Traits
 
-    experiment_file = Instance(file_load.ExperimentFileInput)
+    experiment_file = Instance(ExperimentFileInput)
 
     # S(Q) Plot
     sofq_plot = Instance(SofqPlot, ())
 
     # Controls for adjusting plots
-    controls = Instance(controls.Controls)
+    controls = Instance(Controls)
 
     # Status
     load_status = Property(depends_on='experiment_file.load_status')
@@ -67,8 +252,8 @@ class ControlPanel(HasTraits):
 
     # Stuff for plots
     cache_start_index = 0
-    dataset = Instance(models.Dataset)
-    corrected_datasets = Instance(models.CorrectedDatasets)
+    dataset = Instance(Dataset)
+    corrected_datasets = Instance(CorrectedDatasets)
 
     plot_xmin = CFloat
     plot_xmax = CFloat
@@ -143,7 +328,8 @@ class ControlPanel(HasTraits):
         self.plot_ymin = min(ylist)
         self.plot_ymax = max(ylist)
 
-    # Add the cached lines back to the plot (style taken care of in plot_cached)
+    # Add the cached lines back to the plot (style taken care of in
+    # plot_cached)
     def add_cached(self):
         axes = self.get_axes()
         for cached_plot in self.controls.cached_plots:
@@ -260,9 +446,10 @@ class ControlPanel(HasTraits):
             if self.controls:
                 self.controls.experiment = experiment
             else:
-                self.controls = controls.Controls(experiment=experiment,
-                                         node_controls=controls.DatasetNodeControls(),
-                                         node_buttons=controls.DatasetNodeButtons())
+                self.controls = Controls(
+                    experiment=experiment,
+                    node_controls=DatasetNodeControls(),
+                    node_buttons=DatasetNodeButtons())
 
     @on_trait_change('experiment_file.load_status')
     def update_status(self):
@@ -274,11 +461,11 @@ class ControlPanel(HasTraits):
     def plot_selection(self):
         try:
             # Plot the selected Tree Node based on its type
-            if isinstance(self.controls.selected, models.Dataset):
+            if isinstance(self.controls.selected, Dataset):
                 self.clear_plot()
                 self.plot_dataset()
 
-            elif isinstance(self.controls.selected, models.CorrectedDatasets):
+            elif isinstance(self.controls.selected, CorrectedDatasets):
                 self.clear_plot()
                 self.plot_corrected_datasets()
 
@@ -332,5 +519,7 @@ class ControlPanel(HasTraits):
 
 
 if __name__ == "__main__":
-    cp = ControlPanel(experiment_file=file_load.ExperimentFileInput())
-    cp.configure_traits(view=views.ControlPanelView, handler=controllers.ControlPanelHandler)
+    cp = ControlPanel(experiment_file=ExperimentFileInput())
+    cp.configure_traits(
+        view=ControlPanelView,
+        handler=ControlPanelHandler)
