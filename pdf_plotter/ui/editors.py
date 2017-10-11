@@ -1,7 +1,7 @@
 from traitsui.api \
     import TreeEditor, TreeNode, View, Group, Menu, Action
 
-import models
+import ui.models as models
 
 class RootNode(TreeNode):
 

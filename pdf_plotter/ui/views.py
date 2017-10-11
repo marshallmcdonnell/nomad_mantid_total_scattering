@@ -6,10 +6,10 @@ from traitsui.api \
 from traitsui.table_column \
     import ObjectColumn
 
-from mpl_utilities \
+from utils.mpl_utilities \
     import MPLFigureEditor
 
-import editors
+import ui.editors as editors
 
 # -----------------------------------------------------------#
 # Simple Table Editor for Views
