@@ -72,9 +72,6 @@ class Controls(HasTraits):
     # The currently selected dataset
     selected = Any
 
-    # The contents of the currently selected dataset
-    selected_contents = Property
-
     # Node controls used for different types of TreeNodes
     # Cached plots we keep on plot
     cached_plots = List
@@ -114,14 +111,6 @@ class Controls(HasTraits):
 
     # -------------------------------------------------------#
     # Dynamic
-
-    # Gives the X,Y of the selected node and stores in selected_contents
-    @property_depends_on('selected')
-    def _get_selected_contents(self):
-        if self.selected is None:
-            return ''
-        if isinstance(self.selected, Dataset):
-            return self.selected.x, self.selected.y
 
     # Extracts Datasets models that are stored in the Experiment model
     @property_depends_on('experiment')
