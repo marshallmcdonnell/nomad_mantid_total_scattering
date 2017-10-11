@@ -19,11 +19,11 @@ from matplotlib.figure import Figure
 from mpl_utilities \
     import ZoomOnWheel, DraggableLegend
 
-import models
-import views 
-import controls 
-import controllers 
-import file_load 
+import ui.models        as models
+import ui.views         as views
+import ui.controls      as controls
+import ui.controllers   as controllers
+import ui.file_load     as file_load
 
 # -----------------------------------------------------------#
 # Figure Model

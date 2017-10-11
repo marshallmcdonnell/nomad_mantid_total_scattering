@@ -15,8 +15,8 @@ from traitsui.file_dialog \
     import open_file, FileInfo
 
 # Local
-import models 
-import views
+import ui.models as models
+import ui.views as views
 
 # -----------------------------------------------------------#
 # Measurement-type to workspace-title-startswith Map

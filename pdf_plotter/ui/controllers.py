@@ -3,8 +3,8 @@ from __future__ import (absolute_import, division, print_function)
 from traitsui.api \
     import Handler
 
-import models 
-import controls
+import ui.models   as models
+import ui.controls as controls
 
 # -----------------------------------------------------------#
 # Controllers

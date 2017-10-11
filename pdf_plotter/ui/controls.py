@@ -18,9 +18,9 @@ from traitsui.api \
     View, HSplit, VSplit, HGroup, VGroup, Item, Action
 
 # Local
-import models 
-import views 
-import controllers 
+import ui.models as models 
+import ui.views  as views
+import ui.controllers  as controllers
 
 # -----------------------------------------------------------#
 # Generic Node Models
