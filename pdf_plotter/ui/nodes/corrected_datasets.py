@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 from traits.api \
-    import Button
+    import Button, Property, List, Any, \
+    property_depends_on, on_trait_change
 
 from traitsui.api \
     import View, HGroup, HSplit, VGroup, VSplit, Item, \
@@ -9,6 +10,9 @@ from traitsui.api \
 
 from ui.nodes.base_node \
     import NodeButtonHandler, NodeButtons, NodeControls
+
+from ui.models \
+    import Dataset
 
 # -----------------------------------------------------------#
 # CorrectedDatasets Node Buttons
@@ -47,15 +51,44 @@ class CorrectedDatasetsNodeButtons(NodeButtons):
 # CorrectedDatasets Node Controls
 
 class CorrectedDatasetsNodeControls(NodeControls):
+
+    # List of CorrectedDatasets Node's datasets
+    datasets = Property(depends_on='selected')
+
+    # Selected Dataset
+    dataset_selected = Any
+    dataset_selected_contents = Property
+
+    def _get_datasets(self):
+        return [ dataset.title for dataset in self.selected.datasets ]
+
+    @property_depends_on('dataset_selected')
+    def _get_dataset_selected_contents(self):
+        if self.dataset_selected:
+            return self.dataset_selected
+
     traits_view = View(
+
         VGroup(
+
+            # List of Datasets
+            HSplit(
+                Item('dataset_selected',
+                     editor=CheckListEditor(name='datasets'),
+                     show_label=False,
+                     ),
+                show_border=True,
+                label='Datasets',
+            ),
+
+            # Color map for cached plots
             HSplit(
                 Item('selected_cmap',
                      editor=CheckListEditor(name='cmap_list'),
                      show_label=False,
                      ),
                 show_border=True,
-                label='ColorMap',
+                label='CacheColorMap',
             ),
 
             # X range

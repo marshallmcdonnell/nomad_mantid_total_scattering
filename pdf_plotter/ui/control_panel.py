@@ -199,8 +199,10 @@ class ControlPanelHandler(Handler):
         xmin = info.object.controls.exp_xmin
         xmax = info.object.controls.exp_xmax
         selected_cmap = info.object.controls.node_controls.selected_cmap
+        selected_node = info.object.controls.selected
         if isinstance(info.object.selected, Dataset):
             info.object.controls.node_controls = DatasetNodeControls(
+                selected=selected_node,
                 xmin=xmin,
                 xmin_min=xmin,
                 xmin_max=xmax,
@@ -214,6 +216,7 @@ class ControlPanelHandler(Handler):
 
         elif isinstance(info.object.selected, CorrectedDatasets):
             info.object.controls.node_controls = CorrectedDatasetsNodeControls(
+                selected=selected_node,
                 xmin=xmin,
                 xmax=xmax,
                 selected_cmap=selected_cmap,
@@ -486,6 +489,10 @@ class ControlPanel(HasTraits):
 
         except AttributeError:
             pass
+    @on_trait_change('controls.node_controls.dataset_selected_contents')
+    def print_test(self):
+        if isinstance(self.controls.node_controls, CorrectedDatasetsNodeControls):
+            print(self.controls.node_controls.dataset_selected_contents)
 
     # Re-plot when we apply a shift or scale factor
     @on_trait_change('controls.node_controls.scale_factor,'

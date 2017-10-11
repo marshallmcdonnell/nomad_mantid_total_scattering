@@ -28,6 +28,9 @@ class NodeButtons(HasTraits):
 
 
 class NodeControls(HasTraits):
+    # Node selected in Controls
+    selected = Any
+
     # Freeze limits
     freeze_xlims = Bool(False)
     freeze_ylims = Bool(False)

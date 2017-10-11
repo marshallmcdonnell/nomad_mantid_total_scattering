@@ -6,8 +6,8 @@ import numpy as np
 
 # Traits
 from traits.api \
-    import HasTraits, Instance, List, Property, \
-    Any, property_depends_on, cached_property
+    import HasTraits, Instance, List, Property, Any, \
+    property_depends_on, cached_property, on_trait_change
 
 from traitsui.api \
     import InstanceEditor, \
@@ -142,3 +142,7 @@ class Controls(HasTraits):
     @cached_property
     def _get_exp_xmax(self):
         return max(self.xlist)
+
+    @on_trait_change("selected")
+    def updated_selected_in_node_controls(self):
+        self.node_controls.selected = self.selected
