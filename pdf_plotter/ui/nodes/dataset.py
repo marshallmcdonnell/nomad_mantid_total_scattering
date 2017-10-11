@@ -101,6 +101,16 @@ class DatasetNodeControls(NodeControls):
 
             # X range
             VSplit(
+                HGroup(
+                    Item('freeze_xlims',
+                         label="X axis",
+                    ),
+                    Item('freeze_ylims',
+                         label="Y axis",
+                    ),
+                    show_border=True,
+                    label='Lock',
+                ),
 
                 # Xmin
                 HSplit(

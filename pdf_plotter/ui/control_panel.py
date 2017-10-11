@@ -371,8 +371,11 @@ class ControlPanel(HasTraits):
         self._get_limits_on_plot(x, y)
 
         # Set the limits
-        axes.set_xlim(self.plot_xmin, self.plot_xmax)
-        axes.set_ylim(self.plot_ymin, self.plot_ymax)
+        if not self.controls.node_controls.freeze_xlims:
+            axes.set_xlim(self.plot_xmin, self.plot_xmax)
+
+        if not self.controls.node_controls.freeze_ylims:
+            axes.set_ylim(self.plot_ymin, self.plot_ymax)
 
         # Use the modifications to adjust the x, y line
         self.set_xy(axes, x, y, self.controls.selected.title)
@@ -505,8 +508,13 @@ class ControlPanel(HasTraits):
             self._get_limits_on_plot(x, y)
 
             # Set the limits
-            axes.set_xlim(self.plot_xmin, self.plot_xmax)
-            axes.set_ylim(self.plot_ymin, self.plot_ymax)
+            if not self.controls.node_controls.freeze_xlims \
+               and self.plot_xmin <= self.plot_xmax:
+                axes.set_xlim(self.plot_xmin, self.plot_xmax)
+    
+            if not self.controls.node_controls.freeze_ylims \
+               and  self.plot_ymin <= self.plot_ymax:
+                axes.set_ylim(self.plot_ymin, self.plot_ymax)
 
             # Use the modifications to adjust the x, y line
             self.set_xy(axes, x, y, self.controls.selected.title)

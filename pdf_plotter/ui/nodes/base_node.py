@@ -28,6 +28,10 @@ class NodeButtons(HasTraits):
 
 
 class NodeControls(HasTraits):
+    # Freeze limits
+    freeze_xlims = Bool(False)
+    freeze_ylims = Bool(False)
+
     # X-range controls
     xmin = CFloat(0.0)
     xmin_min = CFloat(0.0)
