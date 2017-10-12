@@ -28,7 +28,7 @@ from pdf_plotter.utils.instrument_filters \
 # Map of instrument name to the filters it can use 
 # based on Dataset title
 
-instrument2filters = { 'NOM' : NomadFilters, }
+instrument2filters = { 'NOM' : NomadFilters(), }
 
 # -----------------------------------------------------------#
 # Measurement-type to workspace-title-startswith Map
@@ -144,8 +144,12 @@ class DatasetThread(threading.Thread):
 
     def get_filters(self, title):
         instrument_filters = instrument2filters[self.instrument]
-        for ifilter in instrument_filters:
-            print(ifilter)
+        filters = dict()
+        for ifilter in instrument_filters.list_of_filters:
+            if ifilter.title == title:
+                filters['xmin'] = ifilter.xmin
+                filters['xmax'] = ifilter.xmax
+        return filters
         
 
     def run(self):
@@ -191,7 +195,12 @@ class DatasetThread(threading.Thread):
 
             xmin = min(x)
             xmax = max(x)
+
             filters = self.get_filters(dataset_title)
+            if 'xmin' in filters:
+                xmin = filters['xmin']
+            if 'xmax' in filters:
+                xmax = filters['xmax']
 
             dataset_list.append(
                 Dataset(x=my_x, y=y,
