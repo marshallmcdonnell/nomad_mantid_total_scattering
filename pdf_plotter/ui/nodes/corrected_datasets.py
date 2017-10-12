@@ -8,10 +8,10 @@ from traitsui.api \
     import View, HGroup, HSplit, VGroup, VSplit, Item, \
     CheckListEditor, TextEditor, RangeEditor
 
-from ui.nodes.base_node \
+from pdf_plotter.ui.nodes.base_node \
     import NodeButtonHandler, NodeButtons, NodeControls
 
-from ui.models \
+from pdf_plotter.ui.models \
     import Dataset
 
 # -----------------------------------------------------------#

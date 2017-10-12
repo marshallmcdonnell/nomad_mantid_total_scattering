@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from traits.api \
-    import HasTraits, Array, Str, List, Dict
+    import HasTraits, Float, Array, Str, List, Dict
 
 # -----------------------------------------------------------#
 # Models
@@ -12,6 +12,9 @@ class Dataset(HasTraits):
     y = Array
     title = Str
     info = Dict
+
+    xmin_filter = Float
+    xmax_filter = Float
 
 
 class CorrectedDatasets(HasTraits):

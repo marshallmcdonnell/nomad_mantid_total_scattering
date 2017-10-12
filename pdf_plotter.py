@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from ui.file_load     import ExperimentFileInput
-from ui.control_panel import ControlPanel, ControlPanelView, ControlPanelHandler
+from pdf_plotter.io.nexus_load     import ExperimentFileInput
+from pdf_plotter.ui.control_panel import ControlPanel, ControlPanelView, ControlPanelHandler
 
 
 # Use the ControlPanel to View the Measurement

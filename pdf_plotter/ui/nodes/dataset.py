@@ -7,7 +7,7 @@ from traitsui.api \
     import View, VGroup, VSplit, HGroup, HSplit, Item, \
     RangeEditor, TextEditor, CheckListEditor
 
-from ui.nodes.base_node \
+from pdf_plotter.ui.nodes.base_node \
     import NodeButtonHandler, NodeButtons, NodeControls
 
 

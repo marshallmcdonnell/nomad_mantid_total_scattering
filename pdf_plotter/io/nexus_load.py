@@ -18,9 +18,17 @@ from traitsui.file_dialog \
     import open_file, FileInfo
 
 # Local
-from ui.models \
+from pdf_plotter.ui.models \
     import Dataset, CorrectedDatasets, Measurement, Experiment
 
+from pdf_plotter.utils.instrument_filters \
+    import NomadFilters
+
+# -----------------------------------------------------------#
+# Map of instrument name to the filters it can use 
+# based on Dataset title
+
+instrument2filters = { 'NOM' : NomadFilters, }
 
 # -----------------------------------------------------------#
 # Measurement-type to workspace-title-startswith Map
@@ -49,6 +57,11 @@ mtype_list = ['Sample',
               'Correction']
 
 # -----------------------------------------------------------#
+# Filters dictionary
+
+#NOM_title2filters = { 'Bank: {0:.2f}'.format(theta)
+
+# -----------------------------------------------------------#
 # Experiment File Input view
 
 ExperimentFileInputView = View(
@@ -68,6 +81,12 @@ class NexusFileThread(threading.Thread):
         self.nxresult = None
         threading.Thread.__init__(self)
 
+    
+    # Extract input file
+    def extract_input_file(self):
+        print("No input extraction yet")
+        self.instrument = 'NOM'
+
     # Multithreaded extraction of Datasets from Nexus file
     def extract_datasets_nexus(self):
         nx = self.nxresult
@@ -78,6 +97,7 @@ class NexusFileThread(threading.Thread):
         for i, wksp in enumerate(wksps):
             t = DatasetThread(wksp)
             t.corrected_datasets = self.corrected_datasets
+            t.instrument = self.instrument
             t_list.append(t)
             t.start()
 
@@ -90,7 +110,10 @@ class NexusFileThread(threading.Thread):
         self.update_status("Loading...")
         self.nxresult = h5py.File(self.f, 'r')
         self.update_status("Done Loading!")
-        self.update_status('Extracting Data...')
+        self.update_status("Extracting input file...")
+        self.extract_input_file()
+        self.update_status("Extracted input file...")
+        self.update_status('Extracting Datasets...')
         self.extract_datasets_nexus()
         self.update_status("Done Extracting!")
         return
@@ -118,6 +141,12 @@ class DatasetThread(threading.Thread):
             if title.startswith(key):
                 return title2mtype[key]
         return 'Other'
+
+    def get_filters(self, title):
+        instrument_filters = instrument2filters[self.instrument]
+        for ifilter in instrument_filters:
+            print(ifilter)
+        
 
     def run(self):
         wksp = dict(self.wksp)
@@ -160,10 +189,16 @@ class DatasetThread(threading.Thread):
                 diff = len(x) - len(y)
                 my_x = x[diff:]
 
+            xmin = min(x)
+            xmax = max(x)
+            filters = self.get_filters(dataset_title)
+
             dataset_list.append(
                 Dataset(x=my_x, y=y,
                         title=dataset_title,
-                        info=info_dict
+                        xmin_filter = xmin,
+                        xmax_filter = xmax,
+                        info=info_dict,
                         )
             )
 

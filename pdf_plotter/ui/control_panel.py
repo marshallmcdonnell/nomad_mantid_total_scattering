@@ -19,22 +19,22 @@ from matplotlib.figure import Figure
 
 
 # Local
-from utils.mpl_utilities \
+from pdf_plotter.utils.mpl_utilities \
     import ZoomOnWheel, DraggableLegend, MPLFigureEditor
 
-from ui.models \
+from pdf_plotter.ui.models \
     import Dataset, CorrectedDatasets
 
-from ui.controls \
+from pdf_plotter.ui.controls \
     import Controls
 
-from ui.nodes.dataset \
+from pdf_plotter.ui.nodes.dataset \
     import DatasetNodeControls, DatasetNodeButtons
 
-from ui.nodes.corrected_datasets \
+from pdf_plotter.ui.nodes.corrected_datasets \
     import CorrectedDatasetsNodeControls, CorrectedDatasetsNodeButtons
 
-from ui.file_load import ExperimentFileInput
+from pdf_plotter.io.nexus_load import ExperimentFileInput
 
 # -----------------------------------------------------------#
 # Figure Model
@@ -129,10 +129,14 @@ class ControlPanelHandler(Handler):
         a = selected
         shift = info.object.controls.node_controls.shift_factor
         scale = info.object.controls.node_controls.scale_factor
-        b = Dataset(x=a.x, y=scale * a.y + shift, title=a.title)
+        b = Dataset(x=a.x, 
+                    y=scale * a.y + shift, 
+                    xmin_filter=a.xmin_filter,
+                    xmax_filter=a.xmin_filter,
+                    title=a.title)
 
         # Apply x-range filter
-        b.x, b.y = info.object.controls.node_controls.filter_xrange(b.x, b.y)
+        b.x, b.y = info.object.controls.node_controls.filter_xrange(b.x, b.y, b)
 
         # If we have modified Dataset 'a', change title of 'b' for
         # differences in...
@@ -302,10 +306,12 @@ class ControlPanel(HasTraits):
         self._colors = [myCMap(x) for x in cm_subsection]
 
     # Sets the limits for the plots in the figure (cached and selected)
-    def _get_limits_on_plot(self, xin, yin):
+    def _get_limits_on_plot(self, xin, yin, dataset):
 
         # Apply x-range filter
-        x, y = self.controls.node_controls.filter_xrange(xin, yin)
+        print("get_limits_on_plot 1")
+        x, y = self.controls.node_controls.filter_xrange(xin, yin, dataset )
+        print("get_limits_on_plot 2")
 
         xlist = list()
         ylist = list()
@@ -359,6 +365,7 @@ class ControlPanel(HasTraits):
 
     # If selected Tree Node is Dataset, plot the Dataset
     def plot_dataset(self):
+        print("plot_dataset 1")
         # Get the Axes
         axes = self.get_axes()
 
@@ -371,7 +378,9 @@ class ControlPanel(HasTraits):
         y = self.controls.selected.y
 
         # Get the limits
-        self._get_limits_on_plot(x, y)
+        print("plot_dataset 2")
+        self._get_limits_on_plot(x, y, self.controls.selected)
+        print("plot_dataset 3")
 
         # Set the limits
         if not self.controls.node_controls.freeze_xlims:
@@ -508,11 +517,8 @@ class ControlPanel(HasTraits):
             x = self.controls.selected.x
             y = scale * (self.controls.selected.y) + shift
 
-            # Apply x-range filter
-            x, y = self.controls.node_controls.filter_xrange(x, y)
-
             # Get the X, Y limits from all plots (selected + cached)
-            self._get_limits_on_plot(x, y)
+            self._get_limits_on_plot(x, y, self.controls.selected)
 
             # Set the limits
             if not self.controls.node_controls.freeze_xlims \

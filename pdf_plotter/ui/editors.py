@@ -1,7 +1,7 @@
 from traitsui.api \
     import TreeEditor, TreeNode, View, Group, Menu, Action
 
-from ui.models \
+from pdf_plotter.ui.models \
     import Dataset, CorrectedDatasets, Measurement, Experiment
 
 

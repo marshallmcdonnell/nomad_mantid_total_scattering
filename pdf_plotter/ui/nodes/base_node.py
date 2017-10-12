@@ -58,9 +58,12 @@ class NodeControls(HasTraits):
     selected_cmap_contents = Property
 
     # Use X-range to select subset of the domain of the datasets
-    def filter_xrange(self, xset, yset):
-        xmin = self.xmin
-        xmax = self.xmax
+    def filter_xrange(self, xset, yset, dataset):
+        print("filter_xrange 1 ")
+        xmin = dataset.xmin_filter
+        xmax = dataset.xmax_filter
+        print(xmin, xmax)
+        print("filter_xrange 2 ")
 
         xout = list()
         yout = list()
@@ -70,6 +73,7 @@ class NodeControls(HasTraits):
                 xout.append(x)
                 yout.append(y)
 
+        print("filter_xrange 3 ")
         return xout, yout
 
     # Gets the selected Color Map, default == 'Set1'
@@ -79,14 +83,3 @@ class NodeControls(HasTraits):
             return self.selected_cmap[0]
         return 'Set1'
 
-    @on_trait_change('xmin')
-    def update_xmin_xmax(self):
-        if self.xmin < self.xmin_min:
-            self.xmin_min = self.xmin
-        if self.xmin > self.xmin_max:
-            self.xmin_max = self.xmin
-
-        if self.xmax < self.xmax_min:
-            self.xmax_min = self.xmax
-        if self.xmax > self.xmax_max:
-            self.xmax_max = self.xmax

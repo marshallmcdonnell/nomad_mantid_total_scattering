@@ -14,13 +14,13 @@ from traitsui.api \
     View, VSplit, UItem
 
 # Local
-from ui.models \
+from pdf_plotter.ui.models \
     import Dataset, CorrectedDatasets, Experiment
 
-from ui.nodes.base_node \
+from pdf_plotter.ui.nodes.base_node \
     import NodeControls, NodeButtons
 
-from ui.editors \
+from pdf_plotter.ui.editors \
     import ExperimentTreeEditor
 
 # -----------------------------------------------------------#
