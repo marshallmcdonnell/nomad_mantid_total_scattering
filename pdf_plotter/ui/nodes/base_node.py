@@ -2,7 +2,7 @@
 
 from traits.api \
     import HasTraits, Bool, Str, CFloat, List, Any, Property, \
-    property_depends_on, on_trait_change
+    property_depends_on
 
 from traitsui.api \
     import Handler
@@ -40,7 +40,7 @@ class NodeControls(HasTraits):
     xmin_min = CFloat(0.0)
     xmin_max = CFloat(5.0)
 
-    xmax = CFloat(40.0)
+    xmax = CFloat(0.0)
     xmax_min = CFloat(0.0)
     xmax_max = CFloat(2.0)
 
@@ -59,11 +59,8 @@ class NodeControls(HasTraits):
 
     # Use X-range to select subset of the domain of the datasets
     def filter_xrange(self, xset, yset, dataset):
-        print("filter_xrange 1 ")
         xmin = dataset.xmin_filter
         xmax = dataset.xmax_filter
-        print(xmin, xmax)
-        print("filter_xrange 2 ")
 
         xout = list()
         yout = list()
@@ -73,7 +70,6 @@ class NodeControls(HasTraits):
                 xout.append(x)
                 yout.append(y)
 
-        print("filter_xrange 3 ")
         return xout, yout
 
     # Gets the selected Color Map, default == 'Set1'

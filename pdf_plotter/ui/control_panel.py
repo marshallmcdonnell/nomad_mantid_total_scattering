@@ -53,6 +53,12 @@ class SofqPlot(HasTraits):
     # View
     view = SofqPlotView
 
+    # Cached xlims
+    xlims = None
+
+    # Cached ylims
+    ylims = None
+
     # Figure to display selected dataset and axes for figure
     figure = Instance(Figure, ())
 
@@ -132,7 +138,7 @@ class ControlPanelHandler(Handler):
         b = Dataset(x=a.x, 
                     y=scale * a.y + shift, 
                     xmin_filter=a.xmin_filter,
-                    xmax_filter=a.xmin_filter,
+                    xmax_filter=a.xmax_filter,
                     title=a.title)
 
         # Apply x-range filter
@@ -200,30 +206,59 @@ class ControlPanelHandler(Handler):
         if not info.initialized:
             return
 
-        xmin = info.object.controls.exp_xmin
-        xmax = info.object.controls.exp_xmax
+
+        # Keep selected color map
         selected_cmap = info.object.controls.node_controls.selected_cmap
         selected_node = info.object.controls.selected
+
+        # Get Experiment xmin and xmax for min and max slider limits
+        exp_xmin = info.object.controls.exp_xmin
+        exp_xmax = info.object.controls.exp_xmax
+
+        # Keep x,y lock on axes
+        freeze_xlims = info.object.controls.node_controls.freeze_xlims
+        freeze_ylims = info.object.controls.node_controls.freeze_ylims
+
         if isinstance(info.object.selected, Dataset):
+            if freeze_xlims:
+                xmin = info.object.controls.node_controls.xmin
+                xmax = info.object.controls.node_controls.xmax
+
+            else:
+                xmin = info.object.selected.xmin_filter
+                xmax = info.object.selected.xmax_filter
+
             info.object.controls.node_controls = DatasetNodeControls(
                 selected=selected_node,
                 xmin=xmin,
-                xmin_min=xmin,
-                xmin_max=xmax,
+                xmin_min=exp_xmin,
+                xmin_max=exp_xmax,
                 xmax=xmax,
-                xmax_min=xmin,
-                xmax_max=xmax,
+                xmax_min=exp_xmin,
+                xmax_max=exp_xmax,
                 selected_cmap=selected_cmap,
+                freeze_xlims=freeze_xlims,
+                freeze_ylims=freeze_ylims,
             )
 
             info.object.controls.node_buttons = DatasetNodeButtons()
 
         elif isinstance(info.object.selected, CorrectedDatasets):
+            if freeze_xlims:
+                xmin = info.object.controls.node_controls.xmin
+                xmax = info.object.controls.node_controls.xmax
+
+            else:
+                xmin = exp_xmin
+                xmax = exp_xmax
+
             info.object.controls.node_controls = CorrectedDatasetsNodeControls(
                 selected=selected_node,
                 xmin=xmin,
                 xmax=xmax,
                 selected_cmap=selected_cmap,
+                freeze_xlims=freeze_xlims,
+                freeze_ylims=freeze_ylims,
             )
 
             info.object.controls.node_buttons = CorrectedDatasetsNodeButtons()
@@ -306,36 +341,38 @@ class ControlPanel(HasTraits):
         self._colors = [myCMap(x) for x in cm_subsection]
 
     # Sets the limits for the plots in the figure (cached and selected)
-    def _get_limits_on_plot(self, xin, yin, dataset):
-
-        # Apply x-range filter
-        print("get_limits_on_plot 1")
-        x, y = self.controls.node_controls.filter_xrange(xin, yin, dataset )
-        print("get_limits_on_plot 2")
-
+    def _get_limits_on_plot(self, x, y):
         xlist = list()
         ylist = list()
 
+        # Get cached plot x values
         if len(self.controls.cached_plots) > 0:
             for a in self.controls.cached_plots:
 
                 xlist = np.append(xlist, a.x, axis=None)
                 ylist = np.append(ylist, a.y, axis=None)
 
+        # Get current selected / input x values
         xlist = np.append(xlist, x)
+        ylist = np.append(ylist, y)
+
+        # Get xmin and xmax specified by the Controls
         xlist = np.append(xlist, self.controls.node_controls.xmin)
         xlist = np.append(xlist, self.controls.node_controls.xmax)
 
-        ylist = np.append(ylist, y)
-
+        # Convert infinities and NaN to 0.0
         ylist[ylist == np.inf] = 0.0
         ylist[ylist == -np.inf] = 0.0
         ylist[np.isnan(ylist)] = 0.0
 
-        self.plot_xmin = min(xlist)
-        self.plot_xmax = max(xlist)
-        self.plot_ymin = min(ylist)
-        self.plot_ymax = max(ylist)
+        # Get plot x, y min and max
+        if len(xlist) > 0:
+            self.plot_xmin = min(xlist)
+            self.plot_xmax = max(xlist)
+
+        if len(ylist) > 0:
+            self.plot_ymin = min(ylist)
+            self.plot_ymax = max(ylist)
 
     # Add the cached lines back to the plot (style taken care of in
     # plot_cached)
@@ -361,11 +398,17 @@ class ControlPanel(HasTraits):
     def clear_plot(self):
         # Get the Axes
         axes = self.get_axes()
+
+        # Save axes if we are freezing the view
+        if self.controls.node_controls.freeze_xlims:
+            self.sofq_plot.xlims = axes.get_xlim()
+        if self.controls.node_controls.freeze_ylims:
+            self.sofq_plot.ylims = axes.get_ylim()
+
         axes.cla()
 
     # If selected Tree Node is Dataset, plot the Dataset
     def plot_dataset(self):
-        print("plot_dataset 1")
         # Get the Axes
         axes = self.get_axes()
 
@@ -377,16 +420,25 @@ class ControlPanel(HasTraits):
         x = self.controls.selected.x
         y = self.controls.selected.y
 
-        # Get the limits
-        print("plot_dataset 2")
-        self._get_limits_on_plot(x, y, self.controls.selected)
-        print("plot_dataset 3")
+        # Set the x-range filter
+        self.controls.selected.xmin_filter = self.controls.node_controls.xmin
+        self.controls.selected.xmax_filter = self.controls.node_controls.xmax
+
+        # Apply x-range filter
+        x, y = self.controls.node_controls.filter_xrange(x, y, self.controls.selected)
+
+        # Get the X, Y limits from all plots (selected + cached)
+        self._get_limits_on_plot(x, y)
 
         # Set the limits
-        if not self.controls.node_controls.freeze_xlims:
+        if self.controls.node_controls.freeze_xlims:
+            axes.set_xlim(self.sofq_plot.xlims)
+        else:
             axes.set_xlim(self.plot_xmin, self.plot_xmax)
 
-        if not self.controls.node_controls.freeze_ylims:
+        if self.controls.node_controls.freeze_ylims:
+            axes.set_xlim(self.sofq_plot.xlims)
+        else:
             axes.set_ylim(self.plot_ymin, self.plot_ymax)
 
         # Use the modifications to adjust the x, y line
@@ -404,7 +456,8 @@ class ControlPanel(HasTraits):
         axes = self.get_axes()
 
         for i, dataset in enumerate(datasets):
-            axes.plot(dataset.x, dataset.y, label=dataset.title)
+            x, y = self.controls.node_controls.filter_xrange(dataset.x, dataset.y, dataset)
+            axes.plot(x, y, label=dataset.title)
 
         # Set index to start plotting cached plots
         self.cache_start_index = len(datasets)
@@ -498,6 +551,17 @@ class ControlPanel(HasTraits):
 
         except AttributeError:
             pass
+
+    @on_trait_change('controls.node_controls.freeze_xlims')
+    def cache_xlims(self):
+        axes = self.get_axes()
+        self.sofq_plot.xlims = axes.get_xlim()
+
+    @on_trait_change('controls.node_controls.freeze_ylims')
+    def cache_ylims(self):
+        axes = self.get_axes()
+        self.sofq_plot.ylims = axes.get_ylim()
+
     @on_trait_change('controls.node_controls.dataset_selected_contents')
     def print_test(self):
         if isinstance(self.controls.node_controls, CorrectedDatasetsNodeControls):
@@ -517,8 +581,16 @@ class ControlPanel(HasTraits):
             x = self.controls.selected.x
             y = scale * (self.controls.selected.y) + shift
 
+            # Set the x-range filter
+            self.controls.selected.xmin_filter = self.controls.node_controls.xmin
+            self.controls.selected.xmax_filter = self.controls.node_controls.xmax
+
+            # Apply x-range filter
+            x, y = self.controls.node_controls.filter_xrange(x, y, self.controls.selected)
+
+
             # Get the X, Y limits from all plots (selected + cached)
-            self._get_limits_on_plot(x, y, self.controls.selected)
+            self._get_limits_on_plot(x, y)
 
             # Set the limits
             if not self.controls.node_controls.freeze_xlims \

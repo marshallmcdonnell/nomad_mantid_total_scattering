@@ -12,7 +12,7 @@ from pdf_plotter.ui.nodes.base_node \
     import NodeButtonHandler, NodeButtons, NodeControls
 
 from pdf_plotter.ui.models \
-    import Dataset
+    import CorrectedDatasets
 
 # -----------------------------------------------------------#
 # CorrectedDatasets Node Buttons
@@ -60,7 +60,9 @@ class CorrectedDatasetsNodeControls(NodeControls):
     dataset_selected_contents = Property
 
     def _get_datasets(self):
-        return [ dataset.title for dataset in self.selected.datasets ]
+        if isinstance(self.selected, CorrectedDatasets):
+            return [ dataset.title for dataset in self.selected.datasets ]
+        return ''
 
     @property_depends_on('dataset_selected')
     def _get_dataset_selected_contents(self):

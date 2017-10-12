@@ -36,9 +36,9 @@ class NomadFilters(HasTraits):
                           xmax  = 40.0)
 
 
-    list_of_filters = List([bank1_filter,
-                            bank2_filter,
-                            bank3_filter,
-                            bank4_filter,
-                            bank5_filter,
-                            bank6_filter])
+    list_of_filters = List(Filter, [bank1_filter,
+                                    bank2_filter,
+                                    bank3_filter,
+                                    bank4_filter,
+                                    bank5_filter,
+                                    bank6_filter])

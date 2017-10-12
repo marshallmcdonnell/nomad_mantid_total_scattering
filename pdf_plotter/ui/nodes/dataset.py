@@ -5,7 +5,7 @@ from traits.api \
 
 from traitsui.api \
     import View, VGroup, VSplit, HGroup, HSplit, Item, \
-    RangeEditor, TextEditor, CheckListEditor
+    RangeEditor, CheckListEditor
 
 from pdf_plotter.ui.nodes.base_node \
     import NodeButtonHandler, NodeButtons, NodeControls
@@ -116,7 +116,7 @@ class DatasetNodeControls(NodeControls):
                 HSplit(
                     Item('xmin_min',
                          width=0.1,
-                         editor=TextEditor(auto_set=False,),
+                         editor=RangeEditor(auto_set=False,mode='text'),
                          label='Min',
                          ),
                     Item('xmin',
@@ -131,7 +131,7 @@ class DatasetNodeControls(NodeControls):
                          ),
                     Item('xmin_max',
                          width=0.1,
-                         editor=TextEditor(auto_set=False,),
+                         editor=RangeEditor(auto_set=False,mode='text'),
                          label='Max',
                          ),
                     label='Xmin',
@@ -141,7 +141,7 @@ class DatasetNodeControls(NodeControls):
                 HSplit(
                     Item('xmax_min',
                          width=0.1,
-                         editor=TextEditor(auto_set=False,),
+                         editor=RangeEditor(auto_set=False,mode='text'),
                          label='Min',
                          ),
                     Item('xmax',
@@ -156,7 +156,7 @@ class DatasetNodeControls(NodeControls):
                          ),
                     Item('xmax_max',
                          width=0.1,
-                         editor=TextEditor(auto_set=False,),
+                         editor=RangeEditor(auto_set=False,mode='text'),
                          label='Max',
                          ),
                     label='Xmax',
