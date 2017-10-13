@@ -69,8 +69,11 @@ class Controls(HasTraits):
     # Buttons for the selected node type
     node_buttons = Instance(NodeButtons)
 
-    # The currently selected dataset
+    # The currently selected node
     selected = Any
+
+    # Current selected dataset
+    current_dataset = Dataset
 
     # Node controls used for different types of TreeNodes
     # Cached plots we keep on plot
@@ -111,6 +114,14 @@ class Controls(HasTraits):
 
     # -------------------------------------------------------#
     # Dynamic
+    @on_trait_change('selected')
+    def get_current_dataset(self):
+        if isinstance(self.selected, Dataset):
+            self.current_dataset = self.selected
+        elif isinstance(self.selected, CorrectedDatasets):
+            print(self.node_controls.dataset_selected)
+            self.current_dataset = self.ode_controls.dataset_selected
+
 
     # Extracts Datasets models that are stored in the Experiment model
     @property_depends_on('experiment')

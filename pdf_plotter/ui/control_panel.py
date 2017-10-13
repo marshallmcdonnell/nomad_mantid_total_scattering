@@ -7,7 +7,7 @@ import numpy as np
 # Traits
 from traits.api \
     import HasTraits, Instance, Property, CFloat, \
-    on_trait_change
+    DelegatesTo, on_trait_change
 
 from traitsui.api \
     import View, Item, UItem, StatusItem, HSplit, VSplit,\
@@ -93,7 +93,7 @@ ControlPanelView = View(
 class ControlPanelHandler(Handler):
     def get_parents(self, info, node):
         # Grab selected Dataset
-        selected = info.object.controls.selected
+        selected = info.object.selected
 
         # Get the TreeEditor for the Experiment
         controls_editors = info.ui.get_editors("controls")
@@ -129,10 +129,10 @@ class ControlPanelHandler(Handler):
                 button_func(info)
 
     def cache_plot(self, info):
-        selected = info.object.controls.selected
+        dataset = info.object.current_dataset
 
         # Get info for selected Dataset (=a) and create new Dataset (=b)
-        a = selected
+        a = dataset
         shift = info.object.controls.node_controls.shift_factor
         scale = info.object.controls.node_controls.scale_factor
         b = Dataset(x=a.x, 
@@ -189,6 +189,7 @@ class ControlPanelHandler(Handler):
         datasets = info.object.controls.selected.datasets
         axes = info.object.get_axes()
         for dataset in datasets:
+            x, y = self.controls.node_controls.filter_xrange(dataset.x, dataset.y, dataset)
             axes.plot(dataset.x, dataset.y, label=dataset.title)
             info.object.controls.cached_plots.append(dataset)
 
@@ -286,6 +287,9 @@ class ControlPanel(HasTraits):
     # Selected node
     selected = Property(depends_on='controls.selected')
 
+    # Selected dataset
+    current_dataset = Property(depends_on='selected')
+
     # Button event fired
     button_pressed = Property(depends_on='controls.node_buttons.button_event')
 
@@ -305,13 +309,15 @@ class ControlPanel(HasTraits):
     # -------------------------------------------------------#
     # Utilities
 
+    def _get_selected(self):
+        return self.controls.selected
+
+    def _get_current_dataset(self):
+        return self.controls.current_dataset
+
     # Updates the displayed load status based on notifications from Controls
     def _get_load_status(self):
         return ("%s" % self.experiment_file.load_status)
-
-    # Updates the displayed load status based on notifications from Controls
-    def _get_selected(self):
-        return self.controls.selected
 
     # Updates the buttons fired from Controls
     def _get_button_pressed(self):
@@ -417,15 +423,15 @@ class ControlPanel(HasTraits):
         self.controls.node_controls.shift_factor = 0.0
 
         # Get X, Y for selected Dataset
-        x = self.controls.selected.x
-        y = self.controls.selected.y
+        x = self.controls.current_dataset.x
+        y = self.controls.current_dataset.y
 
         # Set the x-range filter
-        self.controls.selected.xmin_filter = self.controls.node_controls.xmin
-        self.controls.selected.xmax_filter = self.controls.node_controls.xmax
+        self.controls.current_dataset.xmin_filter = self.controls.node_controls.xmin
+        self.controls.current_dataset.xmax_filter = self.controls.node_controls.xmax
 
         # Apply x-range filter
-        x, y = self.controls.node_controls.filter_xrange(x, y, self.controls.selected)
+        x, y = self.controls.node_controls.filter_xrange(x, y, self.controls.current_dataset)
 
         # Get the X, Y limits from all plots (selected + cached)
         self._get_limits_on_plot(x, y)
@@ -442,7 +448,7 @@ class ControlPanel(HasTraits):
             axes.set_ylim(self.plot_ymin, self.plot_ymax)
 
         # Use the modifications to adjust the x, y line
-        self.set_xy(axes, x, y, self.controls.selected.title)
+        self.set_xy(axes, x, y, self.controls.current_dataset.title)
 
         # Set index to start plotting cached plots
         self.cache_start_index = 1
@@ -565,7 +571,7 @@ class ControlPanel(HasTraits):
     @on_trait_change('controls.node_controls.dataset_selected_contents')
     def print_test(self):
         if isinstance(self.controls.node_controls, CorrectedDatasetsNodeControls):
-            print(self.controls.node_controls.dataset_selected_contents)
+            print(self.controls.current_dataset)
 
     # Re-plot when we apply a shift or scale factor
     @on_trait_change('controls.node_controls.scale_factor,'
@@ -578,15 +584,15 @@ class ControlPanel(HasTraits):
             scale = self.controls.node_controls.scale_factor
             shift = self.controls.node_controls.shift_factor
 
-            x = self.controls.selected.x
-            y = scale * (self.controls.selected.y) + shift
+            x = self.controls.current_dataset.x
+            y = scale * (self.controls.current_dataset.y) + shift
 
             # Set the x-range filter
-            self.controls.selected.xmin_filter = self.controls.node_controls.xmin
-            self.controls.selected.xmax_filter = self.controls.node_controls.xmax
+            self.controls.current_dataset.xmin_filter = self.controls.node_controls.xmin
+            self.controls.current_dataset.xmax_filter = self.controls.node_controls.xmax
 
             # Apply x-range filter
-            x, y = self.controls.node_controls.filter_xrange(x, y, self.controls.selected)
+            x, y = self.controls.node_controls.filter_xrange(x, y, self.controls.current_dataset)
 
 
             # Get the X, Y limits from all plots (selected + cached)
@@ -602,7 +608,7 @@ class ControlPanel(HasTraits):
                 axes.set_ylim(self.plot_ymin, self.plot_ymax)
 
             # Use the modifications to adjust the x, y line
-            self.set_xy(axes, x, y, self.controls.selected.title)
+            self.set_xy(axes, x, y, self.controls.current_dataset.title)
 
             # Redraw the canvas of the figure
             self.redraw_canvas()
