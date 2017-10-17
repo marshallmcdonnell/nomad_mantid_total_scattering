@@ -1,5 +1,11 @@
+from traits.api \
+    import Str
+
 from traitsui.api \
     import TreeEditor, TreeNode, View, Group, Menu, Action
+
+from pyface.api \
+    import ImageResource
 
 from pdf_plotter.ui.models \
     import Dataset, CorrectedDatasets, Measurement, Experiment
@@ -88,6 +94,8 @@ class CorrectedDatasetsNode(TreeNode):
     # Class of node to add
     add = [Dataset]
 
+    icon_group = ImageResource('../images/sample_and_container.png')
+    icon_open  = icon_group
 
 class DatasetNode(TreeNode):
 
@@ -104,6 +112,10 @@ class DatasetNode(TreeNode):
     menu = Menu(Action(name="Test...",
                        action="handler.get_measurement(editor,object)"))
 
+
+    #icon_path = Str('../images/')
+
+
     # View for the node
     view = View()
 
@@ -116,6 +128,7 @@ ExperimentTreeEditor = TreeEditor(
         CorrectedDatasetsNode(),
         DatasetNode(),
     ],
+    icon_size=(40,40),
     selected='selected',
     editable=False,
 )
