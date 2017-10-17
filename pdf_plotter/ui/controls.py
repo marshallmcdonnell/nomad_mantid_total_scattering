@@ -6,7 +6,7 @@ import numpy as np
 
 # Traits
 from traits.api \
-    import HasTraits, Instance, List, Property, Any, \
+    import HasTraits, Instance, List, Property, Any, Bool, \
     property_depends_on, cached_property, on_trait_change
 
 from traitsui.api \
@@ -63,6 +63,9 @@ class Controls(HasTraits):
     # Passed in measurement
     experiment = Instance(Experiment, ())
 
+    # Flag to help with unnecessary trait notification on initialization
+    intialized = Bool(False)
+
     # Controls for selected node type
     node_controls = Instance(NodeControls)
 
@@ -116,14 +119,13 @@ class Controls(HasTraits):
     # Dynamic
     @on_trait_change('node_controls.dataset_selected')
     def get_current_dataset(self):
-        print("selected", self.selected, "node controls", self.node_controls)
         if isinstance(self.selected, Dataset):
             self.current_dataset = self.selected
         elif isinstance(self.selected, CorrectedDatasets):
-            try:
+            if self.node_controls.dataset_selected:
                 self.current_dataset = self.node_controls.dataset_selected[0]
-            except TypeError:
-                pass
+            else:
+                self.current_dataset = self.selected.datasets[0]
 
 
     # Extracts Datasets models that are stored in the Experiment model

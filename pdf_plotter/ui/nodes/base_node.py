@@ -88,4 +88,3 @@ class NodeControls(HasTraits):
         if self.selected_cmap:
             return self.selected_cmap[0]
         return 'Set1'
-

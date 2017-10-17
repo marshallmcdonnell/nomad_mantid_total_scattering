@@ -7,7 +7,7 @@ import numpy as np
 # Traits
 from traits.api \
     import HasTraits, Instance, Property, CFloat, \
-    DelegatesTo, on_trait_change
+    Dict, on_trait_change
 
 from traitsui.api \
     import View, Item, UItem, StatusItem, HSplit, VSplit,\
@@ -177,10 +177,11 @@ class ControlPanelHandler(Handler):
 
             # Add to plot and refresh
             axes = info.object.get_axes()
-            axes.plot(b.x, b.y, label=b.title)
+            line = axes.plot(b.x, b.y, label=b.title)
+            info.object.line2dataset[line[0]] = b
             info.object._setupColorMap(info.object.controls.cached_plots)
             info.object.plot_cached()
-            info.object.plot_dataset_modification()
+            info.object.plot_modification_to_selected_change()
 
         except ValueError:
             pass
@@ -189,24 +190,24 @@ class ControlPanelHandler(Handler):
         datasets = info.object.controls.selected.datasets
         axes = info.object.get_axes()
         for dataset in datasets:
-            x, y = self.controls.node_controls.filter_xrange(dataset.x, dataset.y, dataset)
-            axes.plot(dataset.x, dataset.y, label=dataset.title)
-            info.object.controls.cached_plots.append(dataset)
+            x, y = info.object.controls.node_controls.filter_xrange(dataset.x, dataset.y, dataset)
+            line = axes.plot(x, y, label=dataset.title)
+            info.object.line2dataset[line[0]] = dataset
+            info.object.controls.cached_plots.append(Dataset(x=x,y=y,title=dataset.title))
 
         info.object._setupColorMap(info.object.controls.cached_plots)
         info.object.plot_cached()
-        info.object.plot_dataset_modification()
+        info.object.plot_modification_to_selected_change()
 
     def clear_cache(self, info):
         info.object.controls.cached_plots = []
         axes = info.object.get_axes()
         axes.cla()
-        info.object.plot_dataset_modification()
+        info.object.plot_selected_node_change()
 
     def object_selected_changed(self, info):
         if not info.initialized:
             return
-
 
         # Keep selected color map
         selected_cmap = info.object.controls.node_controls.selected_cmap
@@ -219,6 +220,9 @@ class ControlPanelHandler(Handler):
         # Keep x,y lock on axes
         freeze_xlims = info.object.controls.node_controls.freeze_xlims
         freeze_ylims = info.object.controls.node_controls.freeze_ylims
+
+        # Inform that we initializating node_controls to turn off trait notifications
+        info.object.controls.node_controls.initialized = False
 
         if isinstance(info.object.selected, Dataset):
             if freeze_xlims:
@@ -250,8 +254,8 @@ class ControlPanelHandler(Handler):
                 xmax = info.object.controls.node_controls.xmax
 
             else:
-                xmin = exp_xmin
-                xmax = exp_xmax
+                xmin = info.object.selected.datasets[0].xmin_filter
+                xmax = info.object.selected.datasets[0].xmax_filter
 
             datasets = [ (dataset, dataset.title) for dataset in info.object.selected.datasets ]
 
@@ -266,6 +270,9 @@ class ControlPanelHandler(Handler):
             )
 
             info.object.controls.node_buttons = CorrectedDatasetsNodeButtons()
+
+        # Inform that we are done with initialization to turn back on trait notifications
+        info.object.controls.node_controls.initialized = True
 
 # -----------------------------------------------------------#
 # Main Control Panel
@@ -303,7 +310,9 @@ class ControlPanel(HasTraits):
     cache_start_index = 0
     dataset = Instance(Dataset)
     corrected_datasets = Instance(CorrectedDatasets)
+    line2dataset = Dict
 
+    # Plot's overall x, y min and max
     plot_xmin = CFloat
     plot_xmax = CFloat
     plot_ymin = CFloat
@@ -350,9 +359,14 @@ class ControlPanel(HasTraits):
         self._colors = [myCMap(x) for x in cm_subsection]
 
     # Sets the limits for the plots in the figure (cached and selected)
-    def _get_limits_on_plot(self, x, y):
+    def _get_limits_on_plot(self, x, y, not_selected=None):
+
         xlist = list()
         ylist = list()
+
+        # Get current selected / input x values
+        xlist = np.append(xlist, x)
+        ylist = np.append(ylist, y)
 
         # Get cached plot x values
         if len(self.controls.cached_plots) > 0:
@@ -361,9 +375,12 @@ class ControlPanel(HasTraits):
                 xlist = np.append(xlist, a.x, axis=None)
                 ylist = np.append(ylist, a.y, axis=None)
 
-        # Get current selected / input x values
-        xlist = np.append(xlist, x)
-        ylist = np.append(ylist, y)
+        # Get all datasets not selected but plotted
+        if not_selected:
+            for a in not_selected:
+                x, y = self.controls.node_controls.filter_xrange(a.x, a.y, a)
+                xlist = np.append(xlist, x, axis=None)
+                ylist = np.append(ylist, y, axis=None)
 
         # Get xmin and xmax specified by the Controls
         xlist = np.append(xlist, self.controls.node_controls.xmin)
@@ -383,25 +400,19 @@ class ControlPanel(HasTraits):
             self.plot_ymin = min(ylist)
             self.plot_ymax = max(ylist)
 
-    # Add the cached lines back to the plot (style taken care of in
-    # plot_cached)
-    def add_cached(self):
-        axes = self.get_axes()
-        for cached_plot in self.controls.cached_plots:
-            axes.plot(cached_plot.x, cached_plot.y)
+    # Get the axes we are plotting on
+    def get_axes(self):
+        # If no Axes for the figure, 1) Make the figure zoomable by mouse wheel
+        # and 2) initialize an Axes
+        if len(self.sofq_plot.figure.axes) == 0:
+            self.sofq_plot.figure.pan_zoom = ZoomOnWheel(self.sofq_plot.figure)
+            axes = self.sofq_plot.figure.add_subplot(111)
 
-    # Loop over lines in the Axes for the cached plots and modify
-    # accordingly
-    def plot_cached(self):
-        axes = self.get_axes()
-        for i, (cached_plot, color) in enumerate(
-                zip(self.controls.cached_plots, self._colors)):
-            l = axes.lines[i + self.cache_start_index]
-            l.set_data(cached_plot.x, cached_plot.y)
-            l.set_color(color)
-            l.set_marker(None)
-            l.set_linestyle('-')
-            l.set_label(cached_plot.title)
+        # Get only Axes currently available
+        else:
+            axes = self.sofq_plot.figure.axes[0]
+
+        return axes
 
     # Clear the plot
     def clear_plot(self):
@@ -416,91 +427,121 @@ class ControlPanel(HasTraits):
 
         axes.cla()
 
-    # If selected Tree Node is Dataset, plot the Dataset
-    def plot_dataset(self):
-        # Get the Axes
-        axes = self.get_axes()
+        # Clear the line -> dataset dictionary
+        self.line2dataset = dict()
 
-        # Reset the scale and shift
-        self.controls.node_controls.scale_factor = 1.0
-        self.controls.node_controls.shift_factor = 0.0
-
-        # Get X, Y for selected Dataset
-        x = self.controls.current_dataset.x
-        y = self.controls.current_dataset.y
-
-        # Set the x-range filter
-        self.controls.current_dataset.xmin_filter = self.controls.node_controls.xmin
-        self.controls.current_dataset.xmax_filter = self.controls.node_controls.xmax
-
-        # Apply x-range filter
-        x, y = self.controls.node_controls.filter_xrange(x, y, self.controls.current_dataset)
-
-        # Get the X, Y limits from all plots (selected + cached)
-        self._get_limits_on_plot(x, y)
-
-        # Set the limits
-        if self.controls.node_controls.freeze_xlims:
-            axes.set_xlim(self.sofq_plot.xlims)
-        else:
-            axes.set_xlim(self.plot_xmin, self.plot_xmax)
-
-        if self.controls.node_controls.freeze_ylims:
-            axes.set_xlim(self.sofq_plot.xlims)
-        else:
-            axes.set_ylim(self.plot_ymin, self.plot_ymax)
-
-        # Use the modifications to adjust the x, y line
-        self.set_xy(axes, x, y, self.controls.current_dataset.title)
-
-        # Set index to start plotting cached plots
-        self.cache_start_index = 1
-
-    # If selected Tree Node is CorrectedDatasets, plot all Dataset children
-    def plot_corrected_datasets(self):
+    # Get the datasets we want to plot
+    def get_datasets_to_plot(self):
         # Get the Datasets
-        datasets = self.controls.selected.datasets
+        if isinstance(self.controls.selected, Dataset):
+            datasets = [ self.controls.selected ]
 
+        elif isinstance(self.controls.selected, CorrectedDatasets):
+            datasets = self.controls.selected.datasets
+
+        else:
+            datasets = list()
+
+        return datasets
+
+    def apply_selected_mask(self, datasets):
+        selected_dataset = self.controls.current_dataset
+
+        selected = None
+        not_selected = list()
+        for dataset in datasets:
+            if dataset == selected_dataset:
+                selected = dataset
+            else:
+                not_selected.append(dataset)
+
+        return selected, not_selected
+
+    def plot_all_datasets(self,datasets):
         # Get the Axes
         axes = self.get_axes()
 
         for i, dataset in enumerate(datasets):
             x, y = self.controls.node_controls.filter_xrange(dataset.x, dataset.y, dataset)
-            axes.plot(x, y, label=dataset.title)
+            line = axes.plot(x, y, label=dataset.title)
+            self.line2dataset[line[0]] = dataset
 
-        # Set index to start plotting cached plots
-        self.cache_start_index = len(datasets)
-
-    # Plots the X, Y data (cached and selected) on the given Axes and re-draws
-    # the canvas
-    def set_xy(self, axes, x, y, title):
+    # Plots the X, Y data (cached and selected) on the given axes
+    def plot_selected(self, x, y, dataset):
+        # Get axes to plot on
+        axes = self.get_axes()
 
         # Add first line to plot if none already
         if not axes.lines:
-            axes.plot(x, y, label=title)
+            line = axes.plot(x, y, label=dataset.title)
+            self.line2dataset[line[0]] = dataset
+
+        # Get the corresponding  line to the dataset selected
+        for line in axes.lines:
+            if dataset == self.line2dataset[line]:
+                l = line
 
         # Plot xy
-        l = axes.lines[0]
         l.set_data(x, y)
         l.set_color('b')
         l.set_marker('o')
         l.set_markersize(4.0)
         l.set_linestyle('--')
-        l.set_label(title)
+        l.set_label(dataset.title)
 
-    def get_axes(self):
-        # If no Axes for the figure, 1) Make the figure zoomable by mouse wheel
-        # and 2) initialize an Axes
-        if len(self.sofq_plot.figure.axes) == 0:
-            self.sofq_plot.figure.pan_zoom = ZoomOnWheel(self.sofq_plot.figure)
-            axes = self.sofq_plot.figure.add_subplot(111)
+    # Add the cached lines back to the plot (style taken care of in
+    # plot_cached)
+    def add_cached(self):
+        axes = self.get_axes()
+        for cached_plot in self.controls.cached_plots:
+            line = axes.plot(cached_plot.x, cached_plot.y)
+            self.line2dataset[line[0]] = cached_plot
 
-        # Get only Axes currently available
-        else:
-            axes = self.sofq_plot.figure.axes[0]
+    # Loop over lines in the Axes for the cached plots and modify
+    # accordingly
+    def plot_cached(self):
+        axes = self.get_axes()
+        for i, (cached_plot, color) in enumerate(
+                zip(self.controls.cached_plots, self._colors)):
+            l = axes.lines[i + self.cache_start_index]
+            l.set_data(cached_plot.x, cached_plot.y)
+            l.set_color(color)
+            l.set_marker(None)
+            l.set_linestyle('-')
+            l.set_label(cached_plot.title)
 
-        return axes
+    # Apply adjustments to the currently selected dataset
+    def adjust_selected(self, selected, not_selected=None):
+        axes = self.get_axes()
+        scale = self.controls.node_controls.scale_factor
+        shift = self.controls.node_controls.shift_factor
 
+        # Set the x-range filter
+        selected.xmin_filter = self.controls.node_controls.xmin
+        selected.xmax_filter = self.controls.node_controls.xmax
+
+        # Get x and y. Apply scale and shift to y
+        x = selected.x
+        y = scale * (selected.y) + shift
+
+        # Apply x-range filter
+        x, y = self.controls.node_controls.filter_xrange(x, y, selected)
+
+        # Get the X, Y limits from all plots (selected + cached)
+        self._get_limits_on_plot(x, y, not_selected)
+
+        # Set the limits
+        if not self.controls.node_controls.freeze_xlims \
+           and self.plot_xmin <= self.plot_xmax:
+            axes.set_xlim(self.plot_xmin, self.plot_xmax)
+
+        if not self.controls.node_controls.freeze_ylims \
+           and  self.plot_ymin <= self.plot_ymax:
+            axes.set_ylim(self.plot_ymin, self.plot_ymax)
+
+        return x, y, selected.title
+
+    # After updating the figure with all changes, redraw the plot
     def redraw_canvas(self):
         axes = self.get_axes()
 
@@ -516,6 +557,7 @@ class ControlPanel(HasTraits):
     # -------------------------------------------------------#
     # Dynamic
 
+    # If the experiment changes, initialize the controls if needed
     @on_trait_change('experiment_file.experiment')
     def experiment_updated(self):
         experiment = self.experiment_file.experiment
@@ -528,25 +570,66 @@ class ControlPanel(HasTraits):
                     node_controls=DatasetNodeControls(),
                     node_buttons=DatasetNodeButtons())
 
+    # Upon loading the experiment file, watch for updates from the multi-thread load
     @on_trait_change('experiment_file.load_status')
     def update_status(self):
         self.status = self.experiment_file.load_status
 
-    # Re-plot when we either select another Dataset or if we change the
-    # ColorMap
-    @on_trait_change('controls.selected,controls.node_controls.selected_cmap')
-    def plot_selection(self):
+    # If the 'lock x-axis' radio button is pressed, save the current x-axis limits
+    @on_trait_change('controls.node_controls.freeze_xlims')
+    def cache_xlims(self):
+        axes = self.get_axes()
+        self.sofq_plot.xlims = axes.get_xlim()
+
+    # If the 'lock y-axis' radio button is pressed, save the current y-axis limits
+    @on_trait_change('controls.node_controls.freeze_ylims')
+    def cache_ylims(self):
+        axes = self.get_axes()
+        self.sofq_plot.ylims = axes.get_ylim()
+
+    # Re-plot when selecting another node or if we change the ColorMap
+    @on_trait_change('controls:selected,controls:node_controls:[selected_cmap,dataset_selected]')
+    def plot_selected_node_change(self):
         try:
-            # Plot the selected Tree Node based on its type
-            if isinstance(self.controls.selected, Dataset):
-                self.clear_plot()
-                self.plot_dataset()
 
-            elif isinstance(self.controls.selected, CorrectedDatasets):
-                self.clear_plot()
-                self.plot_corrected_datasets()
+            self.clear_plot()
 
-            # Add cached lines back to plot
+            # Force an update in the selected node
+            self.controls.updated_selected_in_node_controls()
+            self.controls.get_current_dataset()
+
+            # Update node_controls xmin xmax filters
+            self.controls.node_controls.initialized = False
+
+            # Update xmin filter
+            self.controls.node_controls.xmin = self.current_dataset.xmin_filter
+            self.controls.node_controls.xmin_min = self.current_dataset.xmin_filter
+            self.controls.node_controls.xmin_max = self.current_dataset.xmax_filter
+
+            # Update xmax filter
+            self.controls.node_controls.xmax = self.current_dataset.xmax_filter
+            self.controls.node_controls.xmax_min = self.current_dataset.xmin_filter
+            self.controls.node_controls.xmax_max = self.current_dataset.xmax_filter
+
+            # Get a list of datasets we will plot
+            datasets = self.get_datasets_to_plot()
+
+            # Go ahead and initially plot all the datasets
+            self.plot_all_datasets(datasets)
+
+            # Separate the list into selected and not selected datasets
+            selected, not_selected = self.apply_selected_mask(datasets)
+
+            # Adjust/modify the currently selected dataset
+            x, y, title = self.adjust_selected(selected, not_selected)
+
+            self.controls.node_controls.initialized = True
+
+            # Plot the selected dataset after modification
+            self.plot_selected(x, y, selected)
+
+             # Add cached lines back to plot
+            self.cache_start_index = len(datasets)
             self.add_cached()
 
             # Setup the ColorMap for the cache plots
@@ -558,55 +641,25 @@ class ControlPanel(HasTraits):
             # Redraw the canvas of the figure
             self.redraw_canvas()
 
+
         except AttributeError:
             pass
 
-    @on_trait_change('controls.node_controls.freeze_xlims')
-    def cache_xlims(self):
-        axes = self.get_axes()
-        self.sofq_plot.xlims = axes.get_xlim()
+    # Re-plot when adjusting the currently selected node
+    @on_trait_change('controls:node_controls:[scale_factor,shift_factor],'
+                     'controls.node_controls.[xmin,xmax]')
+    def plot_modification_to_selected_change(self):
 
-    @on_trait_change('controls.node_controls.freeze_ylims')
-    def cache_ylims(self):
-        axes = self.get_axes()
-        self.sofq_plot.ylims = axes.get_ylim()
-
-    # Re-plot when we apply a shift or scale factor
-    @on_trait_change('controls.node_controls.scale_factor,'
-                     'controls.node_controls.shift_factor,'
-                     'controls.node_controls.xmin,'
-                     'controls.node_controls.xmax,')
-    def plot_dataset_modification(self):
         try:
-            axes = self.get_axes()
-            scale = self.controls.node_controls.scale_factor
-            shift = self.controls.node_controls.shift_factor
+            if not self.controls.node_controls.initialized:
+                return
+            datasets = self.get_datasets_to_plot()
 
-            x = self.controls.current_dataset.x
-            y = scale * (self.controls.current_dataset.y) + shift
+            selected, not_selected = self.apply_selected_mask(datasets)
 
-            # Set the x-range filter
-            self.controls.current_dataset.xmin_filter = self.controls.node_controls.xmin
-            self.controls.current_dataset.xmax_filter = self.controls.node_controls.xmax
+            x, y, title = self.adjust_selected(selected, not_selected)
 
-            # Apply x-range filter
-            x, y = self.controls.node_controls.filter_xrange(x, y, self.controls.current_dataset)
-
-
-            # Get the X, Y limits from all plots (selected + cached)
-            self._get_limits_on_plot(x, y)
-
-            # Set the limits
-            if not self.controls.node_controls.freeze_xlims \
-               and self.plot_xmin <= self.plot_xmax:
-                axes.set_xlim(self.plot_xmin, self.plot_xmax)
-    
-            if not self.controls.node_controls.freeze_ylims \
-               and  self.plot_ymin <= self.plot_ymax:
-                axes.set_ylim(self.plot_ymin, self.plot_ymax)
-
-            # Use the modifications to adjust the x, y line
-            self.set_xy(axes, x, y, self.controls.current_dataset.title)
+            self.plot_selected(x, y, selected)
 
             # Redraw the canvas of the figure
             self.redraw_canvas()

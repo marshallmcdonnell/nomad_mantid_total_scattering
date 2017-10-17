@@ -10,9 +10,6 @@ from traitsui.api \
 from pdf_plotter.ui.nodes.base_node \
     import NodeButtonHandler, NodeButtons, NodeControls
 
-from pdf_plotter.ui.models \
-    import Dataset
-
 # -----------------------------------------------------------#
 # CorrectedDatasets Node Buttons
 
