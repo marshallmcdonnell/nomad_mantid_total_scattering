@@ -253,8 +253,11 @@ class ControlPanelHandler(Handler):
                 xmin = exp_xmin
                 xmax = exp_xmax
 
+            datasets = [ (dataset, dataset.title) for dataset in info.object.selected.datasets ]
+
             info.object.controls.node_controls = CorrectedDatasetsNodeControls(
                 selected=selected_node,
+                datasets=datasets,
                 xmin=xmin,
                 xmax=xmax,
                 selected_cmap=selected_cmap,
@@ -567,11 +570,6 @@ class ControlPanel(HasTraits):
     def cache_ylims(self):
         axes = self.get_axes()
         self.sofq_plot.ylims = axes.get_ylim()
-
-    @on_trait_change('controls.node_controls.dataset_selected_contents')
-    def print_test(self):
-        if isinstance(self.controls.node_controls, CorrectedDatasetsNodeControls):
-            print(self.controls.current_dataset)
 
     # Re-plot when we apply a shift or scale factor
     @on_trait_change('controls.node_controls.scale_factor,'

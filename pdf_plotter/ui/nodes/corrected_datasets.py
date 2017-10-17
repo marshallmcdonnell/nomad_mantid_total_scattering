@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 from traits.api \
-    import Button, Property, List, Any, \
-    property_depends_on, on_trait_change
+    import Button, Any, List, Dict, on_trait_change
 
 from traitsui.api \
     import View, HGroup, HSplit, VGroup, VSplit, Item, \
@@ -12,7 +11,7 @@ from pdf_plotter.ui.nodes.base_node \
     import NodeButtonHandler, NodeButtons, NodeControls
 
 from pdf_plotter.ui.models \
-    import CorrectedDatasets
+    import Dataset
 
 # -----------------------------------------------------------#
 # CorrectedDatasets Node Buttons
@@ -53,26 +52,14 @@ class CorrectedDatasetsNodeButtons(NodeButtons):
 class CorrectedDatasetsNodeControls(NodeControls):
 
     # List of CorrectedDatasets Node's datasets
-    datasets = Property(depends_on='selected')
+    datasets   = List
 
     # Selected Dataset
     dataset_selected = Any
-    dataset_selected_contents = Property
-
-    def _get_datasets(self):
-        if isinstance(self.selected, CorrectedDatasets):
-            return [ dataset.title for dataset in self.selected.datasets ]
-        return ''
-
-    @property_depends_on('dataset_selected')
-    def _get_dataset_selected_contents(self):
-        if self.dataset_selected:
-            return self.dataset_selected
 
     traits_view = View(
 
         VGroup(
-
             # List of Datasets
             HSplit(
                 Item('dataset_selected',

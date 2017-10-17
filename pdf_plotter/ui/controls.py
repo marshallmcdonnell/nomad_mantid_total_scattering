@@ -114,13 +114,16 @@ class Controls(HasTraits):
 
     # -------------------------------------------------------#
     # Dynamic
-    @on_trait_change('selected')
+    @on_trait_change('node_controls.dataset_selected')
     def get_current_dataset(self):
+        print("selected", self.selected, "node controls", self.node_controls)
         if isinstance(self.selected, Dataset):
             self.current_dataset = self.selected
         elif isinstance(self.selected, CorrectedDatasets):
-            print(self.node_controls.dataset_selected)
-            self.current_dataset = self.ode_controls.dataset_selected
+            try:
+                self.current_dataset = self.node_controls.dataset_selected[0]
+            except TypeError:
+                pass
 
 
     # Extracts Datasets models that are stored in the Experiment model

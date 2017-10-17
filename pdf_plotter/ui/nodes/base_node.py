@@ -44,6 +44,16 @@ class NodeControls(HasTraits):
     xmax_min = CFloat(0.0)
     xmax_max = CFloat(2.0)
 
+    # Scale controls
+    scale_min = CFloat(0.5)
+    scale_max = CFloat(1.5)
+    scale_factor = CFloat(1.0)
+
+    # Scale controls
+    shift_min = CFloat(-5.0)
+    shift_max = CFloat(5.0)
+    shift_factor = CFloat(0.0)
+
     # List of color maps available
     cmap_list = List(sorted(
         [cmap for cmap in cm.datad if not cmap.endswith("_r")],
