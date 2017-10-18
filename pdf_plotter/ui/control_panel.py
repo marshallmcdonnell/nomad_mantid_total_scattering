@@ -483,10 +483,10 @@ class ControlPanel(HasTraits):
 
         # Plot xy
         l.set_data(x, y)
-        l.set_color('b')
+        #l.set_color('b')
         l.set_marker('o')
         l.set_markersize(4.0)
-        l.set_linestyle('--')
+        #l.set_linestyle('--')
         l.set_label(dataset.title)
 
     # Add the cached lines back to the plot (style taken care of in
