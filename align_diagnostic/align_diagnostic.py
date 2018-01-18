@@ -28,6 +28,9 @@ alignArgs = dict(PrimaryFlightPath = results[2],
                          Polar             = results[5],
                          Azimuthal         = results[6])
 
+if calib:
+    alignArgs['CalFilename'] = calib
+
 #alignArgs['ResampleX'] = -6000
 alignArgs['RemovePromptPulseWidth'] = 50
 alignArgs['Characterizations'] = 'characterizations'
