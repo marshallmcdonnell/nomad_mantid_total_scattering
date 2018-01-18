@@ -1,0 +1,6 @@
+{
+    "InputFilename" : "../NOM_94730_aligned.nxs",
+    "OutputFilename" :  "./powder.xml",
+    "GroupingFileName": "/SNS/NOM/shared/CALIBRATION/2016_2_1B_CAL/NOM_grouping_59spec.xml"
+}
+
