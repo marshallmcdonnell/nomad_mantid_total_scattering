@@ -119,6 +119,7 @@ class ControlPanelHandler(Handler):
         name2func = {'cache_plot': self.cache_plot,
                      'cache_plots': self.cache_plots,
                      'clear_cache': self.clear_cache,
+                     'save_plot': self.save_plot,
                      }
 
         #
@@ -127,6 +128,59 @@ class ControlPanelHandler(Handler):
                 name = info.object.controls.node_buttons.button_name
                 button_func = name2func[name]
                 button_func(info)
+
+    def save_plot(self,info):
+        dataset = info.object.current_dataset
+
+        # Get info for selected Dataset (=a) and create new Dataset (=b)
+        a = dataset
+        shift = info.object.controls.node_controls.shift_factor
+        scale = info.object.controls.node_controls.scale_factor
+        b = Dataset(x=a.x,
+                    y=scale * a.y + shift,
+                    xmin_filter=a.xmin_filter,
+                    xmax_filter=a.xmax_filter,
+                    title=a.title)
+
+        # Apply x-range filter
+        b.x, b.y = info.object.controls.node_controls.filter_xrange(b.x, b.y, b)
+
+        # If we have modified Dataset 'a', change title of 'b' for
+        # differences in...
+        tmp_title = str(b.title)
+
+        try:
+            # Shift
+            if shift != 0.0:
+                b.title += " shift: {0:>5.2f}".format(shift)
+
+            # Scale
+            if scale != 1.0:
+                b.title += " scale: {0:>5.2f}".format(scale)
+
+            # Xmin
+            if min(b.x) != min(a.x):
+                b.title += " xmin: {0:.2f}".format(min(b.x))
+
+            # Xmax
+            if max(b.x) != max(a.x):
+                b.title += " xmax: {0:.2f}".format(max(b.x))
+
+            filename = "{0}.dat".format(b.title)
+            with open(filename, 'w') as f:
+                f.write("#       1571\n")
+                f.write("#     file:    \n")
+                f.write("#     created: Long ago in a galaxy far, far away...\n")
+                f.write("#     Comment: neutron, Qmax={0}, Qdamp=0.017659, Qbroad=0.0191822\n".format(max(b.x)))
+                f.write("#     \n")
+                for x, y in zip(b.x, b.y):
+                    f.write("{0:f}  {1:f} 0.00\n".format(x, y))
+    
+
+        except ValueError:
+            raise Exception("ERROR") 
+
+        
 
     def cache_plot(self, info):
         dataset = info.object.current_dataset

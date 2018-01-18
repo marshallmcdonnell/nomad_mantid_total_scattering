@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function)
 import datetime
 import sys
 import os
+import time
 import json
 import matplotlib.pyplot as plt
 
@@ -40,10 +41,25 @@ for calibrant in calibrants:
     calfilename = caldirectory+'/NOM_d%d_%s_%s.h5' % (runNumber, date, samp_env)
     print('going to create calibration file: %s' % calfilename)
 
+    
+    # Way to check for file if it doesn't exist just using Filename
+    def FileExists(wkspName):
+        try:
+            LoadEventNexus(Filename=wkspName, OutputWorkspace='tmp', MetaDataOnly=True)
+            DeleteWorkspace('tmp')
+            return True
+        except ValueError:
+            return False
+
+    print("Waiting for calibration NeXus file...")
+    while not FileExists(wkspName):
+        time.sleep(2)
+    print("Found calibration NeXus file!")
+
+    # Load workspace
     LoadEventAndCompress(Filename=wkspName, OutputWorkspace=wkspName,
                          MaxChunkSize=chunkSize, FilterBadPulses=filterBadPulses)
     CropWorkspace(InputWorkspace=wkspName, OutputWorkspace=wkspName, XMin=300, XMax=16666.7)
-
     # NOMAD uses tabulated reflections for diamond
     dvalues = (0.3117,0.3257,0.3499,0.4205,0.4645,0.4768,0.4996,0.5150,0.5441,0.5642,0.5947,
                0.6307,.6866,.7283,.8185,.8920,1.0758,1.2615,2.0599)

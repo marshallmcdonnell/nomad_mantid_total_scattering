@@ -49,7 +49,7 @@ class NodeControls(HasTraits):
     scale_max = CFloat(1.5)
     scale_factor = CFloat(1.0)
 
-    # Scale controls
+    # Shift controls
     shift_min = CFloat(-5.0)
     shift_max = CFloat(5.0)
     shift_factor = CFloat(0.0)

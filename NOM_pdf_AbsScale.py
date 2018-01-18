@@ -334,7 +334,7 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     # get necessary properties from Nexus file
     props = ["formula", "mass", "mass_density", "sample_diameter", "sample_height", "items_id"]
     info = nf.getNxData(scans,props)
-    info['sample_diameter'] =  0.1 * info['sample_diameter'] # mm -> cm
+    info['sample_diameter'] =  0.1 * float(info['sample_diameter']) # mm -> cm
 
     for key in info:
         print(key, info[key])
@@ -342,7 +342,7 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     if ChemicalFormula:
         info["formula"] = ChemicalFormula
     if SampleMassDensity:
-        info["mass_density"] = SampleMassDensity
+        info["mass_density"] = float(SampleMassDensity)
 
     # setup the geometry of the sample
     if Geometry is None:
@@ -362,7 +362,10 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     Geometry.pop("Shape", None)
     volume_in_container = space.volume(**Geometry)
 
-    print("NeXus Packing Fraction:",  info["mass"] / volume_in_container / info["mass_density"])
+    try:
+        print("NeXus Packing Fraction:",  info["mass"] / volume_in_container / info["mass_density"])
+    except:
+        print("NeXus Packing Fraction - not calculatable")
     # get packing fraction
     if PackingFraction is None:
         sample_density = info["mass"] / volume_in_container
@@ -376,6 +379,7 @@ def getAbsScaleInfoFromNexus(scans,ChemicalFormula=None,Geometry=None,PackingFra
     if space.getShape() == 'Cylinder':
         Geometry["Height"] = BeamWidth
     volume_in_beam = space.volume(**Geometry)
+    print(info["mass_density"], PackingFraction)
     mass_density_in_beam = PackingFraction * info["mass_density"]
 
 

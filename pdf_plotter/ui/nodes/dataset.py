@@ -23,10 +23,15 @@ class DatasetNodeButtonHandler(NodeButtonHandler):
         info.object.button_name = 'clear_cache'
         self.trigger_button_event(info)
 
+    def object_save_plot_button_changed(self, info):
+        info.object.button_name = 'save_plot'
+        self.trigger_button_event(info)
+
 
 class DatasetNodeButtons(NodeButtons):
     cache_button = Button
     clear_cache_button = Button
+    save_plot_button = Button
 
     traits_view = View(
         HGroup(
@@ -36,6 +41,10 @@ class DatasetNodeButtons(NodeButtons):
                  ),
             Item('clear_cache_button',
                  label="Clear Cache",
+                 show_label=False,
+                 ),
+            Item('save_plot_button',
+                 label="Save Plot",
                  show_label=False,
                  ),
         ),
