@@ -644,14 +644,17 @@ class ControlPanel(HasTraits):
     # Re-plot when selecting another node or if we change the ColorMap
     @on_trait_change('controls:selected,controls:node_controls:[selected_cmap,dataset_selected]')
     def plot_selected_node_change(self):
+        print('selected:', self.controls.selected)
         try:
 
+            print("HERE 1")
             self.clear_plot()
 
             # Force an update in the selected node
             self.controls.updated_selected_in_node_controls()
             self.controls.get_current_dataset()
 
+            print("HERE 2")
             # Update node_controls xmin xmax filters
             self.controls.node_controls.initialized = False
 
@@ -660,17 +663,21 @@ class ControlPanel(HasTraits):
             self.controls.node_controls.xmin_min = self.current_dataset.xmin_filter
             self.controls.node_controls.xmin_max = self.current_dataset.xmax_filter
 
+            print("HERE 3")
             # Update xmax filter
             self.controls.node_controls.xmax = self.current_dataset.xmax_filter
             self.controls.node_controls.xmax_min = self.current_dataset.xmin_filter
             self.controls.node_controls.xmax_max = self.current_dataset.xmax_filter
 
+            print("HERE 4")
             # Get a list of datasets we will plot
             datasets = self.get_datasets_to_plot()
 
+            print("\t", datasets)
             # Go ahead and initially plot all the datasets
             self.plot_all_datasets(datasets)
 
+            print("HERE 5")
             # Separate the list into selected and not selected datasets
             selected, not_selected = self.apply_selected_mask(datasets)
 
