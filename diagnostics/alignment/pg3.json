@@ -1,0 +1,9 @@
+{
+    "Instrument" : "PG3",
+    "Run": [39395],
+    "CharacterizationFilename": "/SNS/PG3/shared/CALIBRATION/2017_1_2_11A_CAL/PG3_char_2017_08_08-HR-ALL.txt",
+    "CalFilename": "/SNS/PG3/shared/CALIBRATION/2017_1_2_11A_CAL/PG3_PAC_d37861_2017_07_28_ALL.h5",
+    "GroupingFileName": "/SNS/PG3/shared/CALIBRATION/2017_1_2_11A_CAL/Grouping/PG3_Grouping-ALL.xml",
+    "SaveDirectory" : "/SNS/NOM/shared/diagnostics"
+}
+
