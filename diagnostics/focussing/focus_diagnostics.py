@@ -32,3 +32,4 @@ basename=os.path.basename(aligned)
 filename=os.path.splitext(basename)[0]+'_focussed.nxs'
 filename=os.path.join(save_dir, filename)
 SaveNexus(InputWorkspace=wksp, Filename=filename,Title='Aligned+Focussed')
+print("Saved File: {}".format(filename))
