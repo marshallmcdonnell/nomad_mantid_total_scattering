@@ -4,7 +4,14 @@ import sys
 import os
 import json
 import numpy as np
+import argparse
 from mantid.simpleapi import *
+
+parser = argparse.ArgumentParser()
+parser.add_argument("filename", type=str)
+parser.add_argument("-p", "--print_separate_lines", action="store_true", default=False)
+args = parser.parse_args()
+
 
 #-----------------------------------------------------------------------------------
 # Function to compress list of ints with dashes
@@ -40,18 +47,26 @@ def get_line_numbers_concat(line_nums):
 
 
 #-----------------------------------------------------------------------------------
+# Print with each entry on individual lines
+def print_separate_lines(title, ids, num_dashes=35):
+    print ("-"*num_dashes)
+    print (title)
+    print ("-"*num_dashes)
+    for group in get_line_numbers_concat(ids).split(','):
+        print(group)
+
+def print_standard(title, ids, num_dashes=35):
+    print ("-"*num_dashes)
+    print ("{}: {}".format( title, get_line_numbers_concat(ids)))
+    print ("-"*num_dashes)
+
+#-----------------------------------------------------------------------------------
 # Load file
 
-configfile = sys.argv[1]
-print("loading config from", configfile)
-with open(configfile) as handle:
-    config = json.loads(handle.read())
 
-filename = config['Filename']
-save_dir = config.get('SaveDirectory', '/tmp')
 
 # Load aligned workspace
-wksp = Load(Filename=filename)
+wksp = Load(Filename=args.filename)
 
 
 
@@ -67,10 +82,17 @@ for i in range(wksp.getNumberHistograms()):
     else:
         existent_ids.append(i)
 
-num_dashes=35
-print ("-"*num_dashes)
-print ("Non-Existing IDs: {}".format(get_line_numbers_concat(non_existent_ids)))
-print ("-"*num_dashes)
-print ("Existing IDs:     {}".format(get_line_numbers_concat(existent_ids)))
-print ("-"*num_dashes)
+if args.print_separate_lines:
+    title="Non-Existing IDs"
+    print_separate_lines(title, non_existent_ids)
+    title="Existing IDs"
+    print_separate_lines(title, existent_ids)
+
+else:
+    title="Non-Existing IDs"
+    print_standard(title, non_existent_ids)
+    print()
+    title="Existing IDs"
+    print_standard(title, existent_ids)
+
 

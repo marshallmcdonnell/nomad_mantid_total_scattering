@@ -33,7 +33,7 @@ filename = "nomad_group_%d_%d.xml" % (pix_per_group_h, pix_per_group_w)
 
 # print diagnositic information
 
-num_dashes=25
+num_dashes=35
 print "-"*num_dashes
 print "tot %4d  pixels per group" % (pix_per_group)
 print "w   %4d  pixels per group" % (pix_per_group_w)
