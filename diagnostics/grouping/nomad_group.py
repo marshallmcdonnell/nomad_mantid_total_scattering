@@ -55,7 +55,6 @@ for i in xrange(bank_total):
         right = left + (pix_per_group_h - 1)
 
         groups = ["%d-%d" % (l,r) for (l,r) in zip(left, right)]
-        print groups
         handle.write('<group ID="%d">\n' % groupnum)
         handle.write('<detids>%s</detids>\n' % ', '.join(groups))
         handle.write('</group>\n')
