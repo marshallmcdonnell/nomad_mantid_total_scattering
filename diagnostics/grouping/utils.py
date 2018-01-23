@@ -35,19 +35,19 @@ def revalue_grouping(array):
 #-----------------------------------------------------
 # Mask data and re-group (w/o gaps) applying mask
 
-def mask_and_group(data, grouping, mask):
-    # Relabel grouping so groups have no gaps in Group IDs
-    masked_grouping = revalue_grouping(grouping[mask])
+def mask_and_group(data, grouper, mask):
+    # Relabel grouper so groups have no gaps in Group IDs
+    masked_grouper = revalue_grouping(grouper[mask])
 
     # Get masked data as array
     masked_data = data[mask]
 
     # Get Groups
     groups = list()
-    for group_num in np.unique(masked_grouping):
-        groups.append( masked_data[masked_grouping == group_num] )
+    for group_num in np.unique(masked_grouper):
+        groups.append( masked_data[masked_grouper == group_num] )
 
-    return masked_data, masked_grouping, groups
+    return masked_data, masked_grouper, groups
 
 if __name__ == "__main__":
     #-----------------------------------------------------
@@ -70,11 +70,11 @@ if __name__ == "__main__":
 
     #-----------------------------------------------------
     # Create the unique pixel ids (i=0 -> N, N=total pixels) in data
-    # and the grouping of the pixels 
+    # and the grouper of the pixels 
     data = np.arange(0,tot_pixels,dtype=int)
-    grouping = np.repeat( np.arange(pixels_per_tube*tubes_per_8pack), num_8packs)
+    grouper = np.repeat( np.arange(pixels_per_tube*tubes_per_8pack), num_8packs)
 
-    # Create the mask to apply to both data and grouping
+    # Create the mask to apply to both data and grouper
     mask_ids=str()
     if args.mask_ids:
         mask_ids += args.mask_ids
@@ -90,13 +90,13 @@ if __name__ == "__main__":
 
     # Print Results
     io.utils.print_array("Data", data)
-    io.utils.print_array("Grouping", grouping)
+    io.utils.print_array("Grouping", grouper)
     io.utils.print_array("Mask", mask)
 
-    masked_data, masked_grouping, groups = mask_and_group(data, grouping, mask)
+    masked_data, masked_grouper, groups = mask_and_group(data, grouper, mask)
     io.utils.print_array("Masked Data", data[mask])
-    io.utils.print_array("Masked Group", grouping[mask])
-    io.utils.print_array("New Masked Group", masked_grouping)
+    io.utils.print_array("Masked Group", grouper[mask])
+    io.utils.print_array("New Masked Group", masked_grouper)
 
     for i, group in enumerate(groups):
         print("Group #: {} Data: {}".format(i, group))
