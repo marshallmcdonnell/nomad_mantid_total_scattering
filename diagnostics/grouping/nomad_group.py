@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import numpy as np
 import argparse
+from diagnostics import io
 
 
 parser = argparse.ArgumentParser()
@@ -14,8 +15,8 @@ args = parser.parse_args()
 
 bank_total = 99 # number in mantid geometry
 
-pix_per_bank_h = 128
-pix_per_bank_w = 8
+pix_per_bank_h = 128 # == 128
+pix_per_bank_w = 8   # == 8
 pix_per_bank = pix_per_bank_h * pix_per_bank_w
 
 pix_total = bank_total * pix_per_bank_h *pix_per_bank_w
@@ -27,9 +28,6 @@ pix_per_group_h = pix_per_bank_h / num_groups_h
 pix_per_group_w = pix_per_bank_w / num_groups_w
 pix_per_group = pix_per_group_h * pix_per_group_w
 
-
-# filename based off of parameters
-filename = "nomad_group_%d_%d.xml" % (pix_per_group_h, pix_per_group_w)
 
 # print diagnositic information
 
@@ -46,16 +44,18 @@ print "-"*num_dashes
 print "total pixels:", pix_total
 print "total groups:", pix_total / pix_per_group
 print "-"*num_dashes
-print "writing out to %s" % filename
 
-######################################################################
-# create the file
-######################################################################
-handle = file(filename, 'w')
+#-----------------------------------------------------
+# Create the unique pixel ids (i=0 -> N, N=total pixels)
+pixels = np.arange(0,pix_total,dtype=int)
 
-handle.write('<?xml version="1.0" encoding="UTF-8" ?>\n')
-handle.write('<detector-grouping instrument="NOMAD">\n')
-groupnum = 1
+#-----------------------------------------------------
+# Initialize grouping (with None)
+grouping = np.full_like(pixels, -1)
+
+#-----------------------------------------------------
+# Create grouping
+group_num = 0
 for i in xrange(bank_total):
 
     for j in xrange(pix_per_bank_w/pix_per_group_w):
@@ -67,17 +67,37 @@ for i in xrange(bank_total):
         for k in xrange(pix_per_bank_h/pix_per_group_h):
             right = left + (pix_per_group_h - 1)
 
-            groups = ["%d-%d" % (l,r) for (l,r) in zip(left, right)]
-            handle.write('<group ID="%d">\n' % groupnum)
-            handle.write('<detids>%s</detids>\n' % ', '.join(groups))
-            handle.write('</group>\n')
+            group_pixel_ids = list()
+            for (l,r) in zip(left, right):
+                group_pixel_ids += list(io.utils.expand_ints("%d-%d" % (l,r)))
+            print("group: %d l-r: %s" % (group_num,io.utils.compress_ints(group_pixel_ids)))
+            grouping[group_pixel_ids] = group_num
 
             left += pix_per_group_h
-            groupnum += 1
-handle.write('</detector-grouping>\n')
-
+            group_num += 1
+io.utils.print_array("Pixels:", pixels)
+io.utils.print_array("Grouping:", grouping)
 # Check that the calculation ended with the total number
 # of pixels. One is added because of zero-indexing
 if (right[-1] + 1) != (bank_total * pix_per_bank_h *pix_per_bank_w):
     raise RuntimeError("Number of pixels didn't work")
+
+exit()
+
+######################################################################
+# create the file
+######################################################################
+# filename based off of parameters
+print "writing out to %s" % filename
+filename = "nomad_group_%d_%d.xml" % (pix_per_group_h, pix_per_group_w)
+handle = file(filename, 'w')
+handle.write('<?xml version="1.0" encoding="UTF-8" ?>\n')
+handle.write('<detector-grouping instrument="NOMAD">\n')
+
+for groupnum, group in enumerate(groups):
+            handle.write('<group ID="%d">\n' % groupnum)
+            handle.write('<detids>%s</detids>\n' % ', '.join(groups))
+            handle.write('</group>\n')
+handle.write('</detector-grouping>\n')
+
 
