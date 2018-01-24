@@ -1,6 +1,6 @@
 {
     "AlignedFilename" : "/SNS/NOM/shared/diagnostics/NOM_94730_aligned.nxs",
-    "GroupingFileName": "../grouping/nomad_group_16_8.xml",
+    "GroupingFileName": "../grouping/nomad_group_existing_pixels_only.xml",
     "SaveDirectory" : "/SNS/NOM/shared/diagnostics"
 }
 
