@@ -7,6 +7,8 @@ import numpy as np
 import argparse
 from mantid.simpleapi import *
 
+from diagnostics import io
+
 parser = argparse.ArgumentParser()
 parser.add_argument("filename", type=str)
 parser.add_argument(
@@ -18,51 +20,18 @@ args = parser.parse_args()
 
 
 #-------------------------------------------------------------------------
-# Function to compress list of ints with dashes
-# Ex. [1,2,3,8,9,12] -> 1-3, 8-9, 12
-
-def get_line_numbers_concat(line_nums):
-    seq = []
-    final = []
-    last = 0
-
-    for index, val in enumerate(line_nums):
-
-        if last + 1 == val or index == 0:
-            seq.append(val)
-            last = val
-        else:
-            if len(seq) > 1:
-                final.append(str(seq[0]) + '-' + str(seq[len(seq) - 1]))
-            else:
-                final.append(str(seq[0]))
-            seq = []
-            seq.append(val)
-            last = val
-
-        if index == len(line_nums) - 1:
-            if len(seq) > 1:
-                final.append(str(seq[0]) + '-' + str(seq[len(seq) - 1]))
-            else:
-                final.append(str(seq[0]))
-
-    final_str = ', '.join(map(str, final))
-    return final_str
-
-
-#-------------------------------------------------------------------------
 # Print with each entry on individual lines
 def print_separate_lines(title, ids, num_dashes=35):
     print("-" * num_dashes)
     print(title)
     print("-" * num_dashes)
-    for group in get_line_numbers_concat(ids).split(','):
+    for group in io.compress_ints(ids).split(','):
         print(group)
 
 
 def print_standard(title, ids, num_dashes=35):
     print("-" * num_dashes)
-    print("{}: {}".format(title, get_line_numbers_concat(ids)))
+    print("{}: {}".format(title, io.compress_ints(ids)))
     print("-" * num_dashes)
 
 #-------------------------------------------------------------------------
