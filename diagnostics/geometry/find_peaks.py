@@ -1,13 +1,24 @@
 #!/usr/bin/env python
 
+import argparse
 from mantid.simpleapi import *
 
-ws = CreateSampleWorkspace(Function="User Defined", UserDefinedFunction="name=LinearBackground, \
-   A0=0.3;name=Gaussian, PeakCentre=5, Height=10, Sigma=0.7", NumBanks=1, BankPixelWidth=1, XMin=0, XMax=10, BinWidth=0.1)
+from diagnostics import io
 
-table = FindPeaks(InputWorkspace='ws', FWHM='20')
+parser = argparse.ArgumentParser()
+parser.add_argument("filename", type=str)
+parser.add_argument("--spec-list", type=str, dest="spectrum_list")
+args = parser.parse_args()
 
-row = table.row(0)
+spectrum_list = io.utils.expand_ints(args.spectrum_list)
 
-print("Peak 1 {Centre: %.3f, width: %.3f, height: %.3f }" % ( row["centre"],  row["width"], row["height"]))
+wksp = Load(Filename=filename)
 
+for spectrum in spectrum_list:
+    table = FindPeaks(InputWorkspace='ws',
+                      WorkspaceIndex=spectrum)
+
+    row = table.row(0)
+
+    print("Peak 1 {Centre: %.3f, width: %.3f, height: %.3f }" %
+          (row["centre"], row["width"], row["height"]))
