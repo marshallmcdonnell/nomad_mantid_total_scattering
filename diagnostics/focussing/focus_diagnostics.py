@@ -28,8 +28,12 @@ LoadDetectorsGroupingFile(InputFile=grouping, OutputWorkspace="group_ws")
 print ('Before Focussing, we have : {num_histo} histograms'.format(num_histo=mtd[wksp].getNumberHistograms()))
 DiffractionFocussing(InputWorkspace=wksp, OutputWorkspace=wksp, GroupingWorkspace="group_ws")
 print ('After Focussing, we have : {num_histo} histograms'.format(num_histo=mtd[wksp].getNumberHistograms()))
-basename=os.path.basename(aligned)
-filename=os.path.splitext(basename)[0]+'_focussed.nxs'
-filename=os.path.join(save_dir, filename)
+if config["OutputFilename"]:
+    filename=config["OutputFilename"]
+    filename=os.path.join(save_dir, filename)
+else:
+    basename=os.path.basename(aligned)
+    filename=os.path.splitext(basename)[0]+'_focussed.nxs'
+    filename=os.path.join(save_dir, filename)
 SaveNexus(InputWorkspace=wksp, Filename=filename,Title='Aligned+Focussed')
 print("Saved File: {}".format(filename))
