@@ -22,14 +22,12 @@ def create_mask(array,mask_ids):
 # Revalue an array to take out gaps in increment
 
 def revalue_grouping(array):
-    revalued = np.zeros_like(array)
-    idx_start = 0
-    counter = 0
-    for key, number_values in sorted(Counter(array).items()):
-        idx_stop = idx_start + number_values
-        revalued[idx_start:idx_stop] = counter
-        counter += 1
-        idx_start = idx_stop
+    old_group_nums = Counter(array).keys()
+    new_group_nums = range(len(old_group_nums))
+    revalue_map = { old: new for (old, new) in zip(old_group_nums, new_group_nums) }
+    revalued = np.copy(array)
+    for k, v in revalue_map.items():
+        revalued[array==k] = v
     return revalued
 
 #-----------------------------------------------------

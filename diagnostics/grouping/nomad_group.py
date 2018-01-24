@@ -75,7 +75,7 @@ for i in xrange(bank_total):
             group_pixel_ids = list()
             for (l,r) in zip(left, right):
                 group_pixel_ids += list(io.utils.expand_ints("%d-%d" % (l,r)))
-            #print("group: %d l-r: %s" % (group_num,io.utils.compress_ints(group_pixel_ids)))
+            print("group: %d l-r: %s" % (group_num,io.utils.compress_ints(group_pixel_ids)))
             grouper[group_pixel_ids] = group_num
 
             left += pix_per_group_h
@@ -116,22 +116,23 @@ io.utils.print_array("New Masked Group", masked_grouper)
 for i, group in enumerate(groups):
     print("Group #: {} Data: {}".format(i, io.utils.compress_ints(group)))
 
-exit()
-
 
 ######################################################################
 # create the file
 ######################################################################
 # filename based off of parameters
+if args.mask_ids or args.mask_ids_file:
+    filename = "nomad_group_%d_%d_masked.xml" % (pix_per_group_h, pix_per_group_w)
+else:
+    filename = "nomad_group_%d_%d.xml" % (pix_per_group_h, pix_per_group_w)
 print "writing out to %s" % filename
-filename = "nomad_group_%d_%d.xml" % (pix_per_group_h, pix_per_group_w)
 handle = file(filename, 'w')
 handle.write('<?xml version="1.0" encoding="UTF-8" ?>\n')
 handle.write('<detector-grouping instrument="NOMAD">\n')
 
-for groupnum, group in enumerate(grouper):
-            handle.write('<group ID="%d">\n' % groupnum)
-            handle.write('<detids>%s</detids>\n' % ', '.join(groups))
+for groupnum, group in enumerate(groups):
+            handle.write('<group ID="%d">\n' % (groupnum+1))
+            handle.write('<detids>%s</detids>\n' % (io.utils.compress_ints(group)))
             handle.write('</group>\n')
 handle.write('</detector-grouping>\n')
 
