@@ -5,9 +5,11 @@ from diagnostics import io
 from diagnostics import grouping
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-nh", "--num_groups_h", type=int, default=8)
-parser.add_argument("-nw", "--num_groups_w", type=int, default=2)
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument("-nh", "--num_groups_h", type=int, default=8,
+                    help="Number of divisions along length of tube. \nDefault=8 \n(i.e. -nh 8 => 128/8=16 pixels together)")
+parser.add_argument("-nw", "--num_groups_w", type=int, default=2,
+                    help="Number of divisions for 8-packs. \nDefault=2 \n(i.e. -nw 2 => 4x8packs together)")
 parser.add_argument("--mask-ids", type=str, default=None, dest="mask_ids",
                     help="List of pixels to mask")
 parser.add_argument(

@@ -25,13 +25,13 @@ def print_separate_lines(title, ids, num_dashes=35):
     print("-" * num_dashes)
     print(title)
     print("-" * num_dashes)
-    for group in io.compress_ints(ids).split(','):
+    for group in io.utils.compress_ints(ids).split(','):
         print(group)
 
 
 def print_standard(title, ids, num_dashes=35):
     print("-" * num_dashes)
-    print("{}: {}".format(title, io.compress_ints(ids)))
+    print("{}: {}".format(title, io.utils.compress_ints(ids)))
     print("-" * num_dashes)
 
 #-------------------------------------------------------------------------
