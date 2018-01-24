@@ -127,7 +127,6 @@ class Controls(HasTraits):
             else:
                 self.current_dataset = self.selected.datasets[0]
 
-
     # Extracts Datasets models that are stored in the Experiment model
     @property_depends_on('experiment')
     def _get_datasets(self):

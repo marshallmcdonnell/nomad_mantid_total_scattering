@@ -69,15 +69,18 @@ class MeasurementNode(TreeNode):
     # Class of node to add
     add = [CorrectedDatasets]
 
-
-    # Must specify we have children since 'children' not defined makes this only a leaf
-    def allows_children( self, object ):
+    # Must specify we have children since 'children' not defined makes this
+    # only a leaf
+    def allows_children(self, object):
         return True
 
-    # Override to make the correct TreeNodes from the children Models of the Object (Measurement)
-    def get_children( self, object ):
-        nodes = [ CorrectedDatasetsNode(corrected_datasets=cd) for cd in object.corrected_datasets ]
+    # Override to make the correct TreeNodes from the children Models of the
+    # Object (Measurement)
+    def get_children(self, object):
+        nodes = [CorrectedDatasetsNode(corrected_datasets=cd)
+                 for cd in object.corrected_datasets]
         return nodes
+
 
 class CorrectedDatasetsNode(TreeNodeObject):
 
@@ -90,51 +93,54 @@ class CorrectedDatasetsNode(TreeNodeObject):
     icon = Str
 
     # Path for finding the icon images specified in icon
-    icon_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','images')
-
+    icon_path = os.path.join(
+        os.path.dirname(
+            os.path.realpath(__file__)),
+        '..',
+        'images')
 
     # Map of corrected_datasets 'title' trait -> icon image
     sample_title2image = {
-        'sample_and_container' : 'sample_and_container.png',
-        'sample_normalized' : 'sample_normalized.png',
-        'sample_minus_back' : 'sample_minus_back.png',
-        'sample_minus_back_normalized' : 'sample_minus_back_normalized.png',
-        'sample_minus_back_normalized_ms_abs_corrected' : 'sample_minus_back_normalized_ms_abs_corrected.png',
-        'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms' : 'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms.png',
-        'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms_multiply_by_vanSelfScat' : 'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms_multiply_by_vanSelfScat.png',
-        'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms_multiply_by_vanSelfScat_placzek_corrected' : 'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms_multiply_by_vanSelfScat_placzek_corrected.png',
+        'sample_and_container': 'sample_and_container.png',
+        'sample_normalized': 'sample_normalized.png',
+        'sample_minus_back': 'sample_minus_back.png',
+        'sample_minus_back_normalized': 'sample_minus_back_normalized.png',
+        'sample_minus_back_normalized_ms_abs_corrected': 'sample_minus_back_normalized_ms_abs_corrected.png',
+        'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms': 'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms.png',
+        'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms_multiply_by_vanSelfScat': 'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms_multiply_by_vanSelfScat.png',
+        'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms_multiply_by_vanSelfScat_placzek_corrected': 'sample_minus_back_normalized_ms_abs_corrected_norm_by_atoms_multiply_by_vanSelfScat_placzek_corrected.png',
     }
 
     vanadium_title2image = {
-        'vanadium_and_background' : 'vanadium_and_background.png',
-        'vanadium_minus_back' : 'vanadium_minus_back.png',
-        'vanadium_minus_back_ms_abs_corrected' : 'vanadium_minus_back_ms_abs_corrected.png',
-        'vanadium_minus_back_ms_abs_corrected_with_peaks' : 'vanadium_minus_back_ms_abs_corrected_with_peaks.png',
-        'vanadium_minus_back_ms_abs_corrected_peaks_stripped' : 'vanadium_minus_back_ms_abs_corrected_peaks_stripped.png',
-        'vanadium_minus_back_ms_abs_corrected_peaks_stripped_smoothed' : 'vanadium_minus_back_ms_abs_corrected_peaks_stripped_smoothed.png',
-        'vanadium_minus_back_ms_abs_corrected_peaks_stripped_smoothed_placzek_corrected' : 'vanadium_minus_back_ms_abs_corrected_peaks_stripped_smoothed_placzek_corrected.png',
+        'vanadium_and_background': 'vanadium_and_background.png',
+        'vanadium_minus_back': 'vanadium_minus_back.png',
+        'vanadium_minus_back_ms_abs_corrected': 'vanadium_minus_back_ms_abs_corrected.png',
+        'vanadium_minus_back_ms_abs_corrected_with_peaks': 'vanadium_minus_back_ms_abs_corrected_with_peaks.png',
+        'vanadium_minus_back_ms_abs_corrected_peaks_stripped': 'vanadium_minus_back_ms_abs_corrected_peaks_stripped.png',
+        'vanadium_minus_back_ms_abs_corrected_peaks_stripped_smoothed': 'vanadium_minus_back_ms_abs_corrected_peaks_stripped_smoothed.png',
+        'vanadium_minus_back_ms_abs_corrected_peaks_stripped_smoothed_placzek_corrected': 'vanadium_minus_back_ms_abs_corrected_peaks_stripped_smoothed_placzek_corrected.png',
     }
 
     container_title2image = {
-        'container' : 'container.png',
-        'container_normalized' : 'container_normalized.png',
-        'container_minus_back' : 'container_minus_back.png',
-        'container_minus_back_normalized' : 'container_minus_back_normalized.png',
+        'container': 'container.png',
+        'container_normalized': 'container_normalized.png',
+        'container_minus_back': 'container_minus_back.png',
+        'container_minus_back_normalized': 'container_minus_back_normalized.png',
     }
 
     container_bckg_title2image = {
-        'container_background' : 'container_background.png',
-        'container_background_normalized' : 'container_background_normalized.png',
+        'container_background': 'container_background.png',
+        'container_background_normalized': 'container_background_normalized.png',
     }
 
     vanadium_bckg_title2image = {
-        'vanadium_background' : 'vanadium_background.png',
-        'vanadium_background_normalized' : 'vanadium_background_normalized.png',
+        'vanadium_background': 'vanadium_background.png',
+        'vanadium_background_normalized': 'vanadium_background_normalized.png',
     }
 
     correction_title2image = {
-        'sample_placzek' : 'sample_placzek.png',
-        'vanadium_placzek' : 'vanadium_placzek.png'
+        'sample_placzek': 'sample_placzek.png',
+        'vanadium_placzek': 'vanadium_placzek.png'
     }
 
     title2image = dict()
@@ -146,7 +152,7 @@ class CorrectedDatasetsNode(TreeNodeObject):
     title2image.update(correction_title2image)
 
     def tno_get_label(self, node):
-        #return "" # hide label
+        # return "" # hide label
         return self.corrected_datasets.title
 
     def tno_has_children(self, node):
@@ -157,7 +163,7 @@ class CorrectedDatasetsNode(TreeNodeObject):
 
     def tno_get_icon(self, node, state):
         if self.corrected_datasets.title in self.title2image:
-            return self.title2image[ self.corrected_datasets.title ]
+            return self.title2image[self.corrected_datasets.title]
         else:
             return '<group>'
 
@@ -196,6 +202,7 @@ class CorrectedDatasetsObjectTreeNode(ObjectTreeNode):
     # Class of node to add
     add = [Dataset]
 
+
 class DatasetNode(TreeNode):
 
     # List of object classes the node applies to
@@ -223,7 +230,7 @@ ExperimentTreeEditor = TreeEditor(
         CorrectedDatasetsObjectTreeNode(),
         DatasetNode(),
     ],
-    icon_size=(40,40),
+    icon_size=(40, 40),
     selected='selected',
     editable=False,
 )

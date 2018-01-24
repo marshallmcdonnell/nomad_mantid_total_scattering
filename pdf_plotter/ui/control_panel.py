@@ -129,7 +129,7 @@ class ControlPanelHandler(Handler):
                 button_func = name2func[name]
                 button_func(info)
 
-    def save_plot(self,info):
+    def save_plot(self, info):
         dataset = info.object.current_dataset
 
         # Get info for selected Dataset (=a) and create new Dataset (=b)
@@ -143,7 +143,8 @@ class ControlPanelHandler(Handler):
                     title=a.title)
 
         # Apply x-range filter
-        b.x, b.y = info.object.controls.node_controls.filter_xrange(b.x, b.y, b)
+        b.x, b.y = info.object.controls.node_controls.filter_xrange(
+            b.x, b.y, b)
 
         # If we have modified Dataset 'a', change title of 'b' for
         # differences in...
@@ -171,16 +172,14 @@ class ControlPanelHandler(Handler):
                 f.write("#       1571\n")
                 f.write("#     file:    \n")
                 f.write("#     created: Long ago in a galaxy far, far away...\n")
-                f.write("#     Comment: neutron, Qmax={0}, Qdamp=0.017659, Qbroad=0.0191822\n".format(max(b.x)))
+                f.write(
+                    "#     Comment: neutron, Qmax={0}, Qdamp=0.017659, Qbroad=0.0191822\n".format(max(b.x)))
                 f.write("#     \n")
                 for x, y in zip(b.x, b.y):
                     f.write("{0:f}  {1:f} 0.00\n".format(x, y))
-    
 
         except ValueError:
-            raise Exception("ERROR") 
-
-        
+            raise Exception("ERROR")
 
     def cache_plot(self, info):
         dataset = info.object.current_dataset
@@ -189,14 +188,15 @@ class ControlPanelHandler(Handler):
         a = dataset
         shift = info.object.controls.node_controls.shift_factor
         scale = info.object.controls.node_controls.scale_factor
-        b = Dataset(x=a.x, 
-                    y=scale * a.y + shift, 
+        b = Dataset(x=a.x,
+                    y=scale * a.y + shift,
                     xmin_filter=a.xmin_filter,
                     xmax_filter=a.xmax_filter,
                     title=a.title)
 
         # Apply x-range filter
-        b.x, b.y = info.object.controls.node_controls.filter_xrange(b.x, b.y, b)
+        b.x, b.y = info.object.controls.node_controls.filter_xrange(
+            b.x, b.y, b)
 
         # If we have modified Dataset 'a', change title of 'b' for
         # differences in...
@@ -244,10 +244,12 @@ class ControlPanelHandler(Handler):
         datasets = info.object.controls.selected.datasets
         axes = info.object.get_axes()
         for dataset in datasets:
-            x, y = info.object.controls.node_controls.filter_xrange(dataset.x, dataset.y, dataset)
+            x, y = info.object.controls.node_controls.filter_xrange(
+                dataset.x, dataset.y, dataset)
             line = axes.plot(x, y, label=dataset.title)
             info.object.line2dataset[line[0]] = dataset
-            info.object.controls.cached_plots.append(Dataset(x=x,y=y,title=dataset.title))
+            info.object.controls.cached_plots.append(
+                Dataset(x=x, y=y, title=dataset.title))
 
         info.object._setupColorMap(info.object.controls.cached_plots)
         info.object.plot_cached()
@@ -275,7 +277,8 @@ class ControlPanelHandler(Handler):
         freeze_xlims = info.object.controls.node_controls.freeze_xlims
         freeze_ylims = info.object.controls.node_controls.freeze_ylims
 
-        # Inform that we initializating node_controls to turn off trait notifications
+        # Inform that we initializating node_controls to turn off trait
+        # notifications
         info.object.controls.node_controls.initialized = False
 
         if isinstance(info.object.selected, Dataset):
@@ -311,7 +314,8 @@ class ControlPanelHandler(Handler):
                 xmin = info.object.selected.datasets[0].xmin_filter
                 xmax = info.object.selected.datasets[0].xmax_filter
 
-            datasets = [ (dataset, dataset.title) for dataset in info.object.selected.datasets ]
+            datasets = [(dataset, dataset.title)
+                        for dataset in info.object.selected.datasets]
 
             info.object.controls.node_controls = CorrectedDatasetsNodeControls(
                 selected=selected_node,
@@ -325,7 +329,8 @@ class ControlPanelHandler(Handler):
 
             info.object.controls.node_buttons = CorrectedDatasetsNodeButtons()
 
-        # Inform that we are done with initialization to turn back on trait notifications
+        # Inform that we are done with initialization to turn back on trait
+        # notifications
         info.object.controls.node_controls.initialized = True
 
 # -----------------------------------------------------------#
@@ -488,7 +493,7 @@ class ControlPanel(HasTraits):
     def get_datasets_to_plot(self):
         # Get the Datasets
         if isinstance(self.controls.selected, Dataset):
-            datasets = [ self.controls.selected ]
+            datasets = [self.controls.selected]
 
         elif isinstance(self.controls.selected, CorrectedDatasets):
             datasets = self.controls.selected.datasets
@@ -511,12 +516,13 @@ class ControlPanel(HasTraits):
 
         return selected, not_selected
 
-    def plot_all_datasets(self,datasets):
+    def plot_all_datasets(self, datasets):
         # Get the Axes
         axes = self.get_axes()
 
         for i, dataset in enumerate(datasets):
-            x, y = self.controls.node_controls.filter_xrange(dataset.x, dataset.y, dataset)
+            x, y = self.controls.node_controls.filter_xrange(
+                dataset.x, dataset.y, dataset)
             line = axes.plot(x, y, label=dataset.title)
             self.line2dataset[line[0]] = dataset
 
@@ -537,10 +543,10 @@ class ControlPanel(HasTraits):
 
         # Plot xy
         l.set_data(x, y)
-        #l.set_color('b')
+        # l.set_color('b')
         l.set_marker('o')
         l.set_markersize(4.0)
-        #l.set_linestyle('--')
+        # l.set_linestyle('--')
         l.set_label(dataset.title)
 
     # Add the cached lines back to the plot (style taken care of in
@@ -590,7 +596,7 @@ class ControlPanel(HasTraits):
             axes.set_xlim(self.plot_xmin, self.plot_xmax)
 
         if not self.controls.node_controls.freeze_ylims \
-           and  self.plot_ymin <= self.plot_ymax:
+           and self.plot_ymin <= self.plot_ymax:
             axes.set_ylim(self.plot_ymin, self.plot_ymax)
 
         return x, y, selected.title
@@ -624,25 +630,29 @@ class ControlPanel(HasTraits):
                     node_controls=DatasetNodeControls(),
                     node_buttons=DatasetNodeButtons())
 
-    # Upon loading the experiment file, watch for updates from the multi-thread load
+    # Upon loading the experiment file, watch for updates from the
+    # multi-thread load
     @on_trait_change('experiment_file.load_status')
     def update_status(self):
         self.status = self.experiment_file.load_status
 
-    # If the 'lock x-axis' radio button is pressed, save the current x-axis limits
+    # If the 'lock x-axis' radio button is pressed, save the current x-axis
+    # limits
     @on_trait_change('controls.node_controls.freeze_xlims')
     def cache_xlims(self):
         axes = self.get_axes()
         self.sofq_plot.xlims = axes.get_xlim()
 
-    # If the 'lock y-axis' radio button is pressed, save the current y-axis limits
+    # If the 'lock y-axis' radio button is pressed, save the current y-axis
+    # limits
     @on_trait_change('controls.node_controls.freeze_ylims')
     def cache_ylims(self):
         axes = self.get_axes()
         self.sofq_plot.ylims = axes.get_ylim()
 
     # Re-plot when selecting another node or if we change the ColorMap
-    @on_trait_change('controls:selected,controls:node_controls:[selected_cmap,dataset_selected]')
+    @on_trait_change(
+        'controls:selected,controls:node_controls:[selected_cmap,dataset_selected]')
     def plot_selected_node_change(self):
         print('selected:', self.controls.selected)
         try:
@@ -689,7 +699,7 @@ class ControlPanel(HasTraits):
             # Plot the selected dataset after modification
             self.plot_selected(x, y, selected)
 
-             # Add cached lines back to plot
+            # Add cached lines back to plot
             self.cache_start_index = len(datasets)
             self.add_cached()
 
@@ -701,7 +711,6 @@ class ControlPanel(HasTraits):
 
             # Redraw the canvas of the figure
             self.redraw_canvas()
-
 
         except AttributeError:
             pass

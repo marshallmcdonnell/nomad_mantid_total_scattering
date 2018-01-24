@@ -57,8 +57,6 @@ class DatasetNodeButtons(NodeButtons):
 
 class DatasetNodeControls(NodeControls):
 
-
-
     traits_view = View(
         VGroup(
 
@@ -105,10 +103,10 @@ class DatasetNodeControls(NodeControls):
                 HGroup(
                     Item('freeze_xlims',
                          label="X axis",
-                    ),
+                         ),
                     Item('freeze_ylims',
                          label="Y axis",
-                    ),
+                         ),
                     show_border=True,
                     label='Lock',
                 ),
@@ -117,7 +115,7 @@ class DatasetNodeControls(NodeControls):
                 HSplit(
                     Item('xmin_min',
                          width=0.1,
-                         editor=RangeEditor(auto_set=False,mode='text'),
+                         editor=RangeEditor(auto_set=False, mode='text'),
                          label='Min',
                          ),
                     Item('xmin',
@@ -132,7 +130,7 @@ class DatasetNodeControls(NodeControls):
                          ),
                     Item('xmin_max',
                          width=0.1,
-                         editor=RangeEditor(auto_set=False,mode='text'),
+                         editor=RangeEditor(auto_set=False, mode='text'),
                          label='Max',
                          ),
                     label='Xmin',
@@ -142,7 +140,7 @@ class DatasetNodeControls(NodeControls):
                 HSplit(
                     Item('xmax_min',
                          width=0.1,
-                         editor=RangeEditor(auto_set=False,mode='text'),
+                         editor=RangeEditor(auto_set=False, mode='text'),
                          label='Min',
                          ),
                     Item('xmax',
@@ -157,7 +155,7 @@ class DatasetNodeControls(NodeControls):
                          ),
                     Item('xmax_max',
                          width=0.1,
-                         editor=RangeEditor(auto_set=False,mode='text'),
+                         editor=RangeEditor(auto_set=False, mode='text'),
                          label='Max',
                          ),
                     label='Xmax',

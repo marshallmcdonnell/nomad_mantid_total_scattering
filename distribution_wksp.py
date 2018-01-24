@@ -11,13 +11,16 @@ plt.show()
 ws_multi = ConvertToHistogram(InputWorkspace=ws_multi)
 
 print("Is the workspace a distribution? " + str(ws_multi.isDistribution()))
-print("The workspace has a level background of " + str(ws_multi.readY(0)[0]) + " counts.")
-print("The largest of which is " + str(ws_multi.readY(0)[60]) + " counts." + "\n")
+print("The workspace has a level background of " +
+      str(ws_multi.readY(0)[0]) + " counts.")
+print("The largest of which is " +
+      str(ws_multi.readY(0)[60]) + " counts." + "\n")
 
 ConvertToDistribution(ws_multi)
 
 print("Is the workspace a distribution? " + str(ws_multi.isDistribution()))
-print("The workspace has a level background of " + str(ws_multi.readY(0)[0]) + " counts.")
+print("The workspace has a level background of " +
+      str(ws_multi.readY(0)[0]) + " counts.")
 print("The largest of which is " + str(ws_multi.readY(0)[60]) + " counts.")
 
 ws_multi = ConvertToPointData(InputWorkspace=ws_multi)

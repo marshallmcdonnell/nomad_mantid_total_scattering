@@ -25,10 +25,10 @@ from pdf_plotter.utils.instrument_filters \
     import NomadFilters
 
 # -----------------------------------------------------------#
-# Map of instrument name to the filters it can use 
+# Map of instrument name to the filters it can use
 # based on Dataset title
 
-instrument2filters = { 'NOM' : NomadFilters(), }
+instrument2filters = {'NOM': NomadFilters(), }
 
 # -----------------------------------------------------------#
 # Measurement-type to workspace-title-startswith Map
@@ -59,7 +59,7 @@ mtype_list = ['Sample',
 # -----------------------------------------------------------#
 # Filters dictionary
 
-#NOM_title2filters = { 'Bank: {0:.2f}'.format(theta)
+# NOM_title2filters = { 'Bank: {0:.2f}'.format(theta)
 
 # -----------------------------------------------------------#
 # Experiment File Input view
@@ -81,7 +81,6 @@ class NexusFileThread(threading.Thread):
         self.nxresult = None
         threading.Thread.__init__(self)
 
-    
     # Extract input file
     def extract_input_file(self):
         print("No input extraction yet")
@@ -150,7 +149,6 @@ class DatasetThread(threading.Thread):
                 filters['xmin'] = ifilter.xmin
                 filters['xmax'] = ifilter.xmax
         return filters
-        
 
     def run(self):
         wksp = dict(self.wksp)
@@ -205,8 +203,8 @@ class DatasetThread(threading.Thread):
             dataset_list.append(
                 Dataset(x=my_x, y=y,
                         title=dataset_title,
-                        xmin_filter = xmin,
-                        xmax_filter = xmax,
+                        xmin_filter=xmin,
+                        xmax_filter=xmax,
                         info=info_dict,
                         )
             )
