@@ -1,3 +1,1 @@
-__all__ = ["io", "grouping"]
-
-from diagnostics import io, grouping
+__import__('pkg_resources').declare_namespace(__name__)
