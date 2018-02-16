@@ -1,0 +1,21 @@
+  <!--SOURCE-->
+  <component type="moderator">
+    <location z="-19.500000"/>
+  </component>
+  <type is="Source" name="moderator"/>
+
+  <!--SAMPLE-->
+  <component type="sample-position">
+    <location x="0.000000" y="0.000000" z="0.000000"/>
+  </component>
+  <type is="SamplePos" name="sample-position"/>
+
+  <!--COMPONENTS-->
+      <location x="0.137520" y="-0.830107" z="1.445654" name="bank37">
+        <rot axis-x="0" axis-y="1" axis-z="0" val="89.2050243326">
+          <rot axis-x="0" axis-y="0" axis-z="1" val="86.9746504787">
+            <rot axis-x="0" axis-y="1" axis-z="0" val="97.3693638415"/>
+          </rot>
+        </rot>
+      </location>
+
