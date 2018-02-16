@@ -65,8 +65,8 @@ def expand_ints(s):
 #--------------------------------------------------------------------------------------------------------------#
 # Inputs
 
-filename = "/SNS/NOM/shared/diagnostics/NOM_94730_aligned_focussed_existing_pixels.nxs"
-calibration_filename = "/SNS/NOM/shared/CALIBRATION/2017_2_1B_CAL/NOM_d94806_2017_07_24_shifter_open2_12vx6h.h5"
+filename = "/SNS/NOM/shared/diagnostics/NOM_105552_aligned_oldIDF_focussed_existing_pixels.nxs"
+calibration_filename = "/SNS/NOM/shared/CALIBRATION/2017_2_1B_CAL/NOM_d105552_2017_12_19_shifter_oldIDF.h5"
 component="bank37"
 
 spectrum_list = "14344-14598,14600-14726,14728-14854,14856-14982,14984-15110,15112-15238,15240-15366"
@@ -170,17 +170,28 @@ difc_key_order.append('original')
 difc_key_order.append('average')
 
 # Put back in Calibration TableWorkspace
+detidcol = mtd[cal_wksp].column('detid')
 difc_col = mtd[cal_wksp].getColumnNames().index('difc')
 for detID, difc in zip(detIDs, new_difc_avg):
-    mtd[cal_wksp].setCell(detID, difc_col, difc)
+    mtd[cal_wksp].setCell('difc', detidcol.index(detID), difc)
     
 # Align Components
+kwargs = dict()
+translation = False
+rotation = True
+if translation:
+    kwargs['XPosition'] = True
+    kwargs['YPosition'] = True
+    kwargs['ZPosition'] = True
+if rotation:
+    kwargs['AlphaRotation'] = True
+    kwargs['BetaRotation']   = True
+    kwargs['GammaRotation'] = True
+    
 AlignComponents(CalibrationTable=cal_wksp,
                              Workspace=nom_wksp,
                              ComponentList=[component],
-                             XPosition=True,
-                             YPosition=True,
-                             ZPosition=True
+                             **kwargs
 )
 
 # Export new XML for aligned component

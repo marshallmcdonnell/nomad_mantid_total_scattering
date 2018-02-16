@@ -18,6 +18,8 @@ charac = str(config['CharacterizationFilename'])
 grouping = config.get('GroupingFileName', None)
 save_dir = config.get('SaveDirectory', '/tmp')
 instrument = config.get('Instrument', 'NOM')
+idf = str(config.get('InstrumentDefinitionFile', None))
+
 
 sam_scans = ','.join(['%s_%s' % (instrument, sam) for sam in sam_scans])
 
@@ -50,6 +52,13 @@ for x, y in alignArgs.iteritems():
 # Load and Align
 wksp = 'wksp'
 Load(Filename=sam_scans, OutputWorkspace=wksp)
+
+# Load in a different Instrument Definition File from one found in NeXus
+if idf is not None:
+    LoadInstrument(Workspace=wksp,
+                   Filename=idf,
+                   RewriteSpectraMap=False)
+
 PDDetermineCharacterizations(
     InputWorkspace=wksp,
     Characterizations=alignArgs['Characterizations'],
@@ -85,9 +94,15 @@ ConvertUnits(InputWorkspace=wksp, OutputWorkspace=wksp, Target='TOF')
 ConvertUnits(InputWorkspace=wksp, OutputWorkspace=wksp, Target='Wavelength')
 CropWorkspace(InputWorkspace=wksp, OutputWorkspace=wksp, XMin=0.1, XMax=2.9)
 ConvertUnits(InputWorkspace=wksp, OutputWorkspace=wksp, Target='dSpacing')
-Rebin(InputWorkspace=wksp, OutputWorkspace=wksp, Params='0.0,0.001,6.0')
+Rebin(InputWorkspace=wksp, OutputWorkspace=wksp, Params='0.0,0.0001,6.0')
 
-filename = os.path.join(save_dir, sam_scans + '_aligned.nxs')
+if config["OutputFilename"]:
+    filename = config["OutputFilename"]
+    filename = os.path.join(save_dir, filename)
+else:
+    filename = os.path.join(save_dir, sam_scans + '_aligned.nxs')
+
+
 SaveNexus(
     InputWorkspace=wksp,
     Filename=filename,

@@ -9,17 +9,30 @@ import matplotlib.pyplot as plt
 
 from mantid.simpleapi import *
 
+def merge_two_dicts(x, y):
+    z = x.copy()   # start with x's keys and values
+    z.update(y)    # modifies z with y's keys and values & returns None
+    return z
+
 infile = os.path.abspath(sys.argv[1])
 print('reading \'%s\'' % infile)
 with open(infile) as handle:
     args = json.loads(handle.read())
 
-calibrants = args['calibrants']
-date = str(args.get('date', datetime.datetime.now().strftime('%Y_%m_%d')))
-oldCal = str(args['oldCal'])
-chunkSize = int(args.get('chunkSize', 8))
-filterBadPulses = int(args.get('filterBadPulses', 25))
-caldirectory = str(args.get('caldirectory', os.path.abspath('.')))
+pdcal_defaults = { 'TofBinning' : [300, -.001, 16666.7],
+                   'StartFromObservedPeakCentre' : True,
+                   'CalibrationParameters' : 'DIFC' }
+
+calibrants = args['Calibrants']
+date = str(args.get('Date', datetime.datetime.now().strftime('%Y_%m_%d')))
+idf = str(args.get('InstrumentDefinitionFile', None))
+oldCal = args.get('OldCal',None)
+chunkSize = int(args.get('ChunkSize', 8))
+filterBadPulses = int(args.get('FilterBadPulses', 25))
+caldirectory = str(args.get('CalDirectory', os.path.abspath('.')))
+pdcal_kwargs = args.get('PDCalibration', dict())
+pdcal_kwargs = merge_two_dicts(pdcal_defaults, pdcal_kwargs)
+
 
 # PDCalibration
 # -------------------------------------
@@ -69,19 +82,28 @@ for calibrant in calibrants:
         OutputWorkspace=wkspName,
         XMin=300,
         XMax=16666.7)
+
+    # Load in a different Instrument Definition File from one found in NeXus
+    if idf is not None:
+        LoadInstrument(Workspace=wkspName,
+                       Filename=idf,
+                       RewriteSpectraMap=False)
+
     # NOMAD uses tabulated reflections for diamond
     dvalues = (0.3117, 0.3257, 0.3499, 0.4205, 0.4645, 0.4768, 0.4996, 0.5150, 0.5441,
                0.5642, 0.5947, 0.6307, .6866, .7283, .8185, .8920, 1.0758, 1.2615, 2.0599)
 
-    PDCalibration(SignalWorkspace=wkspName,
-                  TofBinning=[300, -.001, 16666.7],
-                  PreviousCalibration=oldCal,
-                  PeakPositions=dvalues,
-                  StartFromObservedPeakCentre=True,
-                  OutputCalibrationTable='new_cal',
-                  CalibrationParameters='DIFC',
-                  DiagnosticWorkspaces='diagnostics')
+    if oldCal is not None:
+        pdcal_kwargs['PreviousCalibration'] = oldCal
 
+    print(pdcal_kwargs)
+    PDCalibration(SignalWorkspace=wkspName,
+                  PeakPositions=dvalues,
+                  OutputCalibrationTable='new_cal',
+                  DiagnosticWorkspaces='diagnostics',
+                  **pdcal_kwargs)
+
+    dbinning = (.01, -.001, 3.)
     dbinning = (.01, -.001, 3.)
     AlignDetectors(
         InputWorkspace=wkspName,

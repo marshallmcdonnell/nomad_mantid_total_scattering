@@ -1,0 +1,8 @@
+{
+    "Calibrants": { "94138" : {"vanadium": "94136",
+                               "sample_environment": "shifter_with_collimator"}
+    },
+    "InstrumentDefinitionFile" : "/SNS/users/ntm/.mantid/instrument/NOMAD_Definition_20170131-20180401.xml",
+    "Date" : "2017_05_25",
+    "CalDirectory": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL"
+}

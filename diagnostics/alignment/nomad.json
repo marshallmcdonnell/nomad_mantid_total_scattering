@@ -1,9 +1,11 @@
 {
     "Instrument" : "NOM",
-    "Run": [94730],
+    "InstrumentDefinitionFile" : "/SNS/users/ntm/.mantid/instrument/NOMAD_Definition_20170131-20180401.xml",
+    "Run": [94138],
     "CharacterizationFilename": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt",
-    "CalFilename": "/SNS/NOM/shared/CALIBRATION/2017_2_1B_CAL/NOM_d94806_2017_07_24_shifter_open2_12vx6h.h5",
-    "GroupingFileName": "../focussing/NOM_grouping_798banks_16x8.xml",
+    "CalFilename": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_d94138_2017_05_25_shifter_with_collimator.h5",
+    "OutputFilename": "NOM_94138_aligned_oldIDF.nxs",
+
     "SaveDirectory" : "/SNS/NOM/shared/diagnostics"
 }
 

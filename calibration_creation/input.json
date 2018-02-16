@@ -1,8 +1,0 @@
-{
-    "calibrants": { "94948" : {"vanadium": "94901",
-                               "sample_environment": "shifter_open1_6vx6v"}
-    },
-    "date": "2017_07_29",
-    "caldirectory": "/SNS/NOM/shared/CALIBRATION/2017_2_1B_CAL",
-    "oldCal": "/SNS/NOM/shared/CALIBRATION/2017_2_1B_CAL/NOM_d94723_2017_07_24_shifter_open1_6vx6h.h5"
-}
