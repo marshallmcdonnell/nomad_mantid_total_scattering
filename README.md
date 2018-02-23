@@ -7,3 +7,6 @@ Diagnostic tools and reduction scripts are included.
 
 Submodule for general TOF total scattering data reduction: https://github.com/marshallmcdonnell/mantid_total_scattering
 
+To clone submodule and update submodule:
+
+git clone --recurse-submodules https://github.com/marshallmcdonnell/nomad_mantid_total_scattering.gitgit submodule update --recursive --remote
