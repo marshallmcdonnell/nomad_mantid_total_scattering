@@ -9,4 +9,5 @@ Submodule for general TOF total scattering data reduction: https://github.com/ma
 
 To clone submodule and update submodule:
 
-git clone --recurse-submodules https://github.com/marshallmcdonnell/nomad_mantid_total_scattering.gitgit submodule update --recursive --remote
+git clone --recurse-submodules https://github.com/marshallmcdonnell/nomad_mantid_total_scattering.git
+git submodule update --recursive --remote
