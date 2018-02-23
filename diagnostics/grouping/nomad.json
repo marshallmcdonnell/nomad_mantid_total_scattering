@@ -1,0 +1,12 @@
+{
+    "Instrument" : "NOMAD",
+    "Groupings" : [ 
+                    { "AxisVector" : [0,0,1],
+                      "Rotations" : [{ "Axis" : [0,1,0],"Angle" : 90.0 },
+                                     { "Axis" : [0,0,1],"Angle" : -20.0 }],
+                      "AngleStep" : 5.0,
+                      "GroupingFilename" : "grouping_axis90deg_step15deg.xml",
+                      "Mask" : { "Filename" : "./nomad.mask_ids"}
+                    }
+                  ]
+}

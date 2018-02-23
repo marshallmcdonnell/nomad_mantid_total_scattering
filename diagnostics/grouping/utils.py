@@ -7,10 +7,9 @@ from collections import Counter
 from diagnostics import io
 
 #-----------------------------------------------------
-# Create mask from string of indices i.e. "0,1,2-10"
+# Apply a mask to array from string of indices i.e. "0,1,2-10"
 
-
-def create_mask(array, mask_ids):
+def apply_mask(array, mask_ids):
     mask = np.ones(len(array), dtype=bool)
     if not mask_ids:
         return mask
@@ -20,10 +19,28 @@ def create_mask(array, mask_ids):
     return mask
 
 #-----------------------------------------------------
+# Create mask from string and/or file with list of ids
+
+def create_mask(List=None, Filename=None):
+    all_mask_ids = str()
+    if List:
+        all_mask_ids += List
+
+    if Filename:
+        with open(Filename, 'r') as f:
+            mask_ids_from_file = ",".join(line.strip() for line in f)
+            if all_mask_ids:
+                all_mask_ids += ',' + mask_ids_from_file
+            else:
+                all_mask_ids = mask_ids_from_file
+
+    return all_mask_ids
+
+#-----------------------------------------------------
 # Revalue an array to take out gaps in increment
 
 
-def revalue_grouping(array):
+def revalue_array(array):
     old_group_nums = Counter(array).keys()
     new_group_nums = range(len(old_group_nums))
     revalue_map = {
@@ -43,7 +60,7 @@ def revalue_grouping(array):
 
 def mask_and_group(data, grouper, mask):
     # Relabel grouper so groups have no gaps in Group IDs
-    masked_grouper = revalue_grouping(grouper[mask])
+    masked_grouper = revalue_array(grouper[mask])
 
     # Get masked data as array
     masked_data = data[mask]
@@ -55,6 +72,17 @@ def mask_and_group(data, grouper, mask):
 
     return masked_data, masked_grouper, groups
 
+
+def write_grouping_file(filename,groups,instrument="NOMAD"):
+    handle = file(filename, 'w')
+    handle.write('<?xml version="1.0" encoding="UTF-8" ?>\n')
+    handle.write('<detector-grouping instrument="%s">\n' % instrument)
+
+    for groupnum, group in enumerate(groups):
+        handle.write('<group ID="%d">\n' % (groupnum + 1))
+        handle.write('<detids>%s</detids>\n' % (io.utils.compress_ints(group)))
+        handle.write('</group>\n')
+    handle.write('</detector-grouping>\n')
 
 if __name__ == "__main__":
     #-----------------------------------------------------
@@ -101,7 +129,7 @@ if __name__ == "__main__":
             else:
                 mask_ids = mask_ids_from_file
 
-    mask = create_mask(data, mask_ids)
+    mask = apply_mask(data, mask_ids)
 
     # Print Results
     io.utils.print_array("Data", data)

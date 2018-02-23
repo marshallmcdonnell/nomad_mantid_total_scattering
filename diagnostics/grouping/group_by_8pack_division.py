@@ -99,17 +99,8 @@ if (right[-1] + 1) != (bank_total * pix_per_bank_h * pix_per_bank_w):
 #-----------------------------------------------------
 # Create the mask to apply to both data and grouping
 
-mask_ids = str()
-if args.mask_ids:
-    mask_ids += args.mask_ids
-if args.mask_ids_file:
-    with open(args.mask_ids_file, 'r') as f:
-        mask_ids_from_file = ",".join(line.strip() for line in f)
-        if mask_ids:
-            mask_ids += ',' + mask_ids_from_file
-        else:
-            mask_ids = mask_ids_from_file
-mask = grouping.utils.create_mask(pixels, mask_ids)
+mask_ids = grouping.utils.create_mask(args.mask_ids,filename=args.mask_ids_file)
+mask = grouping.utils.apply_mask(pixels, mask_ids)
 
 
 #-----------------------------------------------------
@@ -137,12 +128,5 @@ if args.mask_ids or args.mask_ids_file:
 else:
     filename = "nomad_group_%d_%d.xml" % (pix_per_group_h, pix_per_group_w)
 print "writing out to %s" % filename
-handle = file(filename, 'w')
-handle.write('<?xml version="1.0" encoding="UTF-8" ?>\n')
-handle.write('<detector-grouping instrument="NOMAD">\n')
 
-for groupnum, group in enumerate(groups):
-    handle.write('<group ID="%d">\n' % (groupnum + 1))
-    handle.write('<detids>%s</detids>\n' % (io.utils.compress_ints(group)))
-    handle.write('</group>\n')
-handle.write('</detector-grouping>\n')
+grouping.utils.write_grouping_file(filename, groups, instrument="NOMAD")
