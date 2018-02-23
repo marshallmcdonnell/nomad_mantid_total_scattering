@@ -515,8 +515,8 @@ def getAbsScaleInfoFromNexus(
     print(PackingFraction, "#PackingFraction")
     print(space.getShape(), "#sample shape")
     print("nogo", "#do absorption correction now")
-    print(info["mass_density"] / material.relativeMolecularMass()
-          * avogadro / 10**24., "Sample density in form unit / A^3")
+    print(info["mass_density"] / material.relativeMolecularMass() *
+          avogadro / 10**24., "Sample density in form unit / A^3")
 
     print("\n\n#########################################################")
     print("##############Check levels###########################################")
