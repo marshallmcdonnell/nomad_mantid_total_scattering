@@ -230,7 +230,7 @@ if '__main__' == __name__:
     Reproducing the results of the paper:
 
     W. S. Howells
-    "On the choice of moderator for a diquids diffractometer on a pulsed neutron source."
+    "On the choice of moderator for a liquids diffractometer on a pulsed neutron source."
     Nuclear Instruments and Methods in Physics Research, 223, 1984, pp 141-146
     '''
 
