@@ -119,6 +119,7 @@ class ControlPanelHandler(Handler):
         name2func = {'cache_plot': self.cache_plot,
                      'cache_plots': self.cache_plots,
                      'clear_cache': self.clear_cache,
+                     'save_plot' : self.save_plot
                      }
 
         #
@@ -128,7 +129,14 @@ class ControlPanelHandler(Handler):
                 button_func = name2func[name]
                 button_func(info)
 
-    def cache_plot(self, info):
+    def save_plot(self, info):
+        b = self.apply_corrections_to_plot(info)
+        with open(b.title + ".dat", 'w') as f:
+            f.write("# %s\n".format(b.title))
+            for x, y in zip(b.x, b.y):
+                f.write("{x:.{prec}f} {y:.{prec}f}\n".format(x=x, y=y, prec=6))
+
+    def apply_corrections_to_plot(self, info):
         dataset = info.object.current_dataset
 
         # Get info for selected Dataset (=a) and create new Dataset (=b)
@@ -171,7 +179,16 @@ class ControlPanelHandler(Handler):
                 parents = self.get_parents(info, b)
                 info.object.controls.add_plot_to_node(dataset=b,
                                                       parents=parents)
+        except ValueError:
+            pass
 
+        return b
+
+    def cache_plot(self, info):
+
+        b = self.apply_corrections_to_plot(info)
+
+        try:
             # Add 'b' to cached plots
             info.object.controls.cached_plots.append(b)
 
