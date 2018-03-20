@@ -96,7 +96,7 @@ if __name__ == "__main__":
     for group in args["Groupings"]:
         mask_ids = None
         if group["Mask"]:
-            mask_ids = grouping.utils.create_mask(**group["Mask"])
+            mask_ids = grouping.utils.create_id_list(**group["Mask"])
 
         central_vector = GenerateAxisVector(Vector=group["AxisVector"], 
                                          Rotations=group["Rotations"])    

@@ -19,22 +19,22 @@ def apply_mask(array, mask_ids):
     return mask
 
 #-----------------------------------------------------
-# Create mask from string and/or file with list of ids
+# Create id list from string and/or file with list of ids
 
-def create_mask(List=None, Filename=None):
-    all_mask_ids = str()
+def create_id_list(List=None, Filename=None):
+    all_ids = str()
     if List:
-        all_mask_ids += List
+        all_ids += List
 
     if Filename:
         with open(Filename, 'r') as f:
-            mask_ids_from_file = ",".join(line.strip() for line in f)
-            if all_mask_ids:
-                all_mask_ids += ',' + mask_ids_from_file
+            ids_from_file = ",".join(line.strip() for line in f)
+            if all_ids:
+                all_ids += ',' + ids_from_file
             else:
-                all_mask_ids = mask_ids_from_file
+                all_ids = ids_from_file
 
-    return all_mask_ids
+    return all_ids
 
 #-----------------------------------------------------
 # Revalue an array to take out gaps in increment

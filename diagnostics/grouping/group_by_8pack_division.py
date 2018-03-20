@@ -99,7 +99,7 @@ if (right[-1] + 1) != (bank_total * pix_per_bank_h * pix_per_bank_w):
 #-----------------------------------------------------
 # Create the mask to apply to both data and grouping
 
-mask_ids = grouping.utils.create_mask(args.mask_ids,filename=args.mask_ids_file)
+mask_ids = grouping.utils.create_id_list(args.mask_ids,filename=args.mask_ids_file)
 mask = grouping.utils.apply_mask(pixels, mask_ids)
 
 
