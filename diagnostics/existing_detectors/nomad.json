@@ -1,0 +1,9 @@
+{
+    "Instrument" : "NOMAD",
+    "PixelIds"   : { "Filename" : "./nomad.existing_ids"},
+    "Output"     : { "Filename" : "./nomad.existing_ids.xyz", 
+                     "AtomIdsForVisualization" : false, 
+                     "PrintToScreen" : false,
+                     "AddBankGroupingColumn" : true
+    }
+}
