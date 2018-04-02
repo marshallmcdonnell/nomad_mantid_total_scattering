@@ -1,3 +1,20 @@
+#!/usr/bin/env python
+from __future__ import (absolute_import, division, print_function)
+import sys
+import os
+import six
+import numpy as np
+from h5py import File
+
+import mantid
+from mantid.simpleapi import *
+
+if six.PY3:
+    unicode = str
+    import configparser
+else:
+    import ConfigParser as configparser
+
 #-------------------------------------------------------------------------
 # . NexusHandler
 
@@ -40,7 +57,7 @@ def procNumbers(numberList):
 
 
 class NexusHandler(object):
-    def __init__(self, instrument, cfg_filename):
+    def __init__(self, instrument='NOM', cfg_filename='nomad_config.cfg'):
         self.instrument = instrument
         self._scanDict = {}
 
@@ -54,23 +71,22 @@ class NexusHandler(object):
     def listProps(self):
         return self._props.keys()
 
-    def getNxData(self, scans, props):
-        scansInfo = dict()
-        for scan in scans:
-            # convert to format for mantid's file finder
-            filename = '%s_%s' % (self.instrument, scan)
-            # let mantid find the file
-            filename = mantid.api.FileFinder.findRuns(filename)[0]
-            # get properties specified in the config file
-            with File(filename, 'r') as nf:
-                prop_dict = {prop: self._props[prop] for prop in props}
-                for key, path in prop_dict.items(
-                ):  # inefficient in py2, but works with py3
-                    try:
-                        scansInfo.update({key: nf[path][0]})
-                    except KeyError:
-                        pass
-        return scansInfo
+    def getNxData(self, scan, props):
+        scanInfo = dict()
+        # convert to format for mantid's file finder
+        filename = '%s_%s' % (self.instrument, scan)
+        # let mantid find the file
+        filename = mantid.api.FileFinder.findRuns(filename)[0]
+        # get properties specified in the config file
+        with File(filename, 'r') as nf:
+            prop_dict = {prop: self._props[prop] for prop in props}
+            for key, path in prop_dict.items(
+            ):  # inefficient in py2, but works with py3
+                try:
+                    scanInfo.update({key: nf[path][0]})
+                except KeyError:
+                    pass
+        return scanInfo
 
 #-------------------------------------------------------------------------
 # Absolute Scale stuff
@@ -121,12 +137,13 @@ class GeometryFactory(object):
 
 
 def getAbsScaleInfoFromNexus(
-        scans,
+        scan,
         ChemicalFormula=None,
         Geometry=None,
         PackingFraction=None,
         BeamWidth=1.8,
-        SampleMassDensity=None):
+        SampleMassDensity=None, **kwargs):
+    nf = NexusHandler(**kwargs)
     # get necessary properties from Nexus file
     props = [
         "formula",
@@ -135,8 +152,13 @@ def getAbsScaleInfoFromNexus(
         "sample_diameter",
         "sample_height",
         "items_id"]
-    info = nf.getNxData(scans, props)
+    info = nf.getNxData(scan, props)
     info['sample_diameter'] = 0.1 * float(info['sample_diameter'])  # mm -> cm
+    if hasattr(info['formula'],"__len__") and (not isinstance(info['formula'],str)):
+        info['formula'] = str(info['formula'][0])
+    else:
+        info['formula'] = str(info['formula'])
+    info['items_id'] =int(info['items_id'][0])
 
     for key in info:
         print(key, info[key])
@@ -154,7 +176,7 @@ def getAbsScaleInfoFromNexus(
     if "Radius" not in Geometry:
         Geometry['Radius'] = info['sample_diameter'] / 2.
     if "Height" not in Geometry:
-        Geometry['Height'] = info['sample_height']
+        Geometry['Height'] = info['sample_height'] 
 
     if Geometry["Shape"] == 'Sphere':
         Geometry.pop('Height', None)
@@ -164,6 +186,9 @@ def getAbsScaleInfoFromNexus(
     Geometry.pop("Shape", None)
     volume_in_container = space.volume(**Geometry)
 
+    print('Mass:', info['mass'])
+    print('Volume:', volume_in_container)
+    print('MassDensity:', info['mass_density'])
     try:
         print(
             "NeXus Packing Fraction:",
@@ -175,7 +200,10 @@ def getAbsScaleInfoFromNexus(
     # get packing fraction
     if PackingFraction is None:
         sample_density = info["mass"] / volume_in_container
-        PackingFraction = sample_density / info["mass_density"]
+        if info["mass_density"] == 0.0:
+            PackingFraction = 0.0
+        else:
+            PackingFraction = sample_density / info["mass_density"]
 
     info['packing_fraction'] = PackingFraction
 
@@ -243,8 +271,8 @@ def getAbsScaleInfoFromNexus(
     print(PackingFraction, "#PackingFraction")
     print(space.getShape(), "#sample shape")
     print("nogo", "#do absorption correction now")
-    print(info["mass_density"] / material.relativeMolecularMass() *
-          avogadro / 10**24., "Sample density in form unit / A^3")
+    number_density = mass_density_in_beam / material.relativeMolecularMass() * avogadro / 10**24.
+    print("Sample density in form unit / A^3:", number_density)
 
     print("\n\n#########################################################")
     print("##############Check levels###########################################")
@@ -263,8 +291,33 @@ def getAbsScaleInfoFromNexus(
     print("self scattering:", self_scat)
     print("#########################################################\n")
 
+    print("Natoms:", natoms)
+    print("Density in beam:", mass_density_in_beam)
+    print("MM:", material.relativeMolecularMass())
+    print("avogadro:", avogadro)
+    print("Volume:", volume_in_beam)
     natoms_in_beam = mass_density_in_beam / material.relativeMolecularMass() * \
-        avogadro / 10**24. * volume_in_beam
-    #print("Sample density (corrected) in form unit / A^3: ", mass_density_in_beam/ ws.sample().getMaterial().relativeMolecularMass() * avogadro / 10**24.)
+        avogadro * volume_in_beam
+    print("Natoms in beam:", natoms_in_beam)
+    print("Natoms in beam:", number_density * volume_in_beam * 1e24)
+
     return natoms_in_beam, self_scat, info
 
+
+if __name__ == "__main__":
+    scan = sys.argv[1]
+    #natoms, self_scat, info = getAbsScaleInfoFromNexus(scan, Geometry= {'Height' : 5.49, 'Radius' : 0.2925}, SampleMassDensity=6.11 )
+    natoms, self_scat, info = getAbsScaleInfoFromNexus(scan)
+
+
+    # Get info into the JSON output needed
+    json_info = dict()
+    json_info['MassDensity'] = info['mass_density']
+    json_info['PackingFraction'] = info['packing_fraction']
+    json_info['Material'] = info['formula']
+    
+
+    print("Natoms:", natoms)
+    print("Self Scattering:", self_scat)
+    import json
+    print("Sample Info:", json.dumps(json_info))
