@@ -1,8 +1,15 @@
 {
-    "Calibrants": { "94138" : {"vanadium": "94136",
-                               "sample_environment": "shifter_with_collimator"}
+    "Calibrants": { "2432" : {"Vanadium": {"RunNumber" : "2431"},
+                              "SampleEnvironment": "shifter",
+                              "Date" : "2011_09_03",
+                              "Filename" : "/SNS/NOM/IPTS-5911/0/2432/preNeXus/NOM_2432_neutron_event.dat",
+                              "CalDirectory": "/SNS/NOM/shared/CALIBRATION/2011_1_1B_CAL"},
+                    "8522" : {"Vanadium": {"RunNumber" : "8521"},
+                              "SampleEnvironment": "shifter",
+                              "Date" : "2012_08_23",
+                              "Filename" : "/SNS/NOM/IPTS-4480/0/8522/NeXus/NOM_8522_event.nxs",
+                              "CalDirectory": "/SNS/NOM/shared/CALIBRATION/2012_2_1B_CAL"}
     },
-    "InstrumentDefinitionFile" : "/SNS/users/ntm/.mantid/instrument/NOMAD_Definition_20170131-20180401.xml",
-    "Date" : "2017_05_25",
-    "CalDirectory": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL"
+    "CalDirectory": "/SNS/NOM/shared/CALIBRATION/2012_2_1B_CAL",
+    "Date" : "2019_09_99"
 }

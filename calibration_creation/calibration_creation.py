@@ -24,42 +24,60 @@ pdcal_defaults = { 'TofBinning' : [300, -.001, 16666.7],
                    'CalibrationParameters' : 'DIFC' }
 
 calibrants = args['Calibrants']
-date = str(args.get('Date', datetime.datetime.now().strftime('%Y_%m_%d')))
-idf = str(args.get('InstrumentDefinitionFile', None))
+idf = args.get('InstrumentDefinitionFile', None)
 oldCal = args.get('OldCal',None)
 chunkSize = int(args.get('ChunkSize', 8))
 filterBadPulses = int(args.get('FilterBadPulses', 25))
-caldirectory = str(args.get('CalDirectory', os.path.abspath('.')))
 pdcal_kwargs = args.get('PDCalibration', dict())
 pdcal_kwargs = merge_two_dicts(pdcal_defaults, pdcal_kwargs)
 
+# General date and cali directory for batch calibrations
+date_master = str(args.get('Date', datetime.datetime.now().strftime('%Y_%m_%d')))
+caldirectory_master = str(args.get('CalDirectory', os.path.abspath('.')))
 
 # PDCalibration
 # -------------------------------------
 
 for calibrant in calibrants:
-    if 'sample_environment' in calibrants[calibrant]:
-        samp_env = str(calibrants[calibrant]['sample_environment'])
-    else:
-        samp_env = str(args['sample_environment'])
+   
+    # Calibrant specific date and directory 
+    date = str(calibrants[calibrant].get('Date', date_master))
+    caldirectory = str(calibrants[calibrant].get('CalDirectory', caldirectory_master))
 
-    if 'vanadium' in calibrants[calibrant]:
-        vanadium = int(calibrants[calibrant]['vanadium'])
+    if 'SampleEnvironment' in calibrants[calibrant]:
+        samp_env = str(calibrants[calibrant]['SampleEnvironment'])
+    else:
+        samp_env = str(args['SampleEnvironment'])
+
+    if 'Vanadium' in calibrants[calibrant]:
+        vanadium_args = calibrants[calibrant]['Vanadium']
+        if "Filename" in vanadium_args:
+            vanadium = vanadium_args["Filename"]
+        else:
+            vanadium = 'NOM_%d' % int(vanadium_args["RunNumber"])
     else:
         vanadium = 0
 
+    # Create calibration output filename
     runNumber = int(calibrant)
-    wkspName = 'NOM_%d' % runNumber
     calfilename = caldirectory + \
         '/NOM_d%d_%s_%s.h5' % (runNumber, date, samp_env)
     print('going to create calibration file: %s' % calfilename)
 
+    # Specify inpute event filename
+    filename = 'NOM_%d' % runNumber
+    wkspName = 'NOM_%d' % runNumber
+    if 'Filename' in calibrants[calibrant]:
+        filename = calibrants[calibrant]['Filename']
+
+
     # Way to check for file if it doesn't exist just using Filename
-    def FileExists(wkspName):
+    def FileExists(filename):
         try:
-            LoadEventNexus(
-                Filename=wkspName,
+            Load(
+                Filename=filename,
                 OutputWorkspace='tmp',
+                MaxChunkSize=chunkSize,
                 MetaDataOnly=True)
             DeleteWorkspace('tmp')
             return True
@@ -67,16 +85,15 @@ for calibrant in calibrants:
             return False
 
     print("Waiting for calibration NeXus file...")
-    while not FileExists(wkspName):
-        time.sleep(2)
+    while not FileExists(filename):
+        time.sleep(30)
     print("Found calibration NeXus file!")
 
     # Load workspace
-    LoadEventAndCompress(
-        Filename=wkspName,
-        OutputWorkspace=wkspName,
-        MaxChunkSize=chunkSize,
-        FilterBadPulses=filterBadPulses)
+    Load(Filename=filename,
+         OutputWorkspace=wkspName,
+         MaxChunkSize=chunkSize,
+         FilterBadPulses=filterBadPulses)
     CropWorkspace(
         InputWorkspace=wkspName,
         OutputWorkspace=wkspName,
@@ -84,9 +101,10 @@ for calibrant in calibrants:
         XMax=16666.7)
 
     # Load in a different Instrument Definition File from one found in NeXus
-    if idf is not None:
+    if idf:
+        print('HERE',idf)
         LoadInstrument(Workspace=wkspName,
-                       Filename=idf,
+                       Filename=str(idf),
                        RewriteSpectraMap=False)
 
     # NOMAD uses tabulated reflections for diamond
@@ -104,7 +122,6 @@ for calibrant in calibrants:
                   **pdcal_kwargs)
 
     dbinning = (.01, -.001, 3.)
-    dbinning = (.01, -.001, 3.)
     AlignDetectors(
         InputWorkspace=wkspName,
         OutputWorkspace=wkspName,
@@ -118,7 +135,6 @@ for calibrant in calibrants:
     DeleteWorkspace(wkspName)
 
     if vanadium > 0:
-        vanadium = 'NOM_%d' % vanadium
         LoadEventAndCompress(
             Filename=vanadium,
             OutputWorkspace=vanadium,
