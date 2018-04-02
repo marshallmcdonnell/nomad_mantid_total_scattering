@@ -135,7 +135,7 @@ for calibrant in calibrants:
     DeleteWorkspace(wkspName)
 
     if vanadium > 0:
-        LoadEventAndCompress(
+        Load(
             Filename=vanadium,
             OutputWorkspace=vanadium,
             MaxChunkSize=chunkSize,
