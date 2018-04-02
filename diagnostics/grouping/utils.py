@@ -73,14 +73,20 @@ def mask_and_group(data, grouper, mask):
     return masked_data, masked_grouper, groups
 
 
-def write_grouping_file(filename,groups,instrument="NOMAD"):
+def write_grouping_file(filename,groups,instrument="NOMAD", filetype='detectors'):
     handle = file(filename, 'w')
     handle.write('<?xml version="1.0" encoding="UTF-8" ?>\n')
-    handle.write('<detector-grouping instrument="%s">\n' % instrument)
+    if filetype == 'spectra':
+        handle.write('<detector-grouping>\n')
+    else:
+        handle.write('<detector-grouping instrument="%s">\n' % instrument)
 
     for groupnum, group in enumerate(groups):
         handle.write('<group ID="%d">\n' % (groupnum + 1))
-        handle.write('<detids>%s</detids>\n' % (io.utils.compress_ints(group)))
+        if filetype == 'spectra':
+            handle.write('<ids>%s</ids>\n' % (io.utils.compress_ints(group)))
+        else:
+            handle.write('<detids>%s</detids>\n' % (io.utils.compress_ints(group)))
         handle.write('</group>\n')
     handle.write('</detector-grouping>\n')
 
