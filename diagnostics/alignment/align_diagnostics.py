@@ -23,6 +23,10 @@ idf = str(config.get('InstrumentDefinitionFile', None))
 
 sam_scans = ','.join(['%s_%s' % (instrument, sam) for sam in sam_scans])
 
+# Override if Filename present
+if "Filename" in config:
+    sam_scans = config["Filename"]
+
 #-------------------------------------------------------------------------
 # Setup arguments
 
@@ -54,6 +58,7 @@ wksp = 'wksp'
 Load(Filename=sam_scans, OutputWorkspace=wksp)
 
 # Load in a different Instrument Definition File from one found in NeXus
+print(idf)
 if idf is not None:
     LoadInstrument(Workspace=wksp,
                    Filename=idf,

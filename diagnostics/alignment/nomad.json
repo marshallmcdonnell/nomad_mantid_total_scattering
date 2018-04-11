@@ -1,10 +1,11 @@
 {
-    "Instrument" : "NOM",
-    "InstrumentDefinitionFile" : "/SNS/users/ntm/.mantid/instrument/NOMAD_Definition_20170131-20180401.xml",
-    "Run": [94138],
+    "Instrument" : "NOMAD",
+    "InstrumentDefinitionFile" : "/SNS/users/ntm/.mantid/instrument/NOMAD_Definition_20120801-20170131.xml",
+    "Run": [8540],
+    "Filename" : "/SNS/NOM/IPTS-6519/0/8540/NeXus/NOM_8540_event.nxs",
     "CharacterizationFilename": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_char_2017_04_15-pdf.txt",
-    "CalFilename": "/SNS/NOM/shared/CALIBRATION/2017_1_1B_CAL/NOM_d94138_2017_05_25_shifter_with_collimator.h5",
-    "OutputFilename": "NOM_94138_aligned_oldIDF.nxs",
+    "CalFilename": "/SNS/NOM/shared/CALIBRATION/2012_2_1B_CAL/NOM_d8540_2012_08_24_shifter.h5",
+    "OutputFilename": "NOM_d8655_aligned.nxs",
 
     "SaveDirectory" : "/SNS/NOM/shared/diagnostics"
 }
