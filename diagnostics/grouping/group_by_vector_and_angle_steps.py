@@ -36,9 +36,26 @@ def GenerateAxisVector(Rotations=None,Vector=[0,0,1] ):
     return axis_vector
 
 #-----------------------------------------------------------------------------
+# Get new group id revalued by a cutting plane
+
+def GetGroupIdUsingCutPlane(GroupId=None, Point=None, NormalVector=[0,0,1], BaseVector=[0,0,0]):
+    if GroupId is None:
+        return None
+    if Point is None:
+        return GroupId
+
+    # Get a, b, c, d form of plane
+    a, b, c = NormalVector
+    d = np.dot(-1.*np.asarray(NormalVector), BaseVector)
+    x, y, z = Point
+
+    WhichSideOfPlane = np.sign(np.dot( (a,b,c,d), (x,y,z,1.)))
+    return GroupId * WhichSideOfPlane
+
+#-----------------------------------------------------------------------------
 # Generates a single grouping file using the detectors
 
-def GenerateGroupingFileFromDetectors(InputWorkspace=None,CentralVector=V3D(0,0,1),AngleStep=None,InitialGroupingFilename=None, GroupingFilename=None, MaskIDs=None, UseQvectorForAngle=False):
+def GenerateGroupingFileFromDetectors(InputWorkspace=None,CentralVector=V3D(0,0,1),AngleStep=None,InitialGroupingFilename=None, GroupingFilename=None, MaskIDs=None, UseQvectorForAngle=False, CutGroupingWithPlane=None):
     # Grab objects of interest
     detectorInfo = mtd[wksp].detectorInfo()
     instrument = mtd[wksp].getInstrument()
@@ -71,6 +88,11 @@ def GenerateGroupingFileFromDetectors(InputWorkspace=None,CentralVector=V3D(0,0,
             tt = np.arccos(np.clip( cos_theta, -1, 1)) * rad2deg
 
         where = tt / AngleStep
+        if CutGroupingWithPlane:
+            where = GetGroupIdUsingCutPlane(GroupId=where, 
+                        Point=detector.getPos(), 
+                        NormalVector=CutGroupingWithPlane["NormalVector"], 
+                        BaseVector=CutGroupingWithPlane["BaseVector"])
         grouper[detector.getID()] = where
 
     mask = grouping.utils.apply_mask(detectors, MaskIDs)
@@ -157,6 +179,9 @@ if __name__ == "__main__":
         central_vector = GenerateAxisVector(Vector=group["AxisVector"], 
                                          Rotations=group["Rotations"])    
 
+        if "CutGroupingWithPlane" not in group:
+            group["CutGroupingWithPlane"] = None
+
         # Generate grouping filename
         if "Input" in group["GroupingFilename"]:
             GenerateGroupingFileFromSpectra(InputWorkspace=wksp,
@@ -173,4 +198,6 @@ if __name__ == "__main__":
                                               AngleStep=group["AngleStep"],
                                               GroupingFilename=group["GroupingFilename"]["Output"],
                                               UseQvectorForAngle=q_flag,
-                                              MaskIDs=mask_ids)
+                                              MaskIDs=mask_ids,
+                                              CutGroupingWithPlane=group["CutGroupingWithPlane"])
+
