@@ -44,6 +44,14 @@ def GetGroupIdUsingCutPlane(GroupId=None, Point=None, NormalVector=[0,0,1], Base
     if Point is None:
         return GroupId
 
+    # Normalize vectors
+    '''
+    norm = np.linalg.norm(NormalVector)
+    if norm == 0.0:
+        norm = np.float64(1.0) 
+    NormalVector = NormalVector / norm 
+    '''
+
     # Get a, b, c, d form of plane
     a, b, c = NormalVector
     d = np.dot(-1.*np.asarray(NormalVector), BaseVector)
@@ -55,7 +63,7 @@ def GetGroupIdUsingCutPlane(GroupId=None, Point=None, NormalVector=[0,0,1], Base
 #-----------------------------------------------------------------------------
 # Generates a single grouping file using the detectors
 
-def GenerateGroupingFileFromDetectors(InputWorkspace=None,CentralVector=V3D(0,0,1),AngleStep=None,InitialGroupingFilename=None, GroupingFilename=None, MaskIDs=None, UseQvectorForAngle=False, CutGroupingWithPlane=None):
+def GenerateGroupingFileFromDetectors(InputWorkspace=None,CentralVector=V3D(0,0,1),AngleStep=None,InitialGroupingFilename=None, GroupingFilename=None, MaskIDs=None, UseQvectorForAngle=False, CutGroupingWithPlane=None, AtomIdsForVisualization=False):
     # Grab objects of interest
     detectorInfo = mtd[wksp].detectorInfo()
     instrument = mtd[wksp].getInstrument()
@@ -70,6 +78,7 @@ def GenerateGroupingFileFromDetectors(InputWorkspace=None,CentralVector=V3D(0,0,
 
     # Have a paralle array to detectors to say what group it belongs in
     grouper   = np.full_like(detectors, -1) 
+    debug_grouper   = np.full_like(detectors, -1) 
 
     # Loop over detectors
     for idx in detectors:
@@ -87,7 +96,8 @@ def GenerateGroupingFileFromDetectors(InputWorkspace=None,CentralVector=V3D(0,0,
             # cos_theta = np.sqrt(cos_theta * cos_theta)
             tt = np.arccos(np.clip( cos_theta, -1, 1)) * rad2deg
 
-        where = tt / AngleStep
+        where = int(tt / AngleStep) + 1
+        debug_grouper[detector.getID()] = where
         if CutGroupingWithPlane:
             where = GetGroupIdUsingCutPlane(GroupId=where, 
                         Point=detector.getPos(), 
@@ -95,10 +105,29 @@ def GenerateGroupingFileFromDetectors(InputWorkspace=None,CentralVector=V3D(0,0,
                         BaseVector=CutGroupingWithPlane["BaseVector"])
         grouper[detector.getID()] = where
 
+    np.set_printoptions(threshold='nan')
     mask = grouping.utils.apply_mask(detectors, MaskIDs)
     md, mg, groups = grouping.utils.mask_and_group(detectors, grouper, mask)
     grouping.utils.write_grouping_file(GroupingFilename, groups, instrument="NOMAD")
-    
+
+    if AtomIdsForVisualization:
+        base=os.path.splitext(os.path.basename(GroupingFilename))[0]
+        group_of_pixel = grouping.utils.revalue_array(grouper[mask])
+
+        with open("%s.xyz" % base, 'w') as f:
+            f.write("{}\n\n".format(len(md)))
+            for group_id, pixel_idx in zip(group_of_pixel, md):
+                x, y, z = instrument.getDetector(pixel_idx).getPos()
+                print_args = {'idx' : pixel_idx, 
+                              'x' : x, 
+                              'y' : y, 
+                              'z' : z, 
+                              'group_id' : group_id 
+                }
+
+                print_str="{group_id} {x} {y} {z}\n"
+                f.write(print_str.format(**print_args))
+
 #-----------------------------------------------------------------------------
 # Generates a single grouping file using spectra 
 
@@ -182,6 +211,9 @@ if __name__ == "__main__":
         if "CutGroupingWithPlane" not in group:
             group["CutGroupingWithPlane"] = None
 
+        if "AtomIdsForVisualization" not in group:
+            group["AtomIdsForVisualization"] = None
+
         # Generate grouping filename
         if "Input" in group["GroupingFilename"]:
             GenerateGroupingFileFromSpectra(InputWorkspace=wksp,
@@ -199,5 +231,6 @@ if __name__ == "__main__":
                                               GroupingFilename=group["GroupingFilename"]["Output"],
                                               UseQvectorForAngle=q_flag,
                                               MaskIDs=mask_ids,
-                                              CutGroupingWithPlane=group["CutGroupingWithPlane"])
+                                              CutGroupingWithPlane=group["CutGroupingWithPlane"],
+                                              AtomIdsForVisualization=group["AtomIdsForVisualization"])
 
