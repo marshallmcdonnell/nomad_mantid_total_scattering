@@ -6,6 +6,8 @@ import numpy as np
 
 def extract(hdf_file,path, index=None):
     data = File(hdf_file, 'r')
+    base=path.split('/')[1]
+    print(data[base+"/title"].value)
     if index is not None:
         return data[path][index]
     return data[path].value
