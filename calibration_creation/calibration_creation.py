@@ -6,6 +6,7 @@ import os
 import time
 import json
 import matplotlib.pyplot as plt
+from mantid.api import FileFinder
 
 from mantid.simpleapi import *
 
@@ -20,7 +21,6 @@ with open(infile) as handle:
     args = json.loads(handle.read())
 
 pdcal_defaults = { 'TofBinning' : [300, -.001, 16666.7],
-                   'StartFromObservedPeakCentre' : True,
                    'CalibrationParameters' : 'DIFC' }
 
 calibrants = args['Calibrants']
@@ -39,8 +39,8 @@ caldirectory_master = str(args.get('CalDirectory', os.path.abspath('.')))
 # -------------------------------------
 
 for calibrant in calibrants:
-   
-    # Calibrant specific date and directory 
+
+    # Calibrant specific date and directory
     date = str(calibrants[calibrant].get('Date', date_master))
     caldirectory = str(calibrants[calibrant].get('CalDirectory', caldirectory_master))
 
@@ -73,18 +73,17 @@ for calibrant in calibrants:
 
     # Way to check for file if it doesn't exist just using Filename
     def FileExists(filename):
-        try:
-            Load(
-                Filename=filename,
-                OutputWorkspace='tmp',
-                MaxChunkSize=chunkSize,
-                MetaDataOnly=True)
-            DeleteWorkspace('tmp')
+        if os.path.exists(filename):
             return True
-        except ValueError:
+
+        # or use filefinder to search
+        try:
+            FileFinder.findRuns(filename)
+            return True
+        except:
             return False
 
-    print("Waiting for calibration NeXus file...")
+    print("Waiting for calibration NeXus file...", filename)
     while not FileExists(filename):
         time.sleep(30)
     print("Found calibration NeXus file!")
@@ -97,8 +96,12 @@ for calibrant in calibrants:
     CropWorkspace(
         InputWorkspace=wkspName,
         OutputWorkspace=wkspName,
-        XMin=300,
-        XMax=16666.7)
+        XMin=pdcal_kwargs['TofBinning'][0],
+        XMax=pdcal_kwargs['TofBinning'][-1])
+    CompressEvents(
+        InputWorkspace=wkspName,
+        OutputWorkspace=wkspName
+    )
 
     # Load in a different Instrument Definition File from one found in NeXus
     if idf:
@@ -115,8 +118,9 @@ for calibrant in calibrants:
         pdcal_kwargs['PreviousCalibration'] = oldCal
 
     print(pdcal_kwargs)
-    PDCalibration(SignalWorkspace=wkspName,
+    PDCalibration(InputWorkspace=wkspName,
                   PeakPositions=dvalues,
+                  PeakWidthPercent=.1,
                   OutputCalibrationTable='new_cal',
                   DiagnosticWorkspaces='diagnostics',
                   **pdcal_kwargs)
