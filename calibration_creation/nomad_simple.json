@@ -1,0 +1,7 @@
+{
+    "Calibrants": {  "108448" : {"Vanadium": {"RunNumber" : "108443" } }
+    },
+    "CalDirectory": "/SNS/NOM/shared/CALIBRATION/2018_1_1B_CAL/",
+    "Date" : "2018_06_11",
+    "SampleEnvironment": "micas_furnace"
+}

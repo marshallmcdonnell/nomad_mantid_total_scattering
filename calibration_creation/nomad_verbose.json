@@ -1,0 +1,12 @@
+{
+    "Calibrants": {  "107364" : {"Vanadium": {"RunNumber" : "107366", "Filename" : "/SNS/NOM/IPTS-21285/nexus/NOM_107366.nxs.h5" },
+                                 "Filename" : "/SNS/NOM/IPTS-21285/nexus/NOM_107364.nxs.h5" },
+                     "107378" : {"Vanadium": {"RunNumber" : "107380", "Filename" : "/SNS/NOM/IPTS-21285/nexus/NOM_107380.nxs.h5" },
+                                 "Filename" : "/SNS/NOM/IPTS-21285/nexus/NOM_107378.nxs.h5",
+                                 "SampleEnvironment": "shifter_10x6" },
+                     "107566" : {"Vanadium": {"RunNumber" : "107568", "Filename" : "/SNS/NOM/IPTS-21285/nexus/NOM_107568.nxs.h5" },
+                                 "Filename" : "/SNS/NOM/IPTS-21285/nexus/NOM_107566.nxs.h5"}
+    },
+    "CalDirectory": "/SNS/NOM/shared/CALIBRATION/2018_2_1B_CAL",
+    "SampleEnvironment": "shifter"
+}
