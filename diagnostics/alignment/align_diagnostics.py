@@ -18,7 +18,9 @@ charac = str(config['CharacterizationFilename'])
 grouping = config.get('GroupingFileName', None)
 save_dir = config.get('SaveDirectory', '/tmp')
 instrument = config.get('Instrument', 'NOM')
-idf = str(config.get('InstrumentDefinitionFile', None))
+idf = config.get('InstrumentDefinitionFile', None)
+if idf is not None:
+    idf = str(idf)
 
 
 sam_scans = ','.join(['%s_%s' % (instrument, sam) for sam in sam_scans])
@@ -58,8 +60,7 @@ wksp = 'wksp'
 Load(Filename=sam_scans, OutputWorkspace=wksp)
 
 # Load in a different Instrument Definition File from one found in NeXus
-print(idf)
-if idf is not None:
+if idf:
     LoadInstrument(Workspace=wksp,
                    Filename=idf,
                    RewriteSpectraMap=False)
