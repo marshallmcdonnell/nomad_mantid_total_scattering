@@ -14,13 +14,16 @@ with open(configfile) as handle:
 
 sam_scans = config['Run']
 calib = config.get('CalFilename', None)
-charac = str(config['CharacterizationFilename'])
+charac = config.get('CharacterizationFilename', None)
 grouping = config.get('GroupingFileName', None)
 save_dir = config.get('SaveDirectory', '/tmp')
 instrument = config.get('Instrument', 'NOM')
 idf = config.get('InstrumentDefinitionFile', None)
+tof = config.get('Tof', '300,16666')
 if idf is not None:
     idf = str(idf)
+
+tofMin, tofMax = [ float(t) for t in tof.split(',')] 
 
 
 sam_scans = ','.join(['%s_%s' % (instrument, sam) for sam in sam_scans])
@@ -32,22 +35,23 @@ if "Filename" in config:
 #-------------------------------------------------------------------------
 # Setup arguments
 
-results = PDLoadCharacterizations(
-    Filename=charac,
-    OutputWorkspace='characterizations')
-alignArgs = dict(PrimaryFlightPath=results[2],
-                 SpectrumIDs=results[3],
-                 L2=results[4],
-                 Polar=results[5],
-                 Azimuthal=results[6])
+alignArgs = dict()
+if charac:
+    results = PDLoadCharacterizations(
+        Filename=charac,
+        OutputWorkspace='characterizations')
+    alignArgs = dict(PrimaryFlightPath=results[2],
+                     SpectrumIDs=results[3],
+                     L2=results[4],
+                     Polar=results[5],
+                     Azimuthal=results[6])
+    alignArgs['Characterizations'] = 'characterizations'
+    alignArgs['ReductionProperties'] = '__snspowderreduction'
 
 if calib:
     alignArgs['CalFilename'] = calib
 
-#alignArgs['ResampleX'] = -6000
 alignArgs['RemovePromptPulseWidth'] = 50
-alignArgs['Characterizations'] = 'characterizations'
-alignArgs['ReductionProperties'] = '__snspowderreduction'
 alignArgs['CompressTolerance'] = 0.0001
 
 
@@ -65,10 +69,6 @@ if idf:
                    Filename=idf,
                    RewriteSpectraMap=False)
 
-PDDetermineCharacterizations(
-    InputWorkspace=wksp,
-    Characterizations=alignArgs['Characterizations'],
-    ReductionProperties=alignArgs['ReductionProperties'])
 ConvertUnits(InputWorkspace=wksp, OutputWorkspace=wksp, Target='TOF')
 print('After Load, we have : {num_histo} histograms'.format(
     num_histo=mtd[wksp].getNumberHistograms()))
@@ -76,12 +76,12 @@ if calib:
     LoadDiffCal(InputWorkspace=wksp,
                 Filename=alignArgs['CalFilename'],
                 WorkspaceName=instrument,
-                TofMin=300, TofMax=16666)
+                TofMin=tofMin, TofMax=tofMax)
     print('After LoadDiffCal, we have : {num_histo} histograms'.format(
         num_histo=mtd[wksp].getNumberHistograms()))
 CompressEvents(InputWorkspace=wksp, OutputWorkspace=wksp,
                Tolerance=alignArgs['CompressTolerance'])
-CropWorkspace(InputWorkspace=wksp, OutputWorkspace=wksp, XMin=300, XMax=16666)
+CropWorkspace(InputWorkspace=wksp, OutputWorkspace=wksp, XMin=tofMin, XMax=tofMax)
 RemovePromptPulse(InputWorkspace=wksp, OutputWorkspace=wksp,
                   Width=alignArgs['RemovePromptPulseWidth'])
 if calib:

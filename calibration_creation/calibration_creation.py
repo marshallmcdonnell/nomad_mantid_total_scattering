@@ -23,6 +23,8 @@ with open(infile) as handle:
 pdcal_defaults = { 'TofBinning' : [300, -.001, 16666.7],
                    'CalibrationParameters' : 'DIFC' }
 
+
+instrument = args.get('Instrument', 'NOM')
 calibrants = args['Calibrants']
 idf = args.get('InstrumentDefinitionFile', None)
 oldCal = args.get('OldCal',None)
@@ -54,19 +56,19 @@ for calibrant in calibrants:
         if "Filename" in vanadium_args:
             vanadium = vanadium_args["Filename"]
         else:
-            vanadium = 'NOM_%d' % int(vanadium_args["RunNumber"])
+            vanadium = '%s_%d' % (instrument,int(vanadium_args["RunNumber"]))
     else:
         vanadium = 0
 
     # Create calibration output filename
     runNumber = int(calibrant)
     calfilename = caldirectory + \
-        '/NOM_d%d_%s_%s.h5' % (runNumber, date, samp_env)
+        '/%s_d%d_%s_%s.h5' % (instrument,runNumber, date, samp_env)
     print('going to create calibration file: %s' % calfilename)
 
     # Specify inpute event filename
-    filename = 'NOM_%d' % runNumber
-    wkspName = 'NOM_%d' % runNumber
+    filename = '%s_%d' % (instrument, runNumber)
+    wkspName = '%s_%d' % (instrument, runNumber)
     if 'Filename' in calibrants[calibrant]:
         filename = calibrants[calibrant]['Filename']
 
@@ -139,12 +141,14 @@ for calibrant in calibrants:
     DeleteWorkspace(wkspName)
 
     if vanadium > 0:
+        van_mask_detdiag = '%s_mask_detdiag' % instrument
+        van_mask_final = '%s_mask_final' % instrument
         Load(
             Filename=vanadium,
             OutputWorkspace=vanadium,
             MaxChunkSize=chunkSize,
             FilterBadPulses=filterBadPulses)
-        DetectorDiagnostic(InputWorkspace=vanadium, OutputWorkspace='NOM_mask_detdiag',
+        DetectorDiagnostic(InputWorkspace=vanadium, OutputWorkspace=van_mask_detdiag,
                            RangeLower=300, RangeUpper=16666.7,  # TOF range to use
                            LowThreshold=10,  # minimum number of counts for a detector
                            LevelsUp=1)  # median calculated from the tube
@@ -155,13 +159,13 @@ for calibrant in calibrants:
         # [BinaryOperateMasks](http://docs.mantidproject.org/nightly/algorithms/BinaryOperateMasks-v1.html)
         BinaryOperateMasks(
             InputWorkspace1='new_cal_mask',
-            InputWorkspace2='NOM_mask_detdiag',
+            InputWorkspace2=van_mask_detdiag,
             OperationType='OR',
-            OutputWorkspace='NOM_mask_final')
+            OutputWorkspace=van_mask_final)
     else:
         RenameWorkspace(
             InputWorkspace='new_cal_mask',
-            OutputWorkspace='NOM_mask_final')
+            OutputWorkspace=van_mask_final)
 
     # The only information missing for `SaveDiffCal` is which pixels to
     # combine to make an output spectrum. This is done using
@@ -169,11 +173,12 @@ for calibrant in calibrants:
     # For NOMAD, the `Column` option will generate 6 spectra. An alternative
     # is to generate a grouping file to load with
     # [LoadDetectorsGroupingFile](http://docs.mantidproject.org/nightly/algorithms/LoadDetectorsGroupingFile-v1.html).
-    CreateGroupingWorkspace(InstrumentName='NOMAD', GroupDetectorsBy='Group',
-                            OutputWorkspace='NOM_group')
+    group_wksp = '%s_group' % instrument
+    CreateGroupingWorkspace(InstrumentName=instrument, GroupDetectorsBy='Group',
+                            OutputWorkspace=group_wksp)
 
     print('saving file', calfilename)
     SaveDiffCal(CalibrationWorkspace='new_cal',
-                GroupingWorkspace='NOM_group',
-                MaskWorkspace='NOM_mask_final',
+                GroupingWorkspace=group_wksp,
+                MaskWorkspace=van_mask_final,
                 Filename=calfilename)
