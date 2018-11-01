@@ -73,7 +73,7 @@ def GenerateGroupingFileFromDetectors(InputWorkspace=None,CentralVector=V3D(0,0,
     # Setup array with only the detectors (no monitors)
     num_components = detectorInfo.size()
     components = np.arange(num_components, dtype=int)
-    detectors = np.array([ i for i in components if not detectorInfo.isMonitor(i) ])
+    detectors = np.array([ i for i in components if not detectorInfo.isMonitor(int(i)) ])
     detectors = grouping.utils.revalue_array(detectors)
 
     # Have a paralle array to detectors to say what group it belongs in
