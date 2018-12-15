@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<detector-grouping instrument="CORELLI">
+<group ID="1">
+<detids>122883-147458</detids>
+</group>
+<group ID="2">
+<detids>24579-45058, 147459-172034, 278531-286722, 294915-299010</detids>
+</group>
+<group ID="3">
+<detids>45059-65538, 172035-196610, 299011-319490</detids>
+</group>
+<group ID="4">
+<detids>65539-86018, 196611-221186, 319491-339970</detids>
+</group>
+<group ID="5">
+<detids>86019-106498, 221187-237570, 339971-360450</detids>
+</group>
+<group ID="6">
+<detids>106499-114690, 237571-249858, 360451-368642</detids>
+</group>
+</detector-grouping>
