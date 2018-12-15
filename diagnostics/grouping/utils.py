@@ -59,11 +59,23 @@ def revalue_array(array):
 
 
 def mask_and_group(data, grouper, mask):
-    # Relabel grouper so groups have no gaps in Group IDs
-    masked_grouper = revalue_array(grouper[mask])
-
     # Get masked data as array
-    masked_data = data[mask]
+    masked_data = np.asarray(data)[mask]
+
+    if type(grouper) is dict:
+        # Create masked_grouper as numpy array from data, mask, and grouper dict
+        masked_grouper = list()
+        for det_id, use_det_id in zip(data, mask):
+            if use_det_id:
+                masked_grouper.append(int(grouper[det_id]))
+
+        masked_grouper = np.asarray(masked_grouper)
+
+    else:
+        masked_grouper = grouper.copy()
+
+    # Relabel grouper so groups have no gaps in Group IDs
+    masked_grouper = revalue_array(masked_grouper[mask])
 
     # Get Groups
     groups = list()
