@@ -143,7 +143,7 @@ def plot_moderators(x, incident_spectrums, lines=['k-', 'k--', 'k:']):
     for i, key in enumerate(incident_spectrums):
         y = calc_HowellsFunction(x, *incident_spectrums[key])
         plt.plot(x, y, lines[i])
-    plt.legend(incident_spectrums, loc='best')
+    plt.legend(list(incident_spectrums.keys()), loc='best')
     axes = plt.gca()
     axes.set_ylim([0., 35.])
     axes.set_xlim([0., 3.])
@@ -159,7 +159,7 @@ def plot_moderators_ratio_f_prime_over_f(
         f = calc_HowellsFunction(x, *incident_spectrums[key])
         fprime = calc_HowellsFunction1stDer(x, *incident_spectrums[key])
         plt.plot(x, fprime / f, lines[i])
-    plt.legend(incident_spectrums, loc='best')
+    plt.legend(list(incident_spectrums.keys()), loc='best')
     #axes = plt.gca()
     # axes.set_ylim([0.,35.])
     # axes.set_xlim([0.,3.])
@@ -183,7 +183,7 @@ def plot_placzek_wavelength(
         args = incident_spectrums[key] + [angle, M, T, R]
         y = placzek_self(x, *args)
         plt.plot(x, y, lines[i])
-    plt.legend(incident_spectrums, loc='best')
+    plt.legend(list(incident_spectrums.keys()), loc='best')
     axes = plt.gca()
     axes.set_ylim([0.75, 0.88])
     axes.set_xlim([0., 3.])
@@ -266,7 +266,7 @@ if '__main__' == __name__:
     axes.set_ylim([0.75, .88])
     locs, labs = plt.yticks()
     plt.yticks([0.85, 0.80])
-    plt.legend(incident_spectrums)
+    plt.legend(list(incident_spectrums.keys()))
     plt.title('Figure 3\nNOTE: Cannot produce low-Q behavior of cold moderator \n \
                without comprising ambient moderators')
     plt.show()
