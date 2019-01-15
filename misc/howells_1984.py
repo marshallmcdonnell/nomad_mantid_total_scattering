@@ -139,59 +139,42 @@ def placzek_self(
 # Plots of Howells in 1984
 
 
-def plot_moderators(x, incident_spectrums, lines=['k-', 'k--', 'k:']):
+def plot_moderators(x, incident_spectrums, ax, lines=['k-', 'k--', 'k:']):
     for i, key in enumerate(incident_spectrums):
         y = calc_HowellsFunction(x, *incident_spectrums[key])
-        plt.plot(x, y, lines[i])
-    plt.legend(list(incident_spectrums.keys()), loc='best')
-    axes = plt.gca()
-    axes.set_ylim([0., 35.])
-    axes.set_xlim([0., 3.])
-    plt.title('Figure 1: neutron spectrum')
-    plt.show()
+        ax.plot(x, y, lines[i])
+    ax.legend(list(incident_spectrums.keys()), loc='best')
+    ax.set_ylim([0., 35.])
+    ax.set_xlim([0., 3.])
+    ax.set_title("Figure 1: neutron spectrum")
     return
 
 
 def plot_moderators_ratio_f_prime_over_f(
-    x, incident_spectrums, lines=[
+    x, incident_spectrums, ax, lines=[
         'k-', 'k--', 'k:']):
     for i, key in enumerate(incident_spectrums):
         f = calc_HowellsFunction(x, *incident_spectrums[key])
         fprime = calc_HowellsFunction1stDer(x, *incident_spectrums[key])
-        plt.plot(x, fprime / f, lines[i])
-    plt.legend(list(incident_spectrums.keys()), loc='best')
-    #axes = plt.gca()
-    # axes.set_ylim([0.,35.])
-    # axes.set_xlim([0.,3.])
-    plt.title("Figure f'/f")
-    plt.show()
+        ax.plot(x, fprime / f, lines[i])
+    ax.legend(list(incident_spectrums.keys()), loc='best')
+    ax.set_title("Figure f'/f")
     return
 
 
-def plot_placzek_wavelength(
-    x,
-    incident_spectrums,
-    angle=150.,
-    M=14,
-    T=77,
-    R=0.1,
-    lines=[
-        'k-',
-        'k--',
-        'k:']):
+def plot_placzek_wavelength(x, incident_spectrums, ax,
+                            angle=150., M=14, T=77, R=0.1,
+                            lines=['k-', 'k--', 'k:']):
     for i, key in enumerate(incident_spectrums):
         args = incident_spectrums[key] + [angle, M, T, R]
         y = placzek_self(x, *args)
-        plt.plot(x, y, lines[i])
-    plt.legend(list(incident_spectrums.keys()), loc='best')
-    axes = plt.gca()
-    axes.set_ylim([0.75, 0.88])
-    axes.set_xlim([0., 3.])
-    locs, labs = plt.yticks()
-    plt.yticks([0.85, 0.80])
-
-    plt.title('Figure 2: Placzek in wavelength')
-    plt.show()
+        ax.plot(x, y, lines[i])
+    ax.legend(list(incident_spectrums.keys()), loc='best')
+    ax.set_ylim([0.75, 0.88])
+    ax.set_xlim([0., 3.])
+    #locs, labs = plt.yticks()
+    #plt.yticks([0.85, 0.80])
+    ax.set_title('Figure 2: Placzek in wavelength')
     return
 
 
@@ -201,24 +184,14 @@ def ConvertLambdaToQ(lam, angle):
     return q
 
 
-def plot_placzek_momentum_transfer(
-    x,
-    incident_spectrums,
-    angle=150.,
-    M=14,
-    T=77,
-    R=0.1,
-    color='k',
-    plot_type='full',
-    lines=[
-        '-',
-        '--',
-        ':']):
+def plot_placzek_momentum_transfer(x, incident_spectrums, ax, 
+                                   angle=150., M=14, T=77, R=0.1, color='k',
+                                   plot_type='full', lines=['-', '--', ':']):
     for i, moderator in enumerate(incident_spectrums):
         args = incident_spectrums[moderator] + [angle, M, T, R]
         y = placzek_self(x, *args, plot_type=plot_type)
         q = ConvertLambdaToQ(x, angle)
-        plt.plot(q, y, color + lines[i])
+        ax.plot(q, y, color + lines[i])
     return
 
 #-------------------------------------------------------------------------------------#
@@ -252,24 +225,23 @@ if '__main__' == __name__:
     lam_hi = 7.4
     x = np.linspace(lam_lo, lam_hi, 1000)
 
+    fig, ax = plt.subplots(2, 2)
     # Figure 1
-    plot_moderators(x, incident_spectrums)
-    plot_moderators_ratio_f_prime_over_f(x, incident_spectrums)
+    plot_moderators(x, incident_spectrums, ax[0, 0])
+    #plot_moderators_ratio_f_prime_over_f(x, incident_spectrums, ax[0, 1])
 
     # Figure 2
-    plot_placzek_wavelength(x, incident_spectrums)
+    plot_placzek_wavelength(x, incident_spectrums, ax[0, 1])
 
     # Figure 3
-    plot_placzek_momentum_transfer(x, incident_spectrums, angle=150.)
-    axes = plt.gca()
-    axes.set_xlim([0.0, 60.])
-    axes.set_ylim([0.75, .88])
-    locs, labs = plt.yticks()
-    plt.yticks([0.85, 0.80])
-    plt.legend(list(incident_spectrums.keys()))
-    plt.title('Figure 3\nNOTE: Cannot produce low-Q behavior of cold moderator \n \
+    plot_placzek_momentum_transfer(x, incident_spectrums, ax[1, 0], angle=150.)
+    ax[1, 0].set_xlim([0.0, 60.])
+    ax[1, 0].set_ylim([0.75, .88])
+    #locs, labs = plt.yticks()
+    #plt.yticks([0.85, 0.80])
+    ax[1, 0].legend(list(incident_spectrums.keys()))
+    ax[1, 0].set_title('Figure 3\nNOTE: Cannot produce low-Q behavior of cold moderator \n \
                without comprising ambient moderators')
-    plt.show()
 
     # Drop the ambient poisoned moderator not used in Figure 4
     incident_spectrums.pop('ambient_poisoned', None)
@@ -278,26 +250,24 @@ if '__main__' == __name__:
     # for plot_type in ['1-t2', '1-t1*t2', '1+t4', '1+t3*t4', '1-t1*t2+t3*t4']:
     for plot_type in ['1-t1*t2+t3*t4']:
         for i, angle in enumerate([30., 60., 90., 150.]):
-            plot_placzek_momentum_transfer(
-                x,
-                incident_spectrums,
-                plot_type=plot_type,
-                angle=angle,
-                color=colors[i])
+            plot_placzek_momentum_transfer(x, incident_spectrums, ax[1, 1],
+                                           plot_type=plot_type,
+                                           angle=angle, color=colors[i])
 
         labels = list()
         for angle in [30., 60., 90., 150.]:
             labels = labels + [m + ' angle: ' +
                                str(angle) for m in incident_spectrums]
-        plt.legend(labels, loc='best')
+        ax[1, 1].legend(labels, loc='best')
+        ax[1, 1].set_xlim([0.0, 50.])
+        ax[1, 1].set_ylim([0.7, 1.0])
+        ax[1, 1].set_title('Figure 4')
+
+        '''
         plt.figtext(0.65, 0.86, ' 30 deg', size='large')
         plt.figtext(0.70, 0.80, ' 60 deg', size='large')
         plt.figtext(0.75, 0.70, ' 90 deg', size='large')
         plt.figtext(0.80, 0.50, '150 deg', size='large')
-        axes = plt.gca()
-        axes.set_xlim([0.0, 50.])
-        axes.set_ylim([0.7, 1.0])
+        '''
 
-        plt.title('Figure 4')
-
-        plt.show()
+    plt.show()
