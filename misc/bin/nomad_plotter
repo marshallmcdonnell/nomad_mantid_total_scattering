@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+export ETS_TOOLKIT=qt4
+/SNS/users/ntm/projects/mantid/nomad_mantid_total_scattering/pdf_plotter.py

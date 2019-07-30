@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+NXS=$1
+TITLE=$(basename ${NXS%.*})
+EXE="/SNS/users/ntm/projects/mantid/nomad_mantid_total_scattering/pdf_hdf5_extractor.py"
+for i in 0 1 2 3 4 5
+do
+  index=$(python -c "print($i+1)")
+  OUT="${TITLE}_bank${index}"
+  #${EXE}  -i ${NXS} -x /mantid_workspace_${WKSP_ID}/workspace/axis1 -y /mantid_workspace_${WKSP_ID}/workspace/values -o ${OUT}.dat
+  ${EXE}  -i ${NXS} -o ${OUT}.dat --title $2 --yindex ${i}
+done
+
